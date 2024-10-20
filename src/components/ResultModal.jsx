@@ -1,5 +1,5 @@
 /* eslint-disable react/react-in-jsx-scope */
-
+/* eslint-disable react/prop-types */
 import { useRef, forwardRef, useImperativeHandle } from "react";
 
 const ResultModal = forwardRef(function ResultModal(
