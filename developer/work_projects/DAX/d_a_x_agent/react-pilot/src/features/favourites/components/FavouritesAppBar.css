@@ -1,0 +1,50 @@
+.favourites-app-bar {
+  display: flex;
+  align-items: center;
+  /* Material AppBar default kToolbarHeight (PreferredSize uses it directly) */
+  height: 56px;
+  /* AppBar leading slot: 56px wide, 54px FlutterFlowIconButton centered ->
+     1px inset (measured ~28 logical px glyph-center inset in the cart
+     ground-truth screenshot, vs 35 that an 8px padding would give) */
+  padding: 0 1px;
+  background-color: var(--color-secondary-background);
+  box-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.1);
+}
+
+.favourites-app-bar__back {
+  width: 54px;
+  height: 54px;
+  border: none;
+  background: transparent;
+  /* favourites_app_bar.dart back icon: hardcoded Color(0xFFFF6300) — NOT theme.primary. */
+  color: #ff6300;
+  /* Icons.arrow_back_ios_new size: 24.0 */
+  font-size: 24px;
+  cursor: pointer;
+  border-radius: 30px;
+}
+
+.favourites-app-bar__title-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.favourites-app-bar__title {
+  margin: 0;
+  font-family: var(--font-headline-medium);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-primary-text);
+}
+
+.favourites-app-bar__subtitle {
+  font-family: var(--font-body-large);
+  font-size: 14px;
+  color: #a9a9a9;
+}
+
+.favourites-app-bar__spacer {
+  width: 54px;
+}

@@ -1,0 +1,214 @@
+/* Shared field/button/footer styles for the phone/BIN/SMS-code auth-sheet
+   steps (rendered inside shared/AuthSheet.tsx). Ports the look built by
+   AuthUtils.buildInputDecoration / buildPrimaryButton / buildInfoText and the
+   widgets in lib/auth/widgets/*.dart. */
+
+.auth-form__info-text {
+  /* AuthUtils.buildInfoText: GoogleFonts.outfit(), color textGray #606A85, weight 500.
+     phone_input_field.dart / bin_input_field.dart: EdgeInsetsDirectional.fromSTEB(16,8,0,16) */
+  margin: 8px 0 16px 16px;
+  font-family: var(--font-outfit);
+  font-size: 14px;
+  font-weight: 500;
+  color: #606a85;
+  text-align: left;
+}
+
+/* sms_code_input.dart's info text has no top inset: EdgeInsetsDirectional.fromSTEB(16,0,0,16) */
+.auth-form__info-text--sms {
+  margin-top: 0;
+}
+
+.auth-form__input {
+  width: 100%;
+  height: 60px;
+  /* AuthUtils._buildInputBorder: BorderRadius.circular(8.0) */
+  border-radius: 8px;
+  border: 1px solid var(--color-secondary-background);
+  background: var(--color-secondary-background);
+  padding: 0 16px;
+  font-family: var(--font-body-large);
+  font-size: 18px;
+  color: var(--color-primary-text);
+  box-sizing: border-box;
+}
+
+.auth-form__input::placeholder {
+  color: var(--color-secondary-text);
+}
+
+/* AuthUtils.buildInputDecoration: fillColor = isDark ? Color(0xFF262D34)
+   : theme.secondaryBackground — Dart branches on brightness explicitly, so
+   the dark fill is NOT the dark secondaryBackground (#14181B). */
+:root[data-theme='dark'] .auth-form__input {
+  border-color: #262d34;
+  background: #262d34;
+}
+
+.auth-form__input:focus {
+  outline: none;
+  border-color: #ff6300;
+}
+
+.auth-form__input--error {
+  border-color: #ff5963;
+}
+
+.auth-form__error {
+  /* AuthUtils._buildErrorTextStyle: bodyMedium.override(font: GoogleFonts.figtree(), fontSize: 12, weight normal) */
+  color: #ff5963;
+  font-size: 12px;
+  font-family: var(--font-figtree);
+  margin: 8px 0 0 16px;
+  text-align: left;
+}
+
+.auth-form__primary {
+  width: 100%;
+  height: 50px;
+  border: none;
+  border-radius: 12px;
+  /* AuthUtils.buildPrimaryButton always uses primaryOrange (#FF7622), not
+     the theme's --color-primary (#FF6300). */
+  background: #ff7622;
+  color: white;
+  font-family: var(--font-title-small);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-form__primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-form__privacy {
+  /* PrivacyPolicyText: Padding(EdgeInsets.symmetric(vertical: 8.0)), no horizontal inset */
+  margin: 8px 0;
+  padding: 0;
+  font-family: var(--font-body-large);
+  font-size: 12px;
+  color: var(--color-primary-text);
+  text-align: center;
+  /* Flutter Text boxes are tight: Inter's font metrics give ~1.21, not the
+     inflated 1.4 previously used here. */
+  line-height: 1.21;
+}
+
+.auth-form__privacy-link {
+  color: #ff6300;
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font: inherit;
+  padding: 0;
+}
+
+.auth-form__dev-code-banner {
+  background: #fff3e0;
+  border: 1px solid #ffcc80;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-family: var(--font-body-large);
+  font-size: 14px;
+  color: #7a4a00;
+  text-align: center;
+}
+
+.auth-form__dev-code-banner strong {
+  font-size: 20px;
+  letter-spacing: 4px;
+  display: block;
+  margin-top: 4px;
+}
+
+.auth-form__timer {
+  /* SmsTimerWidget._buildTextStyle: bodyMedium.override(font: GoogleFonts.outfit(), color: textGray, weight w500).
+     Rendered as a <p>: kill the browser's default 1em vertical margins — the
+     Dart widget only has its Padding(all: 8). */
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* the flex layout eats the literal spaces around the timer value; this gap
+     stands in for the space characters in 'через ' / ' секунд' */
+  gap: 4px;
+  padding: 8px;
+  font-family: var(--font-outfit);
+  font-size: 14px;
+  font-weight: 500;
+  color: #606a85;
+  text-align: center;
+}
+
+.auth-form__timer span {
+  /* FlutterFlowTimer text: headlineSmall.override(font: GoogleFonts.interTight(),
+     fontSize: 14, fontWeight: normal, color: textGray), wrapped in
+     Padding(horizontal: 5.0). */
+  font-family: var(--font-title-small);
+  font-weight: 400;
+  margin: 0 5px;
+}
+
+.auth-form__resend {
+  /* SmsTimerWidget._buildResendButton: _buildTextStyle(context).copyWith(color: accentOrange, weight w600) —
+     inherits the Outfit font family from the base style. */
+  display: block;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: #ff6300;
+  font-family: var(--font-outfit);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* SMS code entry: 6 boxed pin cells, ports lib/auth/widgets/sms_code_input.dart's
+   PinCodeTextField (44x44 boxes, radius 12, active/cursor color accentOrange). */
+.sms-code-input {
+  display: flex;
+  justify-content: space-evenly;
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+.sms-code-input__cell {
+  /* bodyLarge base (PinCodeTextField textStyle, no fontSize/fontWeight override): 16px / normal */
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--color-secondary-background);
+  background: var(--color-secondary-background);
+  text-align: center;
+  font-family: var(--font-body-large);
+  font-size: 16px;
+  color: var(--color-primary-text);
+  box-sizing: border-box;
+}
+
+/* SmsCodeInput._pinCellColor: isDark ? Color(0xFF262D34) : theme.secondaryBackground */
+:root[data-theme='dark'] .sms-code-input__cell {
+  border-color: #262d34;
+  background: #262d34;
+}
+
+.sms-code-input__cell::placeholder {
+  /* PinCodeTextField(hintCharacter: '*') — hintStyle defaults to the cell's
+     own textStyle (bodyLarge, primaryText), not a dimmed placeholder gray. */
+  color: var(--color-primary-text);
+  opacity: 1;
+}
+
+.sms-code-input__cell:focus {
+  outline: none;
+  border-color: #ff6300;
+}
+
+.sms-code-input__cell--error {
+  border-color: #ff5963;
+}

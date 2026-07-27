@@ -1,0 +1,71 @@
+.main-app-bar {
+  display: flex;
+  align-items: center;
+  /* AppBar.preferredSize uses kToolbarHeight (Flutter Material constant) = 56.0.
+     Flutter AppBar places the leading slot and actions flush against the bar's
+     edges (the 54px FlutterFlowIconButton centers in the 56px leading slot,
+     ~1px inset) — no horizontal padding here; see main_shops.png where the
+     location icon's center sits ~28px from the left edge. */
+  height: 56px;
+  padding: 0;
+  background-color: var(--color-secondary-background);
+  box-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.main-app-bar__location {
+  width: 54px;
+  height: 54px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-app-bar__filter {
+  width: 54px;
+  height: 54px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-app-bar__spacer {
+  width: 54px;
+  flex-shrink: 0;
+}
+
+.main-app-bar__title-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-transform: capitalize;
+}
+
+.main-app-bar__weekday {
+  /* headlineMedium.override(fontSize: 18, fontWeight: headlineMedium.fontWeight = w600) */
+  font-family: var(--font-headline-medium);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-primary-text);
+  /* Dart Column stacks the two Texts with no gap and no height override —
+     keep the font-metric-tight line boxes explicit (Inter/Inter Tight ~1.21)
+     so the pair fits the 56px bar exactly like Flutter. */
+  line-height: 1.21;
+}
+
+.main-app-bar__date {
+  /* labelMedium.override(color: Color(0xFFA9A9A9)) in main_app_bar_title.dart */
+  font-family: var(--font-body-large);
+  font-size: 14px;
+  color: #a9a9a9;
+  line-height: 1.21;
+}

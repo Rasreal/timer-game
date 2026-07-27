@@ -1,0 +1,99 @@
+.ff-alert-backdrop {
+  position: fixed;
+  inset: 0;
+  /* Material modal barrier: Colors.black54 (screenshot-verified) */
+  background: rgba(0, 0, 0, 0.54);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  /* M2 Dialog insetPadding: EdgeInsets.symmetric(horizontal: 40, vertical: 24) */
+  padding: 24px 40px;
+}
+
+.ff-alert {
+  /* Stock M2 AlertDialog sizes intrinsically with minWidth 280 — not
+     stretched full-width. */
+  min-width: 280px;
+  max-width: 340px;
+  background: #ffffff;
+  /* M2 dialog shape: RoundedRectangleBorder(radius 4) + elevation 24 —
+     same calibration as ExitAlertDialog.css / new2/favorites_go_cart.png. */
+  border-radius: 4px;
+  box-shadow:
+    0 11px 15px -7px rgba(0, 0, 0, 0.2),
+    0 24px 38px 3px rgba(0, 0, 0, 0.14),
+    0 9px 46px 8px rgba(0, 0, 0, 0.12);
+}
+
+.ff-alert__title {
+  /* M2 titlePadding: fromLTRB(24,24,24,0) — the 20px title-to-body gap
+     comes from the content's own top padding below. */
+  margin: 0;
+  padding: 24px 24px 0;
+  font-family: var(--font-headline-medium);
+  font-size: 18px;
+  font-weight: 600;
+  /* Stock unthemed AlertDialog (auth_utils.dart) — text color comes from
+     Material defaults, not FlutterFlowTheme, so it stays hardcoded to match
+     the hardcoded white card above (do not switch to var(--color-primary-text)). */
+  color: #000000;
+}
+
+.ff-alert__message {
+  margin: 0;
+  /* M2 contentPadding: fromLTRB(24,20,24,24) — identical with or without a
+     title, so the --no-title variant needs no override. */
+  padding: 20px 24px 24px;
+  font-family: var(--font-body-large);
+  /* M2 contentTextStyle = subtitle1: 16px regular, black87. */
+  font-size: 16px;
+  /* Flutter's text boxes are tight (no explicit height on the M2
+     contentTextStyle) — don't inflate the line-height. */
+  line-height: normal;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.ff-alert__actions {
+  /* M2 actions ButtonBar: 8px padding around right-aligned buttons (matches
+     the calibrated ExitAlertDialog.css). */
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px;
+}
+
+.ff-alert__button {
+  /* Stock M2 TextButton geometry: min width 64, height 36. */
+  min-width: 64px;
+  height: 36px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  /* Stock M2 TextButton label: 14px w500 in the Material default primary
+     blue #2196F3 (screenshot-verified on the exit and go-to-cart dialogs). */
+  color: #2196f3;
+  font-family: var(--font-body-large);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ff-alert__button:hover {
+  background: rgba(33, 150, 243, 0.08);
+}
+
+/* Stock M2 AlertDialog under the app's darkTheme (ThemeData(brightness: dark,
+   useMaterial3: false)): grey[800] surface, white text, ColorScheme.dark()
+   primary #BB86FC buttons. */
+:root[data-theme='dark'] .ff-alert {
+  background: #424242;
+}
+:root[data-theme='dark'] .ff-alert__title,
+:root[data-theme='dark'] .ff-alert__message {
+  color: #ffffff;
+}
+:root[data-theme='dark'] .ff-alert__button {
+  color: #bb86fc;
+}

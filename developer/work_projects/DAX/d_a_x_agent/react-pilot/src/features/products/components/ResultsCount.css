@@ -1,0 +1,11 @@
+.products-results-count {
+  display: flex;
+  justify-content: flex-end;
+  padding: 5px 14px 0 0;
+}
+
+.products-results-count span {
+  font-family: var(--font-body-large);
+  font-size: 13px;
+  color: #a0a0a0;
+}

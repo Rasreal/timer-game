@@ -1,0 +1,56 @@
+/* Original custom icon fonts from assets/fonts (see FFIcon.tsx). */
+@font-face {
+  font-family: 'Google';
+  src: url('/fonts/google.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'Icomoon';
+  src: url('/fonts/icomoon.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'MenuIcons';
+  src: url('/fonts/menuIcons.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'MySet';
+  src: url('/fonts/MySet.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'Mic';
+  src: url('/fonts/Mic.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'Alk';
+  src: url('/fonts/alk.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'Splash';
+  src: url('/fonts/splash.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'SplashIco';
+  src: url('/fonts/splash_ico.ttf') format('truetype');
+  font-display: block;
+}
+
+.ff-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  letter-spacing: 0;
+  width: 1em;
+  height: 1em;
+  overflow: visible;
+  font-style: normal;
+  font-weight: normal;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}

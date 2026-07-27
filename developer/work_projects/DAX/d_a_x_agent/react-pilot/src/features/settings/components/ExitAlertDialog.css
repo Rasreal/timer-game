@@ -1,0 +1,85 @@
+/* Material 2 AlertDialog defaults, as rendered by the Flutter app's stock
+   showDialog + AlertDialog (settings_widget.dart) and confirmed against
+   ground-truth screenshot 20.22.49. */
+
+.exit-alert__barrier {
+  position: fixed;
+  inset: 0;
+  /* Material modal barrier: Colors.black54 — sampled 111/112/114 over the
+     #F1F4F8 page in the screenshot = exactly 54% black. */
+  background: rgba(0, 0, 0, 0.54);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.exit-alert {
+  background: #ffffff;
+  /* M2 dialog shape: RoundedRectangleBorder(radius 4) — the screenshot corner
+     arc is a handful of pixels, nowhere near M3's 28. */
+  border-radius: 4px;
+  min-width: 280px;
+  max-width: calc(100vw - 80px);
+  /* Material elevation 24 */
+  box-shadow:
+    0 11px 15px -7px rgba(0, 0, 0, 0.2),
+    0 24px 38px 3px rgba(0, 0, 0, 0.14),
+    0 9px 46px 8px rgba(0, 0, 0, 0.12);
+}
+
+.exit-alert__content {
+  /* M2 contentPadding fromLTRB(24,20,24,24); contentTextStyle = subtitle1:
+     16px regular, black87. */
+  margin: 0;
+  padding: 20px 24px 24px;
+  font-family: var(--font-body-large);
+  font-size: 16px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.exit-alert__actions {
+  /* M2 actions ButtonBar: 8px padding, buttons right-aligned. */
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px;
+}
+
+.exit-alert__button {
+  /* Stock M2 TextButton: min width 64, height 36, radius 4, 14px w500 label
+     in the Material default primary blue (#2196F3) — deliberately NOT the
+     app's orange; the Dart dialog is unthemed and the screenshot shows blue. */
+  min-width: 64px;
+  height: 36px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-family: var(--font-body-large);
+  font-size: 14px;
+  font-weight: 500;
+  color: #2196f3;
+  cursor: pointer;
+}
+
+.exit-alert__button:hover {
+  background: rgba(33, 150, 243, 0.08);
+}
+
+/* Flutter main.dart defines darkTheme: ThemeData(brightness: dark, useMaterial3:
+   false), so the stock AlertDialog re-themes in dark mode: grey[800] surface,
+   white subtitle1 content, TextButtons in ColorScheme.dark().primary #BB86FC. */
+:root[data-theme='dark'] .exit-alert {
+  background: #424242;
+}
+:root[data-theme='dark'] .exit-alert__content {
+  color: #ffffff;
+}
+:root[data-theme='dark'] .exit-alert__button {
+  color: #bb86fc;
+}
+:root[data-theme='dark'] .exit-alert__button:hover {
+  background: rgba(187, 134, 252, 0.08);
+}

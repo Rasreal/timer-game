@@ -1,0 +1,108 @@
+.orders-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--color-primary-background);
+}
+
+.orders-page__app-bar {
+  display: flex;
+  align-items: center;
+  /* AppBar has no explicit toolbarHeight -> Material default kToolbarHeight */
+  height: 56px;
+  padding: 0 8px;
+  background-color: var(--color-secondary-background);
+  box-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.1);
+}
+
+.orders-page__back {
+  width: 54px;
+  height: 54px;
+  border: none;
+  background: transparent;
+  /* Icons.arrow_back_ios_new: Color(0xFFFF6300) — hardcoded in
+     orders_widget.dart, not theme.primary */
+  color: #ff6300;
+  font-size: 24px;
+  cursor: pointer;
+  border-radius: 30px;
+}
+
+.orders-page__title-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.orders-page__title {
+  margin: 0;
+  font-family: var(--font-headline-medium);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-primary-text);
+}
+
+.orders-page__subtitle {
+  font-family: var(--font-body-large);
+  font-size: 14px;
+  color: #a9a9a9;
+}
+
+.orders-page__search-row {
+  padding: 8px 8px 0;
+}
+
+.orders-page__body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 8px;
+}
+
+.orders-page__center {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* SpinKitPulse(color: #FF6300, size: 30): a filled circle that scales from
+   0 to full size while fading out, on a 1s loop — not a rotating ring. */
+.orders-page__spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  /* SpinKitPulse color is hardcoded Color(0xFFFF6300) in orders_widget.dart,
+     not theme.primary. */
+  background-color: #ff6300;
+  animation: orders-pulse 1s ease-in-out infinite;
+}
+
+@keyframes orders-pulse {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.orders-page__empty-text,
+.orders-page__error-text {
+  /* rendered as <p> — kill the browser's default 1em block margins,
+     Flutter Text has none */
+  margin: 0;
+  font-family: var(--font-body-large);
+  color: var(--color-empty-text);
+  text-align: center;
+}
+
+.orders-page__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}

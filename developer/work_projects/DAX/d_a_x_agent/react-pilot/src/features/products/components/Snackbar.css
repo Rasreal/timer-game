@@ -1,0 +1,34 @@
+.ff-snackbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  padding: 15px 20px 20px;
+  text-align: center;
+  font-family: var(--font-body-large);
+  /* labelMedium: Inter 14 at its default (normal) weight — the Dart override
+     keeps labelMedium.fontWeight, which is FontWeight.normal */
+  font-size: 14px;
+  font-weight: 400;
+  animation: ff-snackbar-in 0.2s ease-out;
+}
+
+@keyframes ff-snackbar-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.ff-snackbar--success {
+  background-color: #e8f5e9;
+  color: #1b5e20;
+}
+
+.ff-snackbar--error {
+  background-color: #ffccbc;
+  color: #bf360c;
+}

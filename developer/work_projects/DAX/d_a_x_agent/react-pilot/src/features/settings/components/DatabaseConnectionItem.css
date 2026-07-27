@@ -1,0 +1,192 @@
+.database-connection-card {
+  background-color: var(--color-secondary-background);
+  border-radius: 24px;
+  overflow: hidden;
+  /* DatabaseConnectionItem wrapper: EdgeInsetsDirectional.fromSTEB(0,20,0,1) */
+  margin: 20px 0 1px;
+}
+
+.database-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  z-index: 100;
+}
+
+.database-sheet {
+  width: 100%;
+  /* database_connection_item.dart: Container(height: screenHeight * 0.75) —
+     a FIXED 75% sheet (Column spaceBetween pins the button to the bottom
+     even when the form is short), not a shrink-to-content one. */
+  height: 75vh;
+  height: 75dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-primary-background);
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  /* EdgeInsetsDirectional.fromSTEB(8,0,8,8) */
+  padding: 0 8px max(8px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.database-sheet__handle {
+  width: 35px;
+  height: 5px;
+  border-radius: 8px;
+  background: rgba(87, 99, 108, 0.3);
+  margin: 8px auto;
+}
+
+.database-sheet__header {
+  display: flex;
+  /* change_database_bottom_sheet.dart's title Row keeps the DEFAULT
+     crossAxisAlignment (center) — title block centers on the close button. */
+  align-items: center;
+  justify-content: space-between;
+  /* Title row fromSTEB(24,8,8,0); the whole header Column is additionally
+     wrapped in Padding(fromSTEB(0,0,0,8)). */
+  padding: 8px 8px 8px 24px;
+}
+
+.database-sheet__header h2 {
+  margin: 0;
+  font-family: var(--font-headline-medium);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-primary-text);
+}
+
+.database-sheet__header p {
+  /* labelMedium.override(fontSize: 12, fontWeight: w500) via GoogleFonts.outfit;
+     the Dart Column stacks title and subtitle with NO gap. */
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #a9a9a9;
+}
+
+.database-sheet__asterisk {
+  color: var(--color-error);
+}
+
+.database-sheet__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-secondary-background);
+  color: #cecece;
+  /* Icons.close_rounded size: 24.0 */
+  font-size: 24px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.database-sheet__form {
+  /* Dart: Expanded(Form(...)) — the form area fills the fixed-height sheet so
+     the connect button stays pinned to the bottom. */
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Form's own EdgeInsetsDirectional.fromSTEB(8,16,8,0), nested inside the sheet's outer 8px */
+  margin-top: 16px;
+  padding: 0 8px;
+  overflow-y: auto;
+}
+
+.database-sheet__field {
+  background-color: var(--color-secondary-background);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 8px 16px;
+}
+
+.database-sheet__field--focused {
+  border-color: #ffb97a;
+  background-color: #fffdf7;
+}
+
+.database-sheet__label {
+  /* labelStyle: GoogleFonts.outfit(fontWeight: 500). */
+  display: block;
+  font-family: var(--font-outfit);
+  font-size: 12px;
+  color: #606a85;
+  font-weight: 500;
+}
+
+.database-sheet__field--focused .database-sheet__label {
+  font-size: 12px;
+}
+
+.database-sheet__input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-figtree);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--color-primary-text);
+  padding: 4px 0 0;
+}
+
+.database-sheet__error {
+  /* errorStyle: GoogleFonts.figtree(fontWeight: 600), color hardcoded
+     Color(0xFFFF5963) in database_connection_form.dart — NOT theme.error. */
+  margin: 0;
+  font-family: var(--font-figtree);
+  font-size: 12px;
+  font-weight: 600;
+  color: #ff5963;
+}
+
+.database-sheet__status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* status wrapper's own EdgeInsetsDirectional.fromSTEB(0,8,0,0), stacked on top of the form's 12px gap */
+  margin-top: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  /* Color(0xFF4CAF50) at alpha 0.1 (bg) / 0.3 (border) / solid (icon+text) */
+  background-color: rgba(76, 175, 80, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  color: #4caf50;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.database-sheet__connect {
+  /* width 100% + 8px side margins would overflow the sheet by 16px */
+  width: calc(100% - 16px);
+  height: 50px;
+  /* wrapper's EdgeInsetsDirectional.fromSTEB(8,8,8,24): 8px above, 24px below, 8px sides (nested inside outer 8px) */
+  margin: 8px 8px 24px;
+  border: none;
+  border-radius: 12px;
+  /* database_connection_form.dart FFButton: color const Color(0xFFFF6300) —
+     hardcoded, NOT theme.primary. */
+  background-color: #ff6300;
+  color: #fff;
+  font-family: var(--font-title-small);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.database-sheet__connect:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

@@ -1,0 +1,46 @@
+.navbar {
+  display: flex;
+  /* inner Container height:70.0 + its own EdgeInsets.only(bottom:12.0) margin,
+     inside a SafeArea(bottom:true): 70 + 12 + safe-area-bottom total */
+  height: calc(82px + env(safe-area-inset-bottom));
+  padding: 0 10px calc(12px + env(safe-area-inset-bottom));
+  background-color: var(--color-secondary-background);
+  /* outer Container: BoxShadow(blurRadius: 4.0, color: Color(0x33000000),
+     offset: (0,2)). Flutter maps blurRadius 4 to sigma ≈2.8 (r×0.57735+0.5),
+     i.e. a ~5.6px CSS blur — a literal 4px renders the above-bar haze at
+     half of Flutter's strength. */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  /* Paint above the scroll body so the upward part of the shadow is never
+     covered by page content. */
+  position: relative;
+  z-index: 5;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.navbar__tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #999999;
+}
+
+.navbar__tab--active {
+  color: var(--color-primary);
+}
+
+.navbar__icon {
+  font-size: 24px;
+}
+
+.navbar__label {
+  /* bodyMedium base (no fontSize/fontWeight override): 14px / normal */
+  font-family: var(--font-body-large);
+  font-size: 14px;
+}

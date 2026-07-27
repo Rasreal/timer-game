@@ -1,0 +1,40 @@
+.orders-search-field {
+  width: 100%;
+  height: 44px;
+  background-color: var(--color-secondary-background);
+  border-radius: 12px;
+  border: 2px solid var(--color-primary-background);
+  display: flex;
+  align-items: center;
+  padding: 0 6px 0 16px;
+  box-sizing: border-box;
+}
+
+.orders-search-field__input {
+  flex: 1;
+  border: none;
+  outline: none;
+  margin-left: 8px;
+  font-family: var(--font-body-large);
+  font-size: 15px;
+  color: var(--color-primary-text);
+  background: transparent;
+}
+
+.orders-search-field__input::placeholder {
+  color: #c9c9c9;
+}
+
+.orders-search-field__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  /* orders_search_field.dart: Icons.clear is hardcoded Color(0xFFFF6633)
+     (the Icon element also passes this explicitly) — NOT theme.primary. */
+  color: #ff6633;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+}

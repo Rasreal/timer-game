@@ -1,0 +1,35 @@
+.products-cart-fab {
+  position: fixed;
+  /* cart_floating_action_button.dart: default Scaffold FAB position (~16pt
+     right/bottom margin) plus its own Padding(bottom: MediaQuery.height * 0.1)
+     lifting it further up off the bottom edge -> 10% of viewport height,
+     not a fixed constant (a nearby ground-truth screenshot has a transient
+     snackbar overlapping the FAB's resting position, so it can't be used to
+     measure a fixed px value here). */
+  right: 16px;
+  /* Scaffold's default endFloat FAB offset (16) + the widget's own
+     Padding(bottom: MediaQuery.height * 0.1) — the favourites ground-truth
+     screenshot measures the FAB bottom edge ~105 logical px up on an 874px
+     viewport, i.e. 16px + 10vh */
+  bottom: calc(10vh + 16px);
+  /* FloatingActionButton.extended default height 48 (measures 47-48 logical
+     px in the ground-truth screenshots) */
+  height: 48px;
+  min-width: 48px;
+  padding: 0 20px;
+  border-radius: 24px;
+  border: none;
+  background-color: var(--color-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  /* SizedBox(width: 6.0) between the icon and count text */
+  gap: 6px;
+  font-family: var(--font-body-large);
+  font-size: 16px;
+  /* bodyMedium.override(fontWeight: FontWeight.normal) — not 500 */
+  font-weight: 400;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  z-index: 20;
+}

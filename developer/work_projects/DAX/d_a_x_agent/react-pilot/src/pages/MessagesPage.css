@@ -1,0 +1,59 @@
+.messages-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--color-secondary-background);
+}
+
+.messages-page__app-bar {
+  display: flex;
+  align-items: center;
+  /* Material AppBar default kToolbarHeight = 56 (no toolbarHeight override
+     in messages_widget.dart); the 60x60 FlutterFlowIconButton in `leading`
+     is constrained to the 56px leading slot. */
+  height: 56px;
+  padding: 0;
+  background-color: var(--color-secondary-background);
+  /* AppBar elevation: 0.5 */
+  box-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.messages-page__back {
+  width: 56px;
+  height: 56px;
+  border: none;
+  background: transparent;
+  /* Icons.arrow_back_ios_new: Color(0xFFFF6300) — hardcoded in
+     messages_widget.dart, not theme.primary */
+  color: #ff6300;
+  /* Icons.arrow_back_ios_new size: 24.0 */
+  font-size: 24px;
+  cursor: pointer;
+  /* FlutterFlowIconButton borderRadius: 60.0 = full circle */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.messages-page__title {
+  flex: 1;
+  margin: 0;
+  text-align: center;
+  color: var(--color-primary-text);
+  font-family: var(--font-headline-medium);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.messages-page__spacer {
+  width: 56px;
+}
+
+.messages-page__body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}

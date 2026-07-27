@@ -1,0 +1,54 @@
+.favourites-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background-color: var(--color-primary-background);
+}
+
+.favourites-page__body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+}
+
+.favourites-page__center {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.favourites-page__spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  /* SpinKitPulse color is hardcoded Color(0xFFFF6300) in
+     favourites_product_list.dart, not theme.primary. */
+  border: 3px solid rgba(255, 99, 0, 0.25);
+  border-top-color: #ff6300;
+  animation: favourites-spin 0.8s linear infinite;
+}
+
+@keyframes favourites-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.favourites-page__empty-text,
+.favourites-page__error-text {
+  /* rendered as a <p>: strip the browser default 1em margins (Flutter's bare
+     Text has none) */
+  margin: 0;
+  font-family: var(--font-body-large);
+  color: var(--color-empty-text);
+  text-align: center;
+}
+
+.favourites-page__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

@@ -1,0 +1,27 @@
+.products-filter-chip {
+  /* labelLarge.override(fontSize: 14, fontWeight: labelLarge.fontWeight = 400) */
+  flex: 0 0 auto;
+  /* Padding.fromSTEB(12,6,12,6) */
+  padding: 6px 12px;
+  /* BorderRadius.circular(8.0) */
+  border-radius: 8px;
+  /* Dart draws a 1px border in the same color as the fill (secondaryBackground
+     unselected / #FF6300 selected) — invisible, but it adds 1px to each side
+     of the chip's box, so keep a transparent border for size parity */
+  border: 1px solid transparent;
+  background-color: var(--color-secondary-background);
+  color: var(--color-primary-text);
+  font-family: var(--font-body-large);
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.products-filter-chip--selected {
+  /* filter_chip_widget.dart: selected fill/border are hardcoded
+     const Color(0xFFFF6300) — NOT theme.primary. The selected label IS
+     theme.secondaryBackground, so that one stays a var. */
+  background-color: #ff6300;
+  color: var(--color-secondary-background);
+}
