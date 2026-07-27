@@ -1,0 +1,5 @@
+
+# FVM Version Cache
+.fvm/
+# React port now lives in its own repo: github.com/Rasreal/dax-agent-react
+react-pilot/
