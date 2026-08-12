@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "TEI",
+    "slug": "tei-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "tei",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#000000",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rhinoathletics.tei"
+    },
+    "android": {
+      "package": "com.rhinoathletics.tei",
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
