@@ -43,6 +43,26 @@ interface Store {
 }
 
 /**
+ * Hardcoded demo account for the prototype.
+ *
+ * The store is seeded with this user so /home, /calculator and /profile can be
+ * opened directly — useful when demoing a single screen without walking the
+ * whole onboarding flow first. Signing up or logging in overwrites it.
+ */
+export const DEMO_USER: User = {
+  firstName: 'Alex',
+  lastName: 'Carter',
+  email: 'alex.carter@rhinoathletics.com',
+  tier: 'elemental',
+};
+
+/** Credentials the Log In screen accepts as the demo account. */
+export const DEMO_CREDENTIALS = {
+  email: 'alex.carter@rhinoathletics.com',
+  password: 'Rhino123',
+};
+
+/**
  * The mock-ups show April 27, 2026 - 2:33pm on every session screen, so the
  * prototype opens on that date to match the designs exactly.
  */
@@ -61,7 +81,7 @@ function emptySession(): SessionDraft {
 const StoreContext = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(DEMO_USER);
   const [pendingTier, setPendingTier] = useState<Tier>('elemental');
   const [session, setSession] = useState<SessionDraft>(emptySession);
   const [toast, setToast] = useState<string | null>(null);

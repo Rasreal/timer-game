@@ -32,6 +32,23 @@ npm run build:web  # static export to dist/ for sharing a link
 The fastest way for a stakeholder to review this is `npm start` and scanning
 the QR code with the **Expo Go** app.
 
+## Demo account
+
+The app is seeded with a hardcoded demo user (`DEMO_USER` in `src/store.tsx`),
+so it opens already signed in — you can jump straight to `/home`,
+`/calculator` or `/profile` without walking the onboarding flow.
+
+| Field | Value |
+| ----- | ----- |
+| Name | Alex Carter |
+| Email | `alex.carter@rhinoathletics.com` |
+| Password | `Rhino123` |
+| Tier | TEI Elemental (free) |
+
+The Log In and Create Account forms come prefilled with these details, so both
+are one tap from completing. Every field stays editable, and any other
+well-formed credentials are accepted too — there is no real authentication.
+
 ## The TEI formula
 
 Implemented in `src/lib/tei.ts`, taken from the client's two source documents:
@@ -99,9 +116,10 @@ From the deck's "Suggested Tokens" and colour-palette slides, in
 Deliberate, and matching the agreed scope:
 
 - **No persistence.** State lives in React context (`src/store.tsx`) and resets
-  on reload — the Elemental tier saves no data by design.
+  on reload — the Elemental tier saves no data by design. On reload the store
+  reverts to the seeded demo user.
 - **No backend.** Log in accepts any email plus an 8+ character password;
-  account creation validates format only.
+  account creation validates format only. The signed-in user is hardcoded.
 - **No payments.** The Basic/Premium payment pop-ups (Screens 9 and 11) are
   out of scope since only the free tier is built.
 - **Session date is fixed** to April 27, 2026 – 2:33pm to match the mock-ups.

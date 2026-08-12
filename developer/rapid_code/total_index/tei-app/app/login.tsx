@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandLockup, Divider, OutlineButton } from '../src/components/Chrome';
-import { useStore } from '../src/store';
+import { DEMO_CREDENTIALS, DEMO_USER, useStore } from '../src/store';
 import { colors } from '../src/theme';
 
 /** Screen 4 — Onboarding / Log In. */
@@ -20,20 +20,17 @@ export default function Login() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { setUser, showToast } = useStore();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // Prefilled with the demo account so the prototype is one tap from signed in.
+  const [email, setEmail] = useState(DEMO_CREDENTIALS.email);
+  const [password, setPassword] = useState(DEMO_CREDENTIALS.password);
 
   const canLogIn = email.trim().length > 3 && password.length >= 8;
 
   function logIn() {
     if (!canLogIn) return;
-    // Prototype: any well-formed credentials sign you in as an Elemental user.
-    setUser({
-      firstName: 'Alex',
-      lastName: 'Carter',
-      email: email.trim(),
-      tier: 'elemental',
-    });
+    // Prototype: any well-formed credentials sign you in as the demo user,
+    // keeping whatever email was typed so the Profile screen reflects it.
+    setUser({ ...DEMO_USER, email: email.trim() });
     router.replace('/loading');
   }
 

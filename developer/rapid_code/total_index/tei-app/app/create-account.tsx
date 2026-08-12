@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, Ellipsis } from '../src/components/Chrome';
-import { useStore } from '../src/store';
+import { DEMO_CREDENTIALS, DEMO_USER, useStore } from '../src/store';
 import { colors } from '../src/theme';
 
 /** Screen 7 — Create TEI Elemental Account (white background per spec). */
@@ -21,10 +21,12 @@ export default function CreateAccount() {
   const insets = useSafeAreaInsets();
   const { setUser, pendingTier, showToast } = useStore();
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // Prefilled with the demo account so the form can be submitted immediately;
+  // every field is still editable.
+  const [firstName, setFirstName] = useState(DEMO_USER.firstName);
+  const [lastName, setLastName] = useState(DEMO_USER.lastName);
+  const [email, setEmail] = useState(DEMO_USER.email);
+  const [password, setPassword] = useState(DEMO_CREDENTIALS.password);
   const [showPassword, setShowPassword] = useState(false);
   const [accepted, setAccepted] = useState(false);
 
