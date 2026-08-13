@@ -10,7 +10,9 @@ import {
   TeiLockup,
 } from '../src/components/Chrome';
 import { Ring } from '../src/components/Ring';
+import { useAuth } from '../src/auth';
 import { formatSessionDate, useStore } from '../src/store';
+import { saveSession } from '../src/lib/sessions';
 import { LIMITS, calculateTei, displayTei } from '../src/lib/tei';
 import { colors } from '../src/theme';
 
@@ -19,7 +21,12 @@ export default function Calculator() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session, showToast } = useStore();
+  const { profile } = useAuth();
   const [calculated, setCalculated] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Elemental is calculate-only by design; paid tiers persist history.
+  const canSaveHistory = profile != null && profile.tier !== 'elemental';
 
   const complete =
     session.sets !== null &&
@@ -39,6 +46,34 @@ export default function Calculator() {
   );
 
   const showResult = calculated && complete;
+
+  async function calculate() {
+    if (!complete) return;
+    setCalculated(true);
+
+    if (!canSaveHistory || !profile) {
+      showToast(`TEI ${result.tei.toFixed(2)} for this session`);
+      return;
+    }
+
+    setSaving(true);
+    const { error } = await saveSession({
+      userId: profile.id,
+      performedAt: session.date,
+      sets: session.sets ?? 0,
+      restSeconds: session.restSeconds ?? 0,
+      exertionPercent: session.exertionPercent ?? 0,
+      cardioMinutes: session.cardioMinutes ?? 0,
+      tei: Number(result.tei.toFixed(2)),
+    });
+    setSaving(false);
+
+    showToast(
+      error
+        ? `Could not save session: ${error}`
+        : `Saved — TEI ${result.tei.toFixed(2)}`,
+    );
+  }
 
   return (
     <ScrollView
@@ -112,12 +147,9 @@ export default function Calculator() {
 
       <View style={{ flexDirection: 'row', gap: 12 }}>
         <OutlineButton
-          title="Calculate TEI"
-          disabled={!complete}
-          onPress={() => {
-            setCalculated(true);
-            showToast(`TEI ${result.tei.toFixed(2)} for this session`);
-          }}
+          title={saving ? 'Saving…' : 'Calculate TEI'}
+          disabled={!complete || saving}
+          onPress={calculate}
           style={{ flex: 1 }}
         />
         <OutlineButton title="Ranges" onPress={() => router.push('/ranges')} />

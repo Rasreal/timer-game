@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, Ellipsis } from '../src/components/Chrome';
+import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
 import { colors } from '../src/theme';
 
@@ -19,13 +20,18 @@ import { colors } from '../src/theme';
 export default function Profile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, setUser, showToast } = useStore();
+  const { showToast } = useStore();
+  const { profile, updateProfile, signOut } = useAuth();
 
-  const [firstName, setFirstName] = useState(user?.firstName ?? '');
-  const [lastName, setLastName] = useState(user?.lastName ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
+  const [firstName, setFirstName] = useState(profile?.first_name ?? '');
+  const [lastName, setLastName] = useState(profile?.last_name ?? '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Email changes require a confirmation round-trip, so it is read-only here.
+  const email = profile?.email ?? '';
 
   const rules = {
     length: password.length >= 8,
@@ -39,18 +45,39 @@ export default function Profile() {
     passwordOk &&
     firstName.trim() !== '' &&
     lastName.trim() !== '' &&
-    email.includes('@');
+    !busy;
 
-  function save() {
+  async function save() {
     if (!canSave) return;
-    setUser({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email.trim(),
-      tier: user?.tier ?? 'elemental',
+    setBusy(true);
+    setError(null);
+
+    const message = await updateProfile({
+      firstName,
+      lastName,
+      password: password === '' ? undefined : password,
     });
+
+    setBusy(false);
+    if (message) {
+      setError(message);
+      return;
+    }
+
     showToast('Profile saved');
     router.replace('/home');
+  }
+
+  const tierLabel =
+    profile?.tier === 'premium'
+      ? 'Premium'
+      : profile?.tier === 'basic'
+        ? 'Basic'
+        : 'Elemental';
+
+  async function handleSignOut() {
+    await signOut();
+    // AuthGate sends us back to the launch screen once the session clears.
   }
 
   return (
@@ -89,13 +116,13 @@ export default function Profile() {
           onChange={setLastName}
           placeholder="User Current Last Name"
         />
-        <Field
-          label="Change Email"
-          value={email}
-          onChange={setEmail}
-          placeholder="User Current Email"
-          keyboardType="email-address"
-        />
+        <Text style={styles.label}>Email</Text>
+        <View style={[styles.input, styles.inputReadonly]}>
+          <Text style={{ fontSize: 17, color: '#555' }}>{email}</Text>
+        </View>
+        <Text style={styles.fieldNote}>
+          Changing your email needs a confirmation link — not wired up yet.
+        </Text>
 
         <Text style={styles.label}>Change Password</Text>
         <View>
@@ -143,9 +170,11 @@ export default function Profile() {
             </Text>
           </View>
           <Text style={styles.subValue}>
-            TEI <Text style={{ color: colors.orange }}>Elemental</Text>
+            TEI <Text style={{ color: colors.orange }}>{tierLabel}</Text>
           </Text>
         </View>
+
+        {error && <Text style={styles.error}>{error}</Text>}
 
         <Pressable
           onPress={save}
@@ -154,8 +183,10 @@ export default function Profile() {
           style={[styles.cta, { backgroundColor: canSave ? '#262626' : '#C8C8C8' }]}
         >
           <Text style={styles.ctaText}>
-            Save Changes{' '}
-            <Text style={{ color: canSave ? colors.orange : '#EEE' }}>→</Text>
+            {busy ? 'Saving…' : 'Save Changes'}{' '}
+            {!busy && (
+              <Text style={{ color: canSave ? colors.orange : '#EEE' }}>→</Text>
+            )}
           </Text>
         </Pressable>
 
@@ -165,6 +196,14 @@ export default function Profile() {
           style={styles.upgradeBtn}
         >
           <Text style={{ color: colors.orange, fontSize: 23 }}>Upgrade</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={handleSignOut}
+          accessibilityRole="button"
+          style={styles.signOutBtn}
+        >
+          <Text style={styles.signOutText}>Sign Out</Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -263,4 +302,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     alignSelf: 'flex-start',
   },
+  signOutBtn: { marginTop: 24, alignSelf: 'flex-start' },
+  signOutText: {
+    color: '#8A0000',
+    fontSize: 17,
+    textDecorationLine: 'underline',
+  },
+  inputReadonly: { backgroundColor: '#EFEFEF', justifyContent: 'center' },
+  fieldNote: { color: '#777', fontSize: 12.5, marginTop: 6 },
+  error: { color: '#B00020', fontSize: 14, lineHeight: 19, marginTop: 14 },
 });

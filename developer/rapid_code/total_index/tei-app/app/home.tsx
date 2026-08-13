@@ -11,6 +11,7 @@ import {
   PersonIcon,
   fillParent,
 } from '../src/components/Icons';
+import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
 import { colors } from '../src/theme';
 
@@ -23,9 +24,15 @@ import { colors } from '../src/theme';
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, showToast } = useStore();
+  const { showToast } = useStore();
+  const { profile } = useAuth();
 
-  const fullName = user ? `${user.firstName} ${user.lastName}` : 'User FULL NAME';
+  const fullName = profile
+    ? `${profile.first_name} ${profile.last_name}`.trim() || profile.email
+    : '';
+
+  // Saving and reviewing history is a paid-tier feature.
+  const reviewLocked = profile?.tier === 'elemental' || !profile;
 
   return (
     <View
@@ -56,9 +63,13 @@ export default function Home() {
         />
         <Tile
           title="Review"
-          icon={<ListIcon color="#4E4E4E" />}
-          locked
-          onPress={() => showToast('Review is available on TEI Basic and Premium.')}
+          icon={<ListIcon color={reviewLocked ? '#4E4E4E' : '#000'} />}
+          locked={reviewLocked}
+          onPress={() =>
+            reviewLocked
+              ? showToast('Review is available on TEI Basic and Premium.')
+              : router.push('/review')
+          }
         />
         <Tile
           title={'Plan\nTEI'}

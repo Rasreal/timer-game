@@ -12,25 +12,42 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandLockup, Divider, OutlineButton } from '../src/components/Chrome';
-import { DEMO_CREDENTIALS, DEMO_USER, useStore } from '../src/store';
+import { useAuth } from '../src/auth';
+import { useStore } from '../src/store';
 import { colors } from '../src/theme';
 
 /** Screen 4 — Onboarding / Log In. */
 export default function Login() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { setUser, showToast } = useStore();
-  // Prefilled with the demo account so the prototype is one tap from signed in.
-  const [email, setEmail] = useState(DEMO_CREDENTIALS.email);
-  const [password, setPassword] = useState(DEMO_CREDENTIALS.password);
+  const { showToast } = useStore();
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const canLogIn = email.trim().length > 3 && password.length >= 8;
+  const canLogIn = email.trim().length > 3 && password.length >= 8 && !busy;
 
-  function logIn() {
+  async function logIn() {
     if (!canLogIn) return;
-    // Prototype: any well-formed credentials sign you in as the demo user,
-    // keeping whatever email was typed so the Profile screen reflects it.
-    setUser({ ...DEMO_USER, email: email.trim() });
+    setBusy(true);
+    setError(null);
+
+    const message = await signIn(email, password);
+
+    if (message) {
+      setBusy(false);
+      setError(
+        message.toLowerCase().includes('invalid login')
+          ? 'That email and password combination is not recognised.'
+          : message,
+      );
+      return;
+    }
+
+    // AuthGate redirects to /home once the session lands; show the branded
+    // loading screen while that happens.
     router.replace('/loading');
   }
 
@@ -89,13 +106,15 @@ export default function Login() {
             style={[styles.field, { flex: 1 }]}
           />
           <OutlineButton
-            title="LOG IN"
+            title={busy ? '…' : 'LOG IN'}
             onPress={logIn}
             disabled={!canLogIn}
             fontSize={17}
             style={{ borderRadius: 0, justifyContent: 'center', paddingHorizontal: 20 }}
           />
         </View>
+
+        {error && <Text style={styles.error}>{error}</Text>}
 
         <Divider style={{ marginTop: 22, marginBottom: 16 }} />
 
@@ -108,7 +127,7 @@ export default function Login() {
           </Text>
         </Pressable>
 
-        {!canLogIn && (email.length > 0 || password.length > 0) && (
+        {!error && !canLogIn && (email.length > 0 || password.length > 0) && (
           <Text style={styles.hint}>
             Enter an email and a password of at least 8 characters.
           </Text>
@@ -158,4 +177,10 @@ const styles = StyleSheet.create({
   },
   createAccount: { color: colors.text, fontSize: 25, fontWeight: '500' },
   hint: { color: '#777', fontSize: 12, marginTop: 10 },
+  error: {
+    color: colors.red,
+    fontSize: 13.5,
+    marginTop: 10,
+    lineHeight: 18,
+  },
 });

@@ -12,23 +12,25 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, Ellipsis } from '../src/components/Chrome';
-import { DEMO_CREDENTIALS, DEMO_USER, useStore } from '../src/store';
+import { useAuth } from '../src/auth';
+import { useStore } from '../src/store';
 import { colors } from '../src/theme';
 
 /** Screen 7 — Create TEI Elemental Account (white background per spec). */
 export default function CreateAccount() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { setUser, pendingTier, showToast } = useStore();
+  const { pendingTier, showToast } = useStore();
+  const { signUp } = useAuth();
 
-  // Prefilled with the demo account so the form can be submitted immediately;
-  // every field is still editable.
-  const [firstName, setFirstName] = useState(DEMO_USER.firstName);
-  const [lastName, setLastName] = useState(DEMO_USER.lastName);
-  const [email, setEmail] = useState(DEMO_USER.email);
-  const [password, setPassword] = useState(DEMO_CREDENTIALS.password);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const rules = {
     length: password.length >= 8,
@@ -38,7 +40,7 @@ export default function CreateAccount() {
   const passwordOk = rules.length && rules.number && rules.upper;
   const fieldsOk =
     firstName.trim() !== '' && lastName.trim() !== '' && email.includes('@');
-  const canSubmit = fieldsOk && passwordOk && accepted;
+  const canSubmit = fieldsOk && passwordOk && accepted && !busy;
 
   const tierLabel =
     pendingTier === 'elemental'
@@ -47,14 +49,37 @@ export default function CreateAccount() {
         ? 'Basic'
         : 'Premium';
 
-  function submit() {
+  async function submit() {
     if (!canSubmit) return;
-    setUser({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email.trim(),
+    setBusy(true);
+    setError(null);
+
+    const { error: message, needsEmailConfirmation } = await signUp({
+      firstName,
+      lastName,
+      email,
+      password,
       tier: pendingTier,
     });
+
+    if (message) {
+      setBusy(false);
+      setError(
+        message.toLowerCase().includes('already registered')
+          ? 'An account with that email already exists. Try logging in.'
+          : message,
+      );
+      return;
+    }
+
+    if (needsEmailConfirmation) {
+      // The project requires email confirmation, so there is no session yet.
+      setBusy(false);
+      showToast('Check your email to confirm your account, then log in.');
+      router.replace('/login');
+      return;
+    }
+
     router.replace('/loading');
   }
 
@@ -173,6 +198,8 @@ export default function CreateAccount() {
           </Text>
         </View>
 
+        {error && <Text style={styles.error}>{error}</Text>}
+
         <Pressable
           onPress={submit}
           disabled={!canSubmit}
@@ -183,8 +210,10 @@ export default function CreateAccount() {
           ]}
         >
           <Text style={styles.ctaText}>
-            Create Account{' '}
-            <Text style={{ color: canSubmit ? colors.orange : '#EEE' }}>→</Text>
+            {busy ? 'Creating…' : 'Create Account'}{' '}
+            {!busy && (
+              <Text style={{ color: canSubmit ? colors.orange : '#EEE' }}>→</Text>
+            )}
           </Text>
         </Pressable>
       </ScrollView>
@@ -292,4 +321,10 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   ctaText: { color: '#fff', fontSize: 23 },
+  error: {
+    color: '#B00020',
+    fontSize: 14,
+    lineHeight: 19,
+    marginTop: 14,
+  },
 });

@@ -6,8 +6,9 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import type { TeiTier } from './lib/database.types';
 
-export type Tier = 'elemental' | 'basic' | 'premium';
+export type Tier = TeiTier;
 
 export interface SessionDraft {
   sets: number | null;
@@ -18,16 +19,14 @@ export interface SessionDraft {
   date: string;
 }
 
-export interface User {
-  firstName: string;
-  lastName: string;
-  email: string;
-  tier: Tier;
-}
-
+/**
+ * UI state that is not the signed-in user.
+ *
+ * The authenticated user and their profile live in `AuthProvider` (src/auth.tsx),
+ * backed by Supabase. This store holds only the in-progress calculator draft
+ * and the transient toast.
+ */
 interface Store {
-  user: User | null;
-  setUser: (u: User | null) => void;
   /** Tier chosen on the Account Type screen, before the account exists. */
   pendingTier: Tier;
   setPendingTier: (t: Tier) => void;
@@ -42,46 +41,20 @@ interface Store {
   showToast: (message: string) => void;
 }
 
-/**
- * Hardcoded demo account for the prototype.
- *
- * The store is seeded with this user so /home, /calculator and /profile can be
- * opened directly — useful when demoing a single screen without walking the
- * whole onboarding flow first. Signing up or logging in overwrites it.
- */
-export const DEMO_USER: User = {
-  firstName: 'Alex',
-  lastName: 'Carter',
-  email: 'alex.carter@rhinoathletics.com',
-  tier: 'elemental',
-};
-
-/** Credentials the Log In screen accepts as the demo account. */
-export const DEMO_CREDENTIALS = {
-  email: 'alex.carter@rhinoathletics.com',
-  password: 'Rhino123',
-};
-
-/**
- * The mock-ups show April 27, 2026 - 2:33pm on every session screen, so the
- * prototype opens on that date to match the designs exactly.
- */
-const MOCK_SESSION_DATE = new Date(2026, 3, 27, 14, 33).toISOString();
-
 function emptySession(): SessionDraft {
   return {
     sets: null,
     restSeconds: null,
     exertionPercent: null,
     cardioMinutes: null,
-    date: MOCK_SESSION_DATE,
+    // A new session defaults to now; the user can change it on the calculator.
+    date: new Date().toISOString(),
   };
 }
 
 const StoreContext = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(DEMO_USER);
   const [pendingTier, setPendingTier] = useState<Tier>('elemental');
   const [session, setSession] = useState<SessionDraft>(emptySession);
   const [toast, setToast] = useState<string | null>(null);
@@ -101,13 +74,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const showToast = useCallback((message: string) => {
     setToast(message);
-    setTimeout(() => setToast(null), 2200);
+    setTimeout(() => setToast(null), 2600);
   }, []);
 
   const value = useMemo(
     () => ({
-      user,
-      setUser,
       pendingTier,
       setPendingTier,
       session,
@@ -118,7 +89,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       showToast,
     }),
     [
-      user,
       pendingTier,
       session,
       setSessionField,
