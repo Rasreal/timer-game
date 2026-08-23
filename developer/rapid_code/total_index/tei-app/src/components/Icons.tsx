@@ -60,6 +60,26 @@ export function PersonIcon({ color }: { color: string }) {
   );
 }
 
+/**
+ * Crossed-out eye for password fields, matching the thin line-icon in the
+ * mock-ups (the deck does not use an emoji here).
+ */
+export function EyeIcon({
+  color = '#333',
+  crossed = true,
+}: {
+  color?: string;
+  crossed?: boolean;
+}) {
+  return (
+    <View style={s.eyeWrap}>
+      <View style={[s.eyeOuter, { borderColor: color }]} />
+      <View style={[s.eyePupil, { backgroundColor: color }]} />
+      {crossed && <View style={[s.eyeSlash, { backgroundColor: color }]} />}
+    </View>
+  );
+}
+
 /** Absolute-fill without relying on `StyleSheet.absoluteFillObject` typings. */
 export const fillParent = {
   position: 'absolute',
@@ -112,6 +132,31 @@ const s = StyleSheet.create({
     marginTop: 3,
   },
 
+  eyeWrap: {
+    width: 26,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eyeOuter: {
+    width: 24,
+    height: 14,
+    borderWidth: 1.6,
+    // An ellipse: full pill radius reads as the eye outline at this size.
+    borderRadius: 12,
+  },
+  eyePupil: {
+    position: 'absolute',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  eyeSlash: {
+    position: 'absolute',
+    width: 28,
+    height: 1.6,
+    transform: [{ rotate: '-32deg' }],
+  },
   shackle: {
     width: 30,
     height: 22,

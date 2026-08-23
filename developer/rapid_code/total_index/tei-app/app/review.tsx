@@ -9,285 +9,504 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BackArrow, Divider } from '../src/components/Chrome';
+import { BackArrow, OutlineButton } from '../src/components/Chrome';
+import { useAuth } from '../src/auth';
 import { listSessionsBetween } from '../src/lib/sessions';
+import { listPlansBetween, planDayKey } from '../src/lib/plans';
+import { GRADE_COLORS, gradeAgainstPlan } from '../src/lib/tei';
 import type { SessionRow } from '../src/lib/database.types';
 import { colors } from '../src/theme';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+/** One calendar cell: a real date plus whether it belongs to the shown month. */
+interface Cell {
+  date: Date;
+  inMonth: boolean;
+}
+
 /**
- * BASIC Screen 8 — Review TEI, monthly view.
+ * BASIC Screen 8 — Review Basic TEI, monthly screen.
  *
- * An iCal-style month grid showing each day's total TEI, plus per-week
- * aggregates. Reads from the `sessions` table; RLS limits it to the signed-in
- * user's own rows.
+ * Modelled on the mock-up (image23): a grey header band carrying the month,
+ * a charcoal calendar body where every day is a filled circle showing that
+ * day's TEI (or `X` for a rest day), and a grey footer band showing the
+ * selected week's total in a green ring.
+ *
+ * Weeks run Sunday-Saturday and include spill-over days from the adjacent
+ * months, so a week total is always a true seven-day total.
  */
 export default function Review() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { profile } = useAuth();
 
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [rows, setRows] = useState<SessionRow[]>([]);
+  // Planned TEI for the visible grid, keyed by local YYYY-MM-DD, so each
+  // logged day can be graded against the plan it was meant to hit.
+  const [planned, setPlanned] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState(0);
 
-  const load = useCallback(async (monthStart: Date) => {
+  // Review is a paid-tier feature; deep-linking here as Elemental must not
+  // show the calendar. (The DB also refuses Elemental writes, so there is
+  // nothing to leak — this keeps the tier story consistent in the UI.)
+  useEffect(() => {
+    if (profile && profile.tier === 'elemental') {
+      router.replace('/home');
+    }
+  }, [profile, router]);
+
+  /** The month as 6 weeks of 7 real dates, including adjacent-month spill. */
+  const weeks = useMemo(() => {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth();
+
+    // Back up to the Sunday on or before the 1st.
+    const start = new Date(year, month, 1);
+    start.setDate(start.getDate() - start.getDay());
+
+    const out: Cell[][] = [];
+    const d = new Date(start);
+    // Six rows always covers a month; trailing all-spill rows are dropped.
+    for (let w = 0; w < 6; w++) {
+      const week: Cell[] = [];
+      for (let i = 0; i < 7; i++) {
+        week.push({ date: new Date(d), inMonth: d.getMonth() === month });
+        d.setDate(d.getDate() + 1);
+      }
+      out.push(week);
+      if (week.every((c) => !c.inMonth) && w > 3) {
+        out.pop();
+        break;
+      }
+    }
+    return out;
+  }, [cursor]);
+
+  const load = useCallback(async (grid: Cell[][]) => {
     setLoading(true);
     setError(null);
 
+    // Query the whole visible grid, not just the month, so spill-over days
+    // carry their real scores and week totals stay accurate.
+    const first = grid[0][0].date;
+    const last = grid[grid.length - 1][6].date;
     const from = new Date(
-      monthStart.getFullYear(),
-      monthStart.getMonth(),
-      1,
+      first.getFullYear(),
+      first.getMonth(),
+      first.getDate(),
     ).toISOString();
     const to = new Date(
-      monthStart.getFullYear(),
-      monthStart.getMonth() + 1,
-      0,
-      23,
-      59,
-      59,
+      last.getFullYear(),
+      last.getMonth(),
+      last.getDate() + 1,
     ).toISOString();
 
     const { data, error: message } = await listSessionsBetween(from, to);
     setRows(data);
     setError(message);
+
+    // Plans are keyed by calendar day, so the same window is asked for in
+    // planDayKey form. A plan failure must not blank the logged scores, so
+    // its error only downgrades grading to "ungraded".
+    const afterLast = new Date(
+      last.getFullYear(),
+      last.getMonth(),
+      last.getDate() + 1,
+    );
+    const { data: planRows } = await listPlansBetween(
+      planDayKey(first),
+      planDayKey(afterLast),
+    );
+    const totals = new Map<string, number>();
+    for (const p of planRows) {
+      totals.set(p.planned_for, (totals.get(p.planned_for) ?? 0) + Number(p.tei));
+    }
+    setPlanned(totals);
+
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    void load(cursor);
-  }, [cursor, load]);
+    void load(weeks);
+  }, [weeks, load]);
 
-  /** Total TEI per day-of-month. */
+  /** Total TEI keyed by local YYYY-MM-DD. */
   const byDay = useMemo(() => {
-    const totals = new Map<number, number>();
+    const totals = new Map<string, number>();
     for (const r of rows) {
-      const day = new Date(r.performed_at).getDate();
-      totals.set(day, (totals.get(day) ?? 0) + Number(r.tei));
+      const key = dayKey(new Date(r.performed_at));
+      totals.set(key, (totals.get(key) ?? 0) + Number(r.tei));
     }
     return totals;
   }, [rows]);
 
-  /** The month laid out as calendar weeks, padded with nulls. */
-  const weeks = useMemo(() => {
-    const year = cursor.getFullYear();
-    const month = cursor.getMonth();
-    const firstWeekday = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    const cells: (number | null)[] = [
-      ...Array<null>(firstWeekday).fill(null),
-      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-    ];
-    while (cells.length % 7 !== 0) cells.push(null);
-
-    const out: (number | null)[][] = [];
-    for (let i = 0; i < cells.length; i += 7) out.push(cells.slice(i, i + 7));
-    return out;
-  }, [cursor]);
-
-  const monthTotal = useMemo(
-    () => rows.reduce((sum, r) => sum + Number(r.tei), 0),
-    [rows],
+  const weekTotal = useCallback(
+    (week: Cell[] | undefined) =>
+      (week ?? []).reduce(
+        (sum, c) => sum + (byDay.get(dayKey(c.date)) ?? 0),
+        0,
+      ),
+    [byDay],
   );
 
-  const weekTotal = (week: (number | null)[]) =>
-    week.reduce<number>((sum, d) => sum + (d ? (byDay.get(d) ?? 0) : 0), 0);
-
   function shiftMonth(delta: number) {
-    setSelectedWeek(null);
+    setSelectedWeek(0);
     setCursor((c) => new Date(c.getFullYear(), c.getMonth() + delta, 1));
   }
 
-  const monthLabel = cursor.toLocaleString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  });
+  const activeWeek = weeks[selectedWeek] ?? weeks[0];
+  const weekStart = activeWeek?.[0]?.date;
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{
-        paddingTop: insets.top + 12,
-        paddingHorizontal: 20,
-        paddingBottom: Math.max(insets.bottom, 20) + 20,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <BackArrow onPress={() => router.replace('/home')} />
-        <Text style={styles.title}>TEI Review – Month</Text>
-      </View>
+    <View style={styles.root}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 0 }}
+        stickyHeaderIndices={[0]}
+      >
+        {/* ---------- Grey header band ---------- */}
+        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+          <View style={styles.titleRow}>
+            <BackArrow onPress={() => router.replace('/home')} />
+            <Text style={styles.title}>TEI Review - Month</Text>
+            <View style={{ width: 30 }} />
+          </View>
 
-      <View style={styles.monthRow}>
-        <Pressable
-          onPress={() => shiftMonth(-1)}
-          accessibilityRole="button"
-          accessibilityLabel="Previous month"
-          hitSlop={12}
-        >
-          <Text style={styles.monthArrow}>‹</Text>
-        </Pressable>
-        <Text style={styles.monthLabel}>{monthLabel}</Text>
-        <Pressable
-          onPress={() => shiftMonth(1)}
-          accessibilityRole="button"
-          accessibilityLabel="Next month"
-          hitSlop={12}
-        >
-          <Text style={styles.monthArrow}>›</Text>
-        </Pressable>
-      </View>
+          <View style={styles.monthRow}>
+            <Text style={styles.monthLabel}>
+              {cursor.toLocaleString('en-US', { month: 'long' })}{' '}
+              <Text style={{ color: colors.orange }}>{cursor.getFullYear()}</Text>
+            </Text>
+            <View style={styles.monthArrows}>
+              <Pressable
+                onPress={() => shiftMonth(-1)}
+                accessibilityRole="button"
+                accessibilityLabel="Previous month"
+                hitSlop={14}
+              >
+                <Text style={styles.monthArrow}>←</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => shiftMonth(1)}
+                accessibilityRole="button"
+                accessibilityLabel="Next month"
+                hitSlop={14}
+                style={{ marginLeft: 22 }}
+              >
+                <Text style={styles.monthArrow}>→</Text>
+              </Pressable>
+            </View>
+          </View>
 
-      <View style={styles.weekdayRow}>
-        {WEEKDAYS.map((d, i) => (
-          <Text key={`${d}-${i}`} style={styles.weekday}>
-            {d}
-          </Text>
-        ))}
-      </View>
+          <View style={styles.weekdayRow}>
+            {WEEKDAYS.map((d, i) => (
+              <Text key={`${d}-${i}`} style={styles.weekday}>
+                {d}
+              </Text>
+            ))}
+          </View>
+        </View>
 
-      <Divider style={{ marginBottom: 4 }} />
+        {/* ---------- Calendar body ---------- */}
+        <View style={styles.body}>
+          {loading ? (
+            <ActivityIndicator
+              color={colors.orange}
+              size="large"
+              style={{ marginVertical: 90 }}
+            />
+          ) : (
+            weeks.map((week, wi) => (
+              <Pressable
+                key={wi}
+                onPress={() => setSelectedWeek(wi)}
+                accessibilityRole="button"
+                accessibilityLabel={`Week of ${formatWeekOf(week[0].date)}, total ${Math.round(weekTotal(week))} TEI`}
+                style={[styles.weekRow, wi > 0 && styles.weekRowDivider]}
+              >
+                {/* Selected-week marker, as drawn in the mock-up */}
+                <View style={styles.selectorSlot}>
+                  {selectedWeek === wi && <View style={styles.selectorDot} />}
+                </View>
 
-      {loading ? (
-        <ActivityIndicator
-          color={colors.orange}
-          style={{ marginVertical: 40 }}
+                <View style={styles.weekCells}>
+                  {week.map((cell, di) => {
+                    const value = byDay.get(dayKey(cell.date));
+                    // Colour the logged score by how it landed against that
+                    // day's plan; ungraded days keep GRADE_COLORS.none.
+                    const grade = gradeAgainstPlan(
+                      value ?? 0,
+                      planned.get(planDayKey(cell.date)),
+                    );
+                    return (
+                      <View key={di} style={styles.dayCell}>
+                        <Text
+                          style={[
+                            styles.dayNum,
+                            !cell.inMonth && styles.dayNumMuted,
+                          ]}
+                        >
+                          {cell.date.getDate()}
+                        </Text>
+                        <View style={styles.dayCircle}>
+                          {value !== undefined ? (
+                            <Text
+                              style={[
+                                styles.dayScore,
+                                { color: GRADE_COLORS[grade] },
+                              ]}
+                            >
+                              {Math.round(value)}
+                            </Text>
+                          ) : cell.inMonth && !isFuture(cell.date) ? (
+                            // No session logged: a rest day.
+                            <Text style={styles.dayRest}>X</Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </Pressable>
+            ))
+          )}
+        </View>
+      </ScrollView>
+
+      {/* ---------- Grey footer band ---------- */}
+      <View
+        style={[
+          styles.footer,
+          { paddingBottom: Math.max(insets.bottom, 16) + 14 },
+        ]}
+      >
+        <View style={styles.footerTop}>
+          <View style={styles.footerDotWrap}>
+            <View style={styles.footerDot} />
+          </View>
+
+          <View style={{ flex: 1, marginLeft: 4 }}>
+            {/* The rule runs from the marker across to the ring, under the
+                label, exactly as drawn in the mock-up. */}
+            <View style={styles.footerLabelRow}>
+              <View style={styles.footerLine} />
+              <Text style={styles.footerLabel}>TEI Total Week of</Text>
+            </View>
+            <Text style={styles.footerDate}>
+              {weekStart ? formatWeekOfSplit(weekStart).month : ''}{' '}
+              <Text style={{ color: '#B8B8B8' }}>
+                {weekStart ? formatWeekOfSplit(weekStart).year : ''}
+              </Text>
+            </Text>
+            <Text style={styles.footerHint}>
+              Touch any day on the calendar{'\n'}to see the Total TEI for that
+              Week.
+            </Text>
+          </View>
+
+          <View style={styles.totalRing}>
+            <View style={styles.totalRingInner}>
+              <Text style={styles.totalValue}>
+                {Math.round(weekTotal(activeWeek))}
+              </Text>
+              <Text style={styles.totalUnit}>TEI</Text>
+            </View>
+          </View>
+        </View>
+
+        {error && <Text style={styles.error}>{error}</Text>}
+
+        <OutlineButton
+          title="See Ideal Ranges of TEI"
+          onPress={() => router.push('/ranges')}
+          fontSize={21}
+          style={styles.rangesBtn}
         />
-      ) : (
-        weeks.map((week, wi) => {
-          const total = weekTotal(week);
-          const selected = selectedWeek === wi;
-          return (
-            <Pressable
-              key={wi}
-              onPress={() => setSelectedWeek(selected ? null : wi)}
-              accessibilityRole="button"
-              accessibilityLabel={`Week ${wi + 1}, total ${total.toFixed(0)} TEI`}
-              style={[styles.weekRow, selected && styles.weekRowSelected]}
-            >
-              {week.map((day, di) => {
-                const value = day ? byDay.get(day) : undefined;
-                return (
-                  <View key={di} style={styles.dayCell}>
-                    <Text style={[styles.dayNum, !day && { opacity: 0 }]}>
-                      {day ?? 0}
-                    </Text>
-                    <View style={styles.dayDot}>
-                      {value !== undefined && (
-                        <Text style={styles.dayScore}>{Math.round(value)}</Text>
-                      )}
-                    </View>
-                  </View>
-                );
-              })}
-            </Pressable>
-          );
-        })
-      )}
-
-      {selectedWeek !== null && !loading && (
-        <Text style={styles.weekTotal}>
-          Week total:{' '}
-          <Text style={{ color: colors.orange, fontWeight: '700' }}>
-            {weekTotal(weeks[selectedWeek]).toFixed(0)} TEI
-          </Text>
-        </Text>
-      )}
-
-      <Divider style={{ marginTop: 16 }} />
-
-      <View style={styles.footer}>
-        <Text style={styles.footerLabel}>Month Total</Text>
-        <Text style={styles.footerValue}>{monthTotal.toFixed(0)}</Text>
       </View>
-
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      {!loading && rows.length === 0 && !error && (
-        <Text style={styles.empty}>
-          No sessions logged this month. Calculate a session and save it to see
-          it here.
-        </Text>
-      )}
-    </ScrollView>
+    </View>
   );
 }
 
+/** Local YYYY-MM-DD, so day bucketing follows the device's calendar. */
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function isFuture(d: Date): boolean {
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  return d.getTime() > today.getTime();
+}
+
+function formatWeekOf(d: Date): string {
+  return `${d.toLocaleString('en-US', { month: 'long' })} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+/** Split so the year can be tinted separately, as in the mock-up. */
+function formatWeekOfSplit(d: Date): { month: string; year: string } {
+  return {
+    month: `${d.toLocaleString('en-US', { month: 'long' })} ${d.getDate()},`,
+    year: String(d.getFullYear()),
+  };
+}
+
+const GREY_BAND = '#6E6E6E';
+
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#2B2B2B' },
+
+  header: { backgroundColor: GREY_BAND, paddingHorizontal: 16 },
+  titleRow: { flexDirection: 'row', alignItems: 'center' },
   title: {
     flex: 1,
     color: colors.text,
-    fontSize: 26,
+    fontSize: 23,
     fontWeight: '700',
     textAlign: 'center',
-    letterSpacing: -0.5,
-    paddingRight: 24,
   },
   monthRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 10,
-    marginBottom: 14,
-    paddingHorizontal: 6,
   },
-  monthArrow: { color: colors.orange, fontSize: 34, fontWeight: '300' },
-  monthLabel: { color: colors.text, fontSize: 24, fontWeight: '600' },
-  weekdayRow: { flexDirection: 'row', marginBottom: 6 },
+  monthLabel: {
+    color: colors.text,
+    fontSize: 40,
+    fontWeight: '700',
+    letterSpacing: -1,
+  },
+  monthArrows: { flexDirection: 'row', alignItems: 'center' },
+  monthArrow: { color: colors.orange, fontSize: 27 },
+  weekdayRow: { flexDirection: 'row', marginTop: 10, paddingLeft: 22 },
   weekday: {
     flex: 1,
     textAlign: 'center',
-    color: '#8A8A8A',
-    fontSize: 13,
-    fontWeight: '700',
+    color: '#C9C9C9',
+    fontSize: 15,
+    fontWeight: '600',
   },
+
+  body: { backgroundColor: '#2B2B2B', paddingBottom: 8 },
   weekRow: {
     flexDirection: 'row',
-    borderRadius: 8,
-    paddingVertical: 4,
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 6,
   },
-  weekRowSelected: { backgroundColor: '#161616' },
-  dayCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
+  weekRowDivider: { borderTopWidth: 1, borderTopColor: '#3D3D3D' },
+  selectorSlot: { width: 16, alignItems: 'center' },
+  selectorDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: colors.orange,
+  },
+  weekCells: { flex: 1, flexDirection: 'row' },
+  dayCell: { flex: 1, alignItems: 'center' },
   dayNum: { color: colors.text, fontSize: 15, fontWeight: '500' },
-  dayDot: {
-    marginTop: 3,
-    minWidth: 26,
-    height: 20,
+  dayNumMuted: { color: '#7E7E7E' },
+  dayCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#0A0A0A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  dayScore: { color: colors.text, fontSize: 19, fontWeight: '700' },
+  dayRest: { color: '#4A4A4A', fontSize: 19, fontWeight: '700' },
+
+  footer: {
+    backgroundColor: GREY_BAND,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+  },
+  footerTop: { flexDirection: 'row', alignItems: 'center' },
+  footerDotWrap: { width: 18, alignItems: 'center' },
+  footerDot: {
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: colors.orange,
+    borderWidth: 2.5,
+    borderColor: '#1A1A1A',
+  },
+  footerLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  footerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#4A4A4A',
+    marginRight: 8,
+  },
+  footerLabel: {
+    color: '#4C4C4C',
+    fontSize: 19,
+    fontWeight: '700',
+    paddingRight: 6,
+  },
+  footerDate: {
+    color: colors.text,
+    fontSize: 27,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  footerHint: {
+    color: '#9E9E9E',
+    fontSize: 15,
+    lineHeight: 19,
+    marginTop: 4,
+  },
+
+  totalRing: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#3A3A3A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  totalRingInner: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#0A0A0A',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dayScore: { color: colors.orange, fontSize: 12, fontWeight: '700' },
-  weekTotal: {
-    color: colors.text,
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 14,
-  },
-  footerLabel: { color: '#C9C9C9', fontSize: 18 },
-  footerValue: {
-    color: colors.orange,
-    fontSize: 32,
+  totalValue: {
+    color: colors.green,
+    fontSize: 34,
     fontWeight: '800',
     letterSpacing: -1,
   },
-  error: { color: colors.red, fontSize: 13.5, marginTop: 14 },
-  empty: {
-    color: '#7A7A7A',
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 18,
-    textAlign: 'center',
+  totalUnit: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: -3,
   },
+
+  rangesBtn: {
+    marginTop: 14,
+    backgroundColor: '#151515',
+    borderRadius: 8,
+  },
+  error: { color: '#FFD2D2', fontSize: 13, marginTop: 10 },
 });

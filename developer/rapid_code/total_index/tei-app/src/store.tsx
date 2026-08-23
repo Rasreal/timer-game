@@ -2,7 +2,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -15,6 +17,12 @@ export interface SessionDraft {
   restSeconds: number | null;
   exertionPercent: number | null;
   cardioMinutes: number | null;
+  // Premium-only variables. Each calculator reads only the ones it needs, so
+  // these stay null for the Standard model.
+  breakdowns: number | null;
+  exercises: number | null;
+  circuits: number | null;
+  yogaMinutes: number | null;
   /** ISO timestamp for the session being logged. */
   date: string;
 }
@@ -30,6 +38,13 @@ interface Store {
   /** Tier chosen on the Account Type screen, before the account exists. */
   pendingTier: Tier;
   setPendingTier: (t: Tier) => void;
+  /**
+   * The Effective Ranges timeframe the user tapped (WEEKLY, MONTHLY, ...).
+   * On Basic and above this is what the calculators' "% of Target" bar
+   * measures against; on Elemental the screen is informational only.
+   */
+  targetRange: string | null;
+  setTargetRange: (label: string | null) => void;
   session: SessionDraft;
   setSessionField: (
     field: keyof Omit<SessionDraft, 'date'>,
@@ -47,6 +62,10 @@ function emptySession(): SessionDraft {
     restSeconds: null,
     exertionPercent: null,
     cardioMinutes: null,
+    breakdowns: null,
+    exercises: null,
+    circuits: null,
+    yogaMinutes: null,
     // A new session defaults to now; the user can change it on the calculator.
     date: new Date().toISOString(),
   };
@@ -56,6 +75,7 @@ const StoreContext = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [pendingTier, setPendingTier] = useState<Tier>('elemental');
+  const [targetRange, setTargetRange] = useState<string | null>(null);
   const [session, setSession] = useState<SessionDraft>(emptySession);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -72,15 +92,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const resetSession = useCallback(() => setSession(emptySession()), []);
 
+  // Only the newest toast is shown, so the previous one's timer has to go
+  // with it — otherwise it fires mid-life of its replacement and blanks it
+  // early.
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const showToast = useCallback((message: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(message);
-    setTimeout(() => setToast(null), 2600);
+    toastTimer.current = setTimeout(() => {
+      toastTimer.current = null;
+      setToast(null);
+    }, 2600);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    [],
+  );
 
   const value = useMemo(
     () => ({
       pendingTier,
       setPendingTier,
+      targetRange,
+      setTargetRange,
       session,
       setSessionField,
       setSessionDate,
@@ -90,6 +128,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }),
     [
       pendingTier,
+      targetRange,
       session,
       setSessionField,
       setSessionDate,

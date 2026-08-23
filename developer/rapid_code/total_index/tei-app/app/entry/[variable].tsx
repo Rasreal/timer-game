@@ -18,7 +18,16 @@ import { formatSessionDate, useStore, type SessionDraft } from '../../src/store'
 import { LIMITS } from '../../src/lib/tei';
 import { colors } from '../../src/theme';
 
-type VariableKey = 'sets' | 'rest' | 'exertion' | 'cardio';
+type VariableKey =
+  | 'sets'
+  | 'rest'
+  | 'exertion'
+  | 'cardio'
+  // Premium-only variables, reached from the /calc/* calculators.
+  | 'breakdowns'
+  | 'exercises'
+  | 'circuits'
+  | 'yoga';
 
 interface VariableConfig {
   field: keyof Omit<SessionDraft, 'date'>;
@@ -27,8 +36,10 @@ interface VariableConfig {
   description: string;
   example?: string;
   cta: string;
-  /** Quick-pick chips shown on the Rest screen. */
+  /** Quick-pick chips shown on the Rest and Yoga screens. */
   presets?: number[];
+  /** Copy under the chips; defaults to the Rest screen's wording. */
+  presetHint?: string;
   showSlider?: boolean;
   overRange?: (v: number) => boolean;
   validate?: (v: number) => string | null;
@@ -37,11 +48,15 @@ interface VariableConfig {
 const CONFIG: Record<VariableKey, VariableConfig> = {
   sets: {
     field: 'sets',
-    heading: 'Total Strength Trainng Sets',
+    heading: 'Total Strength Training Sets',
     ringLabel: 'Sets',
     description: 'Enter the Total Number of Sets in this Training Session',
     cta: 'Add SETS to TEI',
     overRange: (v) => v > LIMITS.sets.overAt,
+    validate: (v) =>
+      v < LIMITS.sets.min || v > LIMITS.sets.max
+        ? `Enter a number between ${LIMITS.sets.min} and ${LIMITS.sets.max}.`
+        : null,
   },
   rest: {
     field: 'restSeconds',
@@ -51,7 +66,8 @@ const CONFIG: Record<VariableKey, VariableConfig> = {
       'Average Number of Seconds YOU Rested between Sets During this Training Session',
     cta: 'Add REST to TEI',
     presets: [30, 60, 90, 120],
-    overRange: (v) => v < LIMITS.rest.min,
+    // 0 means "not entered yet"; only a genuinely short rest is flagged.
+    overRange: (v) => v > 0 && v < LIMITS.rest.min,
     validate: (v) =>
       v < LIMITS.rest.min || v > LIMITS.rest.max
         ? `Enter a number between ${LIMITS.rest.min} and ${LIMITS.rest.max}.`
@@ -59,11 +75,13 @@ const CONFIG: Record<VariableKey, VariableConfig> = {
   },
   exertion: {
     field: 'exertionPercent',
-    heading: 'Average % Perceived Exertion for Each Set of Strenth Training',
+    heading: 'Average % Perceived Exertion for Each Set of Strength Training',
     ringLabel: '% Exert',
     description: 'Estimate YOUR Average % Exertion per Set of Strength Training',
     cta: 'Add EXERTION to TEI',
     showSlider: true,
+    // The valid band is 50-100, so either side of it is out of range.
+    overRange: (v) => v < LIMITS.exertion.min || v > LIMITS.exertion.max,
     validate: (v) =>
       v < LIMITS.exertion.min || v > LIMITS.exertion.max
         ? 'Please enter a number between 50 and 100.'
@@ -78,6 +96,69 @@ const CONFIG: Record<VariableKey, VariableConfig> = {
     example:
       'EXAMPLE: 10-minute Warm Up walk and a 33-minute run after strength training equals 43 minutes of Cardio Activity (Enter "43")',
     cta: 'Add CARDIO to TEI',
+    // Workbook README: cardio ranges 7-150, red gradient above 65.
+    overRange: (v) => v > LIMITS.cardio.overAt,
+    // 0 is a valid entry meaning "no cardio this session"; anything above 0
+    // must clear the 7-minute floor.
+    validate: (v) =>
+      v !== 0 && (v < LIMITS.cardio.min || v > LIMITS.cardio.max)
+        ? `Enter 0 for no cardio, or ${LIMITS.cardio.min}-${LIMITS.cardio.max} minutes.`
+        : null,
+  },
+  breakdowns: {
+    field: 'breakdowns',
+    heading: 'Average Number of Breakdowns per Set',
+    ringLabel: 'Breakdowns',
+    description:
+      'Average Number of Breakdowns of Weight or Micro-Rest for more Repetitions within a Set of an Exercise During this Training Session',
+    example:
+      'EXAMPLE: starting with 20 lbs in each hand, do as many curls as possible until fully exhausted, then quickly drop the 20 lbs and grab the 15 lbs dumbbells and repeat the process, then the 10 lbs... you managed only 2 repetitions, so that set is done. That would be 1 set with 2 Breakdowns (Enter "2")',
+    cta: 'Add BREAKDOWNS to TEI',
+    overRange: (v) => v > LIMITS.breakdowns.overAt,
+    validate: (v) =>
+      v < LIMITS.breakdowns.min || v > LIMITS.breakdowns.max
+        ? `Enter a number between ${LIMITS.breakdowns.min} and ${LIMITS.breakdowns.max}.`
+        : null,
+  },
+  exercises: {
+    field: 'exercises',
+    heading: 'Average Number of Exercises per Circuit',
+    ringLabel: 'Exercises',
+    description:
+      'Enter the Total Number of Exercises per Circuit in this Training Session',
+    cta: 'Add EXERCISES to TEI',
+    overRange: (v) => v > LIMITS.exercises.overAt,
+    validate: (v) =>
+      v < LIMITS.exercises.min || v > LIMITS.exercises.max
+        ? `Enter a number between ${LIMITS.exercises.min} and ${LIMITS.exercises.max}.`
+        : null,
+  },
+  circuits: {
+    field: 'circuits',
+    heading: 'Total Number of Circuits',
+    ringLabel: 'Circuits',
+    description: 'Enter the Total Number of Circuits in this Training Session',
+    cta: 'Add CIRCUITS to TEI',
+    overRange: (v) => v > LIMITS.circuits.overAt,
+    validate: (v) =>
+      v < LIMITS.circuits.min || v > LIMITS.circuits.max
+        ? `Enter a number between ${LIMITS.circuits.min} and ${LIMITS.circuits.max}.`
+        : null,
+  },
+  yoga: {
+    field: 'yogaMinutes',
+    heading: 'Total Number of Minutes of YOGA',
+    ringLabel: 'Yoga Mins',
+    description:
+      'Total Number of Minutes of YOGA Done During this Training Session',
+    cta: 'Add YOGA to TEI',
+    presets: [15, 30, 60, 90],
+    presetHint: 'Enter any number between 4 and 100\ndirectly into the circle above.',
+    overRange: (v) => v > LIMITS.yogaMinutes.overAt,
+    validate: (v) =>
+      v < LIMITS.yogaMinutes.min || v > LIMITS.yogaMinutes.max
+        ? `Enter a number between ${LIMITS.yogaMinutes.min} and ${LIMITS.yogaMinutes.max}.`
+        : null,
   },
 };
 
@@ -88,12 +169,18 @@ const CONFIG: Record<VariableKey, VariableConfig> = {
 export default function VariableEntry() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { variable } = useLocalSearchParams<{ variable: string }>();
+  const { variable, from } = useLocalSearchParams<{
+    variable: string;
+    from?: string;
+  }>();
   const { session, setSessionField } = useStore();
 
-  const key = (
-    variable && variable in CONFIG ? variable : 'sets'
-  ) as VariableKey;
+  // An id this route does not know used to fall through to `sets`, so a typo
+  // or a CALCULATOR_FIELDS-style name (`restSeconds`) silently rendered the
+  // SETS screen and wrote the user's rest value into `sets`. Fail visibly
+  // instead of mis-writing the draft.
+  const known = Boolean(variable) && variable in CONFIG;
+  const key = (known ? variable : 'sets') as VariableKey;
   const config = CONFIG[key];
 
   const stored = session[config.field];
@@ -110,10 +197,53 @@ export default function VariableEntry() {
   const error = value !== null && config.validate ? config.validate(value) : null;
   const canAdd = value !== null && !error;
 
+  // Exertion and cardio are shared by all five calculators, so the caller
+  // tells us where to return via ?from=. Without it these screens always
+  // dumped the user on the Standard calculator, losing the Circuit/Yoga/
+  // Breakdown session they were part-way through entering.
+  const RETURN_TO: Record<string, string> = {
+    standard: '/calculator',
+    breakdown: '/calc/breakdown',
+    circuit: '/calc/circuit',
+    cardio: '/calc/cardio',
+    yoga: '/calc/yoga',
+  };
+
+  const backTo =
+    (from && RETURN_TO[from]) ??
+    // Variables unique to one calculator can infer their own owner.
+    (key === 'breakdowns'
+      ? '/calc/breakdown'
+      : key === 'exercises' || key === 'circuits'
+        ? '/calc/circuit'
+        : key === 'yoga'
+          ? '/calc/yoga'
+          : '/calculator');
+
   function add() {
     if (!canAdd) return;
     setSessionField(config.field, value);
-    router.replace('/calculator');
+    router.replace(backTo as never);
+  }
+
+  if (!known) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.orange, paddingTop: insets.top + 12 }}>
+        <BackArrow onPress={() => router.replace(backTo as never)} color="#7A4A12" />
+        <View style={styles.unknownWrap}>
+          <Text style={styles.heading}>Unknown Variable</Text>
+          <Text style={styles.description}>
+            “{variable ?? ''}” is not a TEI variable, so there is nothing to
+            enter here.
+          </Text>
+          <DarkButton
+            title="Go Back"
+            onPress={() => router.replace(backTo as never)}
+            style={{ alignSelf: 'center', minWidth: 264, marginTop: 24 }}
+          />
+        </View>
+      </View>
+    );
   }
 
   return (
@@ -130,7 +260,7 @@ export default function VariableEntry() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <BackArrow onPress={() => router.replace('/calculator')} color="#7A4A12" />
+        <BackArrow onPress={() => router.replace(backTo as never)} color="#7A4A12" />
 
         <Text
           style={[
@@ -190,8 +320,8 @@ export default function VariableEntry() {
             </View>
             <Text style={styles.orText}>- or -</Text>
             <Text style={styles.presetHint}>
-              Enter any number between 30 and 240{'\n'}directly into the circle
-              above.
+              {config.presetHint ??
+                'Enter any number between 30 and 240\ndirectly into the circle above.'}
             </Text>
           </>
         )}
@@ -309,7 +439,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 2,
     borderColor: 'transparent',
-    paddingVertical: 4,
+    paddingVertical: 8,
     paddingHorizontal: 14,
     minWidth: 74,
   },
@@ -321,6 +451,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  unknownWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 48,
   },
   error: {
     color: '#8B0000',

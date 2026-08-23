@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,17 +13,33 @@ import { Ring } from '../src/components/Ring';
 import { useAuth } from '../src/auth';
 import { formatSessionDate, useStore } from '../src/store';
 import { saveSession } from '../src/lib/sessions';
-import { LIMITS, calculateTei, displayTei } from '../src/lib/tei';
-import { colors } from '../src/theme';
+import { savePlan } from '../src/lib/plans';
+import {
+  DEFAULT_TARGET_MAX,
+  EFFECTIVE_RANGES,
+  LIMITS,
+  calculateTei,
+  displayTei,
+  validateSessionInputs,
+} from '../src/lib/tei';
+import { SHOW_DEV_TOOLS, colors } from '../src/theme';
 
 /** ELEMENTAL Screen 2 — Standard Strength Training Calculator. */
 export default function Calculator() {
   const router = useRouter();
+  // Present when we came from the planner: this run designs a PLAN for that
+  // day rather than logging a session that already happened.
+  const { plan: planDay } = useLocalSearchParams<{ plan?: string }>();
   const insets = useSafeAreaInsets();
-  const { session, showToast } = useStore();
+  const { session, setSessionField, showToast, targetRange } = useStore();
   const { profile } = useAuth();
   const [calculated, setCalculated] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // A value typed straight into a ring that falls outside LIMITS. Shown next
+  // to the CTA in the same style as a save failure.
+  const [rangeError, setRangeError] = useState<string | null>(null);
 
   // Elemental is calculate-only by design; paid tiers persist history.
   const canSaveHistory = profile != null && profile.tier !== 'elemental';
@@ -47,19 +63,94 @@ export default function Calculator() {
 
   const showResult = calculated && complete;
 
+  // Client's tiered intent: on Basic and above, tapping a timeframe on the
+  // Effective Ranges screen makes it the denominator of "% of Target".
+  // Elemental has no bar — that screen is informational only for them.
+  const showTargetBar = profile != null && profile.tier !== 'elemental';
+  // With no timeframe chosen, measure against WEEKLY — the smallest real
+  // period target. LIMITS.tei.max is a single-SESSION ceiling, so using it
+  // here inflated the percentage more than threefold.
+  const targetMax =
+    EFFECTIVE_RANGES.find((r) => r.label === targetRange)?.max ??
+    DEFAULT_TARGET_MAX;
+  const targetFraction = showResult
+    ? Math.max(0, Math.min(1, result.tei / targetMax))
+    : 0;
+
   async function calculate() {
-    if (!complete) return;
+    if (!complete || saving) return;
     setCalculated(true);
+    setSaveError(null);
+
+    // The rings pass min/max to the arc geometry only, so an impossible value
+    // typed straight into a circle used to be scored as if it were legal.
+    const outOfRange = validateSessionInputs('standard', {
+      sets: session.sets,
+      restSeconds: session.restSeconds,
+      exertionPercent: session.exertionPercent,
+      cardioMinutes: session.cardioMinutes,
+    });
+    setRangeError(outOfRange);
+    if (outOfRange) {
+      // Nothing is calculated or saved from impossible inputs; the message
+      // stays on screen next to the CTA rather than in a transient toast.
+      setCalculated(false);
+      return;
+    }
+
+    // The client considers a TEI above 33 practically unsurvivable, so this
+    // almost always means the inputs were misunderstood. `showToast` keeps
+    // only the newest message, so the warning is folded into whichever toast
+    // each path actually shows rather than fired as a second, doomed one.
+    const warning =
+      result.tei > LIMITS.tei.implausibleAbove
+        ? `TEI ${result.tei.toFixed(0)} is beyond a survivable workload — you may need to review how you are defining your data.`
+        : null;
+
+    if (planDay) {
+      if (!profile || profile.tier !== 'premium') {
+        showToast('Planning needs TEI Premium.');
+        return;
+      }
+      setSaving(true);
+      const { error } = await savePlan({
+        userId: profile.id,
+        plannedFor: planDay,
+        tei: Number(result.tei.toFixed(2)),
+        calculator: 'standard',
+        sets: session.sets,
+        restSeconds: session.restSeconds,
+        exertionPercent: session.exertionPercent,
+        cardioMinutes: session.cardioMinutes,
+      });
+      setSaving(false);
+      if (error) {
+        setSaveError(error);
+        return;
+      }
+      // Warn before navigating away, so an unsurvivable plan is never saved
+      // silently.
+      showToast(warning ?? `Planned — TEI ${result.tei.toFixed(2)}`);
+      router.replace('/plan');
+      return;
+    }
 
     if (!canSaveHistory || !profile) {
-      showToast(`TEI ${result.tei.toFixed(2)} for this session`);
+      showToast(warning ?? `TEI ${result.tei.toFixed(2)} for this session`);
+      return;
+    }
+
+    if (saved) {
+      showToast('This session is already saved.');
       return;
     }
 
     setSaving(true);
     const { error } = await saveSession({
       userId: profile.id,
-      performedAt: session.date,
+      // Stamp at save time. `session.date` is set when the draft is created,
+      // which for a long-lived app session is not when training happened.
+      performedAt: new Date().toISOString(),
       sets: session.sets ?? 0,
       restSeconds: session.restSeconds ?? 0,
       exertionPercent: session.exertionPercent ?? 0,
@@ -68,11 +159,15 @@ export default function Calculator() {
     });
     setSaving(false);
 
-    showToast(
-      error
-        ? `Could not save session: ${error}`
-        : `Saved — TEI ${result.tei.toFixed(2)}`,
-    );
+    if (error) {
+      // A transient toast is too easy to miss when the big number already
+      // reads like a success, so keep the failure on screen.
+      setSaveError(error);
+      return;
+    }
+
+    setSaved(true);
+    showToast(warning ?? `Saved — TEI ${result.tei.toFixed(2)}`);
   }
 
   return (
@@ -85,7 +180,22 @@ export default function Calculator() {
         flexGrow: 1,
       }}
     >
-      <BackArrow onPress={() => router.replace('/home')} />
+      <BackArrow
+        onPress={() => {
+          // Once a score exists this session is finished, so back belongs on
+          // Home — returning to the selector invited the user to re-pick a
+          // training type they had already logged.
+          if (showResult) {
+            router.replace('/home');
+            return;
+          }
+          // Nothing calculated yet: go back to whatever opened this screen —
+          // Home for Elemental and Basic, but the session-type selector for
+          // Premium. Hard-coding /home skipped the selector and looked like
+          // the app had jumped.
+          router.canGoBack() ? router.back() : router.replace('/home');
+        }}
+      />
 
       {/* Large number + TEI lockup */}
       <View style={styles.headRow}>
@@ -99,6 +209,22 @@ export default function Calculator() {
           <Text style={[styles.bigNumber, { color: '#1A1A1A' }]}>0</Text>
         )}
       </View>
+
+      {showTargetBar && (
+        <View style={styles.targetWrap}>
+          <Text style={styles.targetPct}>
+            {Math.round(targetFraction * 100)}%
+          </Text>
+          <Text style={styles.targetLabel}>
+            of {targetRange ? `${targetRange} Target` : 'Target'}
+          </Text>
+          <View style={styles.targetTrack}>
+            <View
+              style={[styles.targetFill, { width: `${targetFraction * 100}%` }]}
+            />
+          </View>
+        </View>
+      )}
 
       {/* Session date */}
       <View style={{ marginTop: 8 }}>
@@ -117,29 +243,67 @@ export default function Calculator() {
 
       {/* Four variable rings */}
       <View style={styles.ringGrid}>
+        {/* Spec (deck slide 13): every calculator offers two layers of data
+            entry — direct entry into the circle, or the ellipsis for a
+            dedicated screen explaining the variable. */}
         <Ring
           value={session.sets}
           label="Sets"
-          onEllipsis={() => router.push('/entry/sets')}
+          onChange={(v) => setSessionField('sets', v)}
+          onEllipsis={() => router.push('/entry/sets?from=standard' as never)}
           overRange={session.sets !== null && session.sets > LIMITS.sets.overAt}
         />
         <Ring
           value={session.restSeconds}
           label="Seconds"
-          onEllipsis={() => router.push('/entry/rest')}
+          onChange={(v) => setSessionField('restSeconds', v)}
+          onEllipsis={() => router.push('/entry/rest?from=standard' as never)}
           overRange={
-            session.restSeconds !== null && session.restSeconds < LIMITS.rest.min
+            // 0 means "not entered yet" (or auto-filled for a cardio-only
+            // session), so it must not read as a dangerously short rest.
+            session.restSeconds !== null &&
+            session.restSeconds > 0 &&
+            session.restSeconds < LIMITS.rest.min
           }
         />
         <Ring
           value={session.exertionPercent}
           label="% Exert"
-          onEllipsis={() => router.push('/entry/exertion')}
+          onChange={(v) => setSessionField('exertionPercent', v)}
+          onEllipsis={() => router.push('/entry/exertion?from=standard' as never)}
+          overRange={
+            // Exertion is a 50-100 band, so either side of it is out of range.
+            // 0 is the zero-fill of a cardio-only session, not a bad entry.
+            session.exertionPercent !== null &&
+            session.exertionPercent > 0 &&
+            (session.exertionPercent < LIMITS.exertion.min ||
+              session.exertionPercent > LIMITS.exertion.max)
+          }
         />
         <Ring
           value={session.cardioMinutes}
           label="Minutes"
-          onEllipsis={() => router.push('/entry/cardio')}
+          onChange={(v) => {
+            setSessionField('cardioMinutes', v);
+            // Client rule: someone logging a Cardio ONLY session enters cardio
+            // first, so zero-fill the untouched strength variables rather than
+            // making them type three zeros.
+            if (
+              v !== null &&
+              session.sets === null &&
+              session.restSeconds === null &&
+              session.exertionPercent === null
+            ) {
+              setSessionField('sets', 0);
+              setSessionField('restSeconds', 0);
+              setSessionField('exertionPercent', 0);
+            }
+          }}
+          onEllipsis={() => router.push('/entry/cardio?from=standard' as never)}
+          overRange={
+            session.cardioMinutes !== null &&
+            session.cardioMinutes > LIMITS.cardio.overAt
+          }
         />
       </View>
 
@@ -155,13 +319,19 @@ export default function Calculator() {
         <OutlineButton title="Ranges" onPress={() => router.push('/ranges')} />
       </View>
 
+      {rangeError && <Text style={styles.saveError}>{rangeError}</Text>}
+
+      {saveError && (
+        <Text style={styles.saveError}>Could not save session: {saveError}</Text>
+      )}
+
       {!complete && (
         <Text style={styles.hint}>
-          Tap the ••• under each circle to enter a value.
+          Type into a circle, or tap its ••• for guidance.
         </Text>
       )}
 
-      {showResult && (
+      {showResult && SHOW_DEV_TOOLS && (
         <View style={styles.breakdown}>
           <Text style={styles.breakdownTitle}>How this TEI was calculated</Text>
           <Text style={styles.breakdownBody}>
@@ -250,6 +420,17 @@ const styles = StyleSheet.create({
     gap: 1.5,
   },
   calDot: { width: 3, height: 3, backgroundColor: '#E0E0E0' },
+  targetWrap: { marginTop: 4, marginBottom: 4 },
+  targetPct: { color: colors.text, fontSize: 26, fontWeight: '700' },
+  targetLabel: { color: '#C9C9C9', fontSize: 16, marginTop: -2 },
+  targetTrack: {
+    height: 12,
+    backgroundColor: '#2E2E2E',
+    borderRadius: 2,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  targetFill: { height: 12, backgroundColor: '#8A5A22' },
   sessionLabel: { color: '#C9C9C9', fontSize: 18, marginLeft: 8, marginRight: 8 },
   sessionDate: {
     color: colors.text,
@@ -264,6 +445,13 @@ const styles = StyleSheet.create({
     rowGap: 14,
     marginTop: 22,
     marginBottom: 16,
+  },
+  saveError: {
+    color: '#FF6B6B',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 10,
+    textAlign: 'center',
   },
   hint: {
     color: '#7A7A7A',

@@ -125,7 +125,7 @@ function WhatIsTei({ onClose, onGo }: { onClose: () => void; onGo: () => void })
             consistently.
           </Text>
 
-          <Text style={styles.howItWorks}>How it Works…</Text>
+          <Text style={styles.howItWorks}>How it Works...</Text>
 
           <Step
             n="1."
@@ -134,7 +134,7 @@ function WhatIsTei({ onClose, onGo }: { onClose: () => void; onGo: () => void })
           />
           <Step
             n="2."
-            title="Track Your Week, Month, Year, etc…"
+            title="Track Your Week, Month, Year, etc..."
             body="Daily scores build your total training load"
           />
           <Step
@@ -207,15 +207,15 @@ const styles = StyleSheet.create({
   },
   totalEffectIndex: {
     color: colors.text,
-    fontSize: 24,
+    fontSize: 31,
     fontWeight: '700',
     letterSpacing: -0.5,
-    marginBottom: 6,
+    marginBottom: 7,
     marginRight: 10,
   },
   teiBig: {
     color: colors.text,
-    fontSize: 56,
+    fontSize: 68,
     fontWeight: '800',
     letterSpacing: -2,
   },

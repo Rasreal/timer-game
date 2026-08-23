@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandLockup, Divider, OutlineButton } from '../src/components/Chrome';
 import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
-import { colors } from '../src/theme';
+import { SHOW_DEV_TOOLS, colors } from '../src/theme';
 
 /** Screen 4 — Onboarding / Log In. */
 export default function Login() {
@@ -133,6 +133,7 @@ export default function Login() {
           </Text>
         )}
 
+        {SHOW_DEV_TOOLS && (
         <Pressable
           onPress={() =>
             showToast('Password reset is out of scope for the prototype.')
@@ -142,6 +143,7 @@ export default function Login() {
         >
           <Text style={{ color: '#666', fontSize: 13 }}>Forgot password?</Text>
         </Pressable>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -157,7 +159,7 @@ const styles = StyleSheet.create({
   },
   teiBig: {
     color: colors.text,
-    fontSize: 58,
+    fontSize: 66,
     fontWeight: '800',
     letterSpacing: -2.5,
     marginTop: 2,

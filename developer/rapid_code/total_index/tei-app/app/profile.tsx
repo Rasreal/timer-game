@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   KeyboardAvoidingView,
@@ -12,9 +12,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, Ellipsis } from '../src/components/Chrome';
+import { EyeIcon } from '../src/components/Icons';
 import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
-import { colors } from '../src/theme';
+import { SHOW_DEV_TOOLS, colors } from '../src/theme';
 
 /** ELEMENTAL Screen 8 — Edit Elemental Profile (white background per spec). */
 export default function Profile() {
@@ -25,6 +26,17 @@ export default function Profile() {
 
   const [firstName, setFirstName] = useState(profile?.first_name ?? '');
   const [lastName, setLastName] = useState(profile?.last_name ?? '');
+  // Seed the fields once the profile arrives. useState only captures the
+  // first render, and on a deep-link/refresh the profile is still loading
+  // then, which previously left both name fields blank.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (profile && !seeded.current) {
+      seeded.current = true;
+      setFirstName(profile.first_name);
+      setLastName(profile.last_name);
+    }
+  }, [profile]);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -76,8 +88,10 @@ export default function Profile() {
         : 'Elemental';
 
   async function handleSignOut() {
-    await signOut();
-    // AuthGate sends us back to the launch screen once the session clears.
+    // AuthGate sends us back to the launch screen once the session clears;
+    // if it never clears, say why rather than looking like a dead button.
+    const message = await signOut();
+    if (message) setError(`Could not sign out: ${message}`);
   }
 
   return (
@@ -120,9 +134,11 @@ export default function Profile() {
         <View style={[styles.input, styles.inputReadonly]}>
           <Text style={{ fontSize: 17, color: '#555' }}>{email}</Text>
         </View>
-        <Text style={styles.fieldNote}>
-          Changing your email needs a confirmation link — not wired up yet.
-        </Text>
+        {SHOW_DEV_TOOLS && (
+          <Text style={styles.fieldNote}>
+            Changing your email needs a confirmation link — not wired up yet.
+          </Text>
+        )}
 
         <Text style={styles.label}>Change Password</Text>
         <View>
@@ -143,7 +159,7 @@ export default function Profile() {
             hitSlop={10}
             style={styles.eye}
           >
-            <Text style={{ fontSize: 18 }}>{showPassword ? '🙈' : '👁'}</Text>
+            <EyeIcon crossed={!showPassword} />
           </Pressable>
         </View>
 

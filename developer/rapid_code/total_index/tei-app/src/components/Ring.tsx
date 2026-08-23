@@ -107,7 +107,7 @@ export function Ring({
           )}
           <Text
             style={{
-              fontSize: hero ? 21 : 14,
+              fontSize: hero ? 25 : 14,
               color: '#D8D8D8',
               marginTop: hero ? 0 : -1,
             }}

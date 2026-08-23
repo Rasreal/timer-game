@@ -68,6 +68,14 @@ Apply it to a fresh project with:
 psql "$SUPABASE_DB_URL" -f supabase/migrations/0001_init.sql
 ```
 
+### Planned vs logged
+
+`plans` holds a **target** TEI for a future day; `sessions` holds what actually
+happened. They are deliberately separate tables — conflating them would make
+"did I hit my plan?" unanswerable. `gradeAgainstPlan()` in `src/lib/tei.ts`
+implements the workbook's colour-coding table for comparing the two (gray = no
+plan, white = under 70%, yellow = 70-90%, green = 90-110%, red = over 110%).
+
 ### Row Level Security
 
 RLS is enabled on both tables, and every policy is scoped to
@@ -91,6 +99,45 @@ There is no hardcoded user — sign up through the app to create a real account.
 Signup writes to `auth.users`, the trigger creates the matching profile, and
 the session persists across app restarts (AsyncStorage on native,
 localStorage on web). Sign out from the bottom of the Profile screen.
+
+## What "proof of concept" covers
+
+The PRD scopes the calculator deliverable precisely:
+
+> "a proof-of-concept implementation of **the Standard Strength Model**
+> calculator" — "Implement proof-of-concept TEI calculator logic using the
+> Standard Strength Model (sets, rest time, exertion %, cardio minutes)" —
+> "**validate against sample inputs**"
+
+and in the goals: "Scope Elemental (free) and Basic (subscription) tier flows
+only, **defer Premium tier and advanced calculator models to Phase 2**".
+
+So the contracted PoC is one calculator — Standard Strength — computing real
+numbers and validated against the client's own worked example. Crucially it is
+*not* mock content: "validate against sample inputs" rules that out.
+
+All five models are now implemented anyway, because decoding the workbook once
+made the other four cheap. Each is checked against its own sheet:
+
+| Calculator | Workbook cell | Expected | Status |
+| ---------- | ------------- | -------- | ------ |
+| Standard | `B95` | 13.78 | ✅ |
+| Breakdown | `B106` | 14.095 | ✅ |
+| Circuit | `B116` | 14.15 | ✅ |
+| Cardio ONLY | `B41` | 8.5 | ✅ |
+| Yoga | `B84` | 14.3 | ✅ |
+
+```bash
+npm run verify        # both suites
+npm run verify:tei    # the five workbook reference cases
+npm run verify:edge   # dataset nodes, interpolation, clamping, monotonicity
+```
+
+**Why the spreadsheet and not the PDF.** The *Formula Cheat Sheet* PDF is a
+client-facing summary: it uses coarse lookup bands ("1½ mins = 0.75") and omits
+the final `× 10`. Building from it would produce scores wrong by a factor of
+ten that still looked plausible. The `.xlsx` is the source of truth — it
+interpolates continuously via `XLOOKUP`, which is what the app reproduces.
 
 ## The TEI formula
 
@@ -139,6 +186,17 @@ Every screen maps to a numbered mock-up in the client's deck.
 | `/ranges` | ELEMENTAL Screen 7 — Effective TEI Ranges |
 | `/profile` | ELEMENTAL Screen 8 — Edit Elemental Profile |
 | `/review` | BASIC Screen 8 — Review TEI, monthly calendar (paid tiers) |
+| `/session-type` | PREMIUM Screen 2 — 5 Types of Training Session Selector |
+| `/calc/breakdown` | PREMIUM Screen 4 — Breakdown Strength Training |
+| `/calc/circuit` | PREMIUM Screen 5 — Circuit Strength Training |
+| `/calc/yoga` | PREMIUM Screen 6 — YOGA Training |
+| `/calc/cardio` | PREMIUM Screen 7 — Cardio ONLY Training |
+| `/entry/breakdowns` | PREMIUM Screen 12 — Average Breakdowns per Set |
+| `/entry/exercises` | PREMIUM Screen 13 — Average Exercises per Circuit |
+| `/entry/circuits` | PREMIUM Screen 14 — Total Number of Circuits |
+| `/entry/yoga` | PREMIUM Screen 15 — Total Minutes of YOGA |
+| `/plan` | PREMIUM Screen 20 — Plan TEI, monthly calendar |
+| `/planner` | PREMIUM Screen 21 — TEI 7 Day Planner |
 
 Everything except the launch, log in, account type and create account routes
 requires a session; `AuthGate` in `app/_layout.tsx` redirects otherwise.
@@ -158,6 +216,24 @@ From the deck's "Suggested Tokens" and colour-palette slides, in
 | Success | `#18A86B` |
 | Border radius | `11px` |
 
+## Client decisions applied
+
+These were ambiguities in the source documents, resolved by the client and
+implemented:
+
+| Question | Decision |
+| -------- | -------- |
+| Cardio of 0 | Valid — means "no cardio", contributes 0. A non-zero entry must be at least 7 minutes. |
+| Cardio entered first | Zero-fills the strength variables, so a Cardio ONLY session can be logged on the Standard calculator. |
+| TEI 3-33 | An expected band, not a cap. The red gradient still warns above 22; above 33 prompts that the data may be misdefined, since that is not a survivable workload. |
+| Re-planning a day | Overwrites the previous plan. No plan history. |
+| Sessions per day | Multiple allowed, each with its own timestamp and calculator; Review sums them for the day. |
+| Deck typos | Corrected ("Training Sets", "Strength Training", "Formats", "Review", "Change Last Name", "Circuit"). |
+| Session date picker | Not needed for the prototype; required for v1.0. |
+| Light mode + 11 accent colours | Phase 2, a defining Premium feature in v1.0. |
+| Week start | Sunday-Saturday. A user setting in v1.0. |
+| Effective Ranges | Elemental: informational, "make a note". Basic and above: tapping a timeframe sets the denominator of "% of Target". |
+
 ## Prototype limitations
 
 Deliberate, and matching the agreed scope:
@@ -166,14 +242,23 @@ Deliberate, and matching the agreed scope:
   calculator computes a score but does not write to `sessions`. Basic and
   Premium accounts do save, and the Review calendar reads them back.
 - **No payments.** The Basic/Premium payment pop-ups (Screens 9 and 11) are not
-  built, so there is no way to upgrade from inside the app. To exercise the
-  paid-tier flows, set a profile's tier directly:
-  `update public.profiles set tier = 'basic' where email = '…';`
+  built. Instead, tiers switch **instantly and free of charge** from the
+  Upgrade screen so all three can be demoed — tap *Upgrade* on Home or Profile
+  and pick a plan. This is backed by the `set_my_tier` RPC in
+  `supabase/migrations/0003_prototype_tier_switch.sql`, which **must be dropped
+  before launch**: leaving it in production would let anyone grant themselves
+  Premium for free. Real tier changes should come from a payment webhook using
+  the service_role key.
 - **Email is read-only on the Profile screen.** Changing it needs a
   confirmation round-trip that is not wired up.
 - **No password reset.** The "Forgot password?" link shows a notice.
-- **Premium-only UI** (progress gradients on rings, the 5 calculator formats,
-  Plan/Workload designer) is not built.
+- **Planning has no date picker.** The 7-day planner takes its start date from
+  the calendar you tapped; changing it in place is not wired up.
+- **The pop-up planner variants** (PREMIUM Screens 23-27) are not separate
+  screens: tapping a day routes to the normal calculator with a `?plan=` day,
+  which saves a target instead of a logged session. Same maths, one screen.
+- **TEI Premium Review by timeframe** (Screens 17-19) is not built; the Basic
+  monthly Review is.
 
 ## Source documents
 

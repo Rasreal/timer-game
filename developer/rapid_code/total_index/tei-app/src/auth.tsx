@@ -25,11 +25,22 @@ interface AuthState {
   /** Undefined until the stored session has been restored. */
   session: Session | null;
   profile: ProfileRow | null;
+  /** Set when the profile could not be fetched, so the UI can say so. */
+  profileError: string | null;
+  /** Re-attempt a failed profile load. */
+  reloadProfile: () => void;
+  /**
+   * PROTOTYPE ONLY: switch subscription tier with no payment, so all three
+   * tiers can be demoed. Backed by the `set_my_tier` RPC — see
+   * supabase/migrations/0003, which must be removed once billing exists.
+   */
+  changeTier: (tier: TeiTier) => Promise<string | null>;
   /** True while the initial session restore is in flight. */
   initializing: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (args: SignUpArgs) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
-  signOut: () => Promise<void>;
+  /** Resolves to the failure message, or null on success — as signIn does. */
+  signOut: () => Promise<string | null>;
   updateProfile: (patch: {
     firstName?: string;
     lastName?: string;
@@ -42,20 +53,43 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
 
+  /**
+   * Fetch the user's profile, retrying briefly if it is not there yet.
+   *
+   * On sign-up the row is created by the `handle_new_user` trigger on
+   * `auth.users`. The client can win the race and query before that row is
+   * visible, which previously left the Home screen with a blank name until
+   * the app was restarted. Retrying also covers a transient network failure
+   * on mobile cold-start.
+   */
   const loadProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    const DELAYS_MS = [0, 250, 600, 1200];
 
-    if (error) {
-      console.warn('Failed to load profile:', error.message);
-      return;
+    for (const wait of DELAYS_MS) {
+      if (wait) await new Promise((r) => setTimeout(r, wait));
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        setProfileError(error.message);
+        continue;
+      }
+      if (data) {
+        setProfile(data);
+        setProfileError(null);
+        return;
+      }
     }
-    setProfile(data ?? null);
+
+    // Out of retries: surface it rather than looking like a blank profile.
+    setProfileError('Could not load your profile. Pull to retry or sign in again.');
   }, []);
 
   useEffect(() => {
@@ -75,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         void loadProfile(next.user.id);
       } else {
         setProfile(null);
+        setProfileError(null);
       }
     });
 
@@ -107,8 +142,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
 
+      const DUPLICATE =
+        'An account with that email already exists. Try logging in.';
+
       if (error) {
-        return { error: error.message, needsEmailConfirmation: false };
+        // With email confirmation OFF, a duplicate signup errors outright.
+        return {
+          error: /already registered/i.test(error.message)
+            ? DUPLICATE
+            : error.message,
+          needsEmailConfirmation: false,
+        };
+      }
+
+      // With email confirmation ON, Supabase instead stays silent about
+      // duplicates (erroring would leak which addresses are registered) and
+      // returns a decoy user with an empty `identities` array. Both shapes are
+      // handled so this keeps working whichever way the project is configured.
+      if (data.user && data.user.identities?.length === 0) {
+        return { error: DUPLICATE, needsEmailConfirmation: false };
       }
 
       // With email confirmation enabled, signUp succeeds but returns no
@@ -121,19 +173,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+  const signOut = useCallback<AuthState['signOut']>(async () => {
+    const { error } = await supabase.auth.signOut();
+    return error ? error.message : null;
   }, []);
 
   const updateProfile = useCallback<AuthState['updateProfile']>(
     async ({ firstName, lastName, password }) => {
       if (!session) return 'Not signed in.';
 
-      if (password) {
-        const { error } = await supabase.auth.updateUser({ password });
-        if (error) return error.message;
-      }
-
+      // Save the name FIRST. Doing the password first meant that a rejected
+      // password (e.g. Supabase refusing a reuse of the current one) returned
+      // early and silently discarded the user's name edit.
       if (firstName !== undefined || lastName !== undefined) {
         const patch: ProfileUpdate = {};
         if (firstName !== undefined) patch.first_name = firstName.trim();
@@ -150,6 +201,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(data);
       }
 
+      if (password) {
+        const { error } = await supabase.auth.updateUser({ password });
+        // The name change above already succeeded, so say so explicitly
+        // rather than letting the user assume nothing was saved.
+        if (error) return `Your name was saved, but the password was not: ${error.message}`;
+      }
+
+      return null;
+    },
+    [session],
+  );
+
+  const reloadProfile = useCallback(() => {
+    if (session) void loadProfile(session.user.id);
+  }, [session, loadProfile]);
+
+  const changeTier = useCallback<AuthState['changeTier']>(
+    async (tier) => {
+      if (!session) return 'Not signed in.';
+
+      const { data, error } = await supabase.rpc('set_my_tier', {
+        new_tier: tier,
+      });
+
+      if (error) return error.message;
+      if (data) setProfile(data as ProfileRow);
       return null;
     },
     [session],
@@ -159,13 +236,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       session,
       profile,
+      profileError,
+      reloadProfile,
+      changeTier,
       initializing,
       signIn,
       signUp,
       signOut,
       updateProfile,
     }),
-    [session, profile, initializing, signIn, signUp, signOut, updateProfile],
+    [
+      session,
+      profile,
+      profileError,
+      reloadProfile,
+      changeTier,
+      initializing,
+      signIn,
+      signUp,
+      signOut,
+      updateProfile,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

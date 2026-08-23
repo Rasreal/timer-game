@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { useRouter } from 'expo-router';
+import { useCallback, useState, type ReactNode } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandLockup, TeiLockup } from '../src/components/Chrome';
@@ -12,20 +12,22 @@ import {
   fillParent,
 } from '../src/components/Icons';
 import { useAuth } from '../src/auth';
+import { latestSession } from '../src/lib/sessions';
+import type { SessionRow } from '../src/lib/database.types';
 import { useStore } from '../src/store';
 import { colors } from '../src/theme';
 
 /**
  * ELEMENTAL Screen 1 — TEI Elemental Home Screen.
  *
- * Review and Plan TEI are locked at the Elemental tier; per the brief they are
- * dummy buttons that surface an upgrade prompt.
+ * Review unlocks on Basic and Plan TEI on Premium; both surface an upgrade
+ * prompt at lower tiers.
  */
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { showToast } = useStore();
-  const { profile } = useAuth();
+  const { profile, profileError, reloadProfile } = useAuth();
 
   const fullName = profile
     ? `${profile.first_name} ${profile.last_name}`.trim() || profile.email
@@ -33,6 +35,38 @@ export default function Home() {
 
   // Saving and reviewing history is a paid-tier feature.
   const reviewLocked = profile?.tier === 'elemental' || !profile;
+  // Planning is Premium-only, matching the plans table's RLS policy.
+  const planLocked = profile?.tier !== 'premium';
+
+  // Elemental is calculate-only by design, so there is no history to show it;
+  // the same gate the Review tile uses decides whether to fetch at all.
+  const canSaveHistory = profile != null && profile.tier !== 'elemental';
+  const [latest, setLatest] = useState<SessionRow | null>(null);
+  // A failed read must not read as "no sessions yet", so it replaces the
+  // score line the same way profileError replaces the name.
+  const [latestError, setLatestError] = useState<string | null>(null);
+
+  // Re-read on every focus, not just on mount: expo-router keeps Home mounted
+  // while the calculator is pushed over it, so a plain useEffect left the score
+  // showing whatever it was before the session was logged.
+  useFocusEffect(
+    useCallback(() => {
+      if (!canSaveHistory) {
+        setLatest(null);
+        setLatestError(null);
+        return;
+      }
+      let cancelled = false;
+      void latestSession().then(({ data, error }) => {
+        if (cancelled) return;
+        setLatest(data);
+        setLatestError(error);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [canSaveHistory]),
+  );
 
   return (
     <View
@@ -51,15 +85,43 @@ export default function Home() {
       </View>
 
       <View style={{ marginTop: 10, marginBottom: 16 }}>
-        <Text style={styles.name}>{fullName}</Text>
+        {profileError ? (
+          <Pressable onPress={reloadProfile} accessibilityRole="button">
+            <Text style={styles.loadError}>{profileError}</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.name}>{fullName}</Text>
+        )}
         <Text style={styles.ready}>Ready to train</Text>
+
+        {canSaveHistory &&
+          (latestError ? (
+            <Text style={styles.loadError}>
+              Could not load your last session: {latestError}
+            </Text>
+          ) : (
+            <View style={styles.scoreRow}>
+              <Text style={styles.scoreValue}>
+                {latest ? formatTei(latest.tei) : '0'}
+              </Text>
+              <Text style={styles.scoreCaption}>
+                {latest ? 'Last session TEI' : 'No sessions yet'}
+              </Text>
+            </View>
+          ))}
       </View>
 
       <View style={styles.grid}>
         <Tile
           title={'Calculate\nSession'}
           icon={<CalcIcon color="#000" />}
-          onPress={() => router.push('/calculator')}
+          onPress={() =>
+            // Premium picks a session type first; the other tiers only have
+            // the Standard Strength model, so they go straight to it.
+            router.push(
+              profile?.tier === 'premium' ? '/session-type' : '/calculator',
+            )
+          }
         />
         <Tile
           title="Review"
@@ -73,9 +135,13 @@ export default function Home() {
         />
         <Tile
           title={'Plan\nTEI'}
-          icon={<DumbbellIcon color="#4E4E4E" />}
-          locked
-          onPress={() => showToast('Plan TEI is available on TEI Premium.')}
+          icon={<DumbbellIcon color={planLocked ? '#4E4E4E' : '#000'} />}
+          locked={planLocked}
+          onPress={() =>
+            planLocked
+              ? showToast('Plan TEI is available on TEI Premium.')
+              : router.push('/plan')
+          }
         />
         <Tile
           title="Profile"
@@ -93,6 +159,12 @@ export default function Home() {
       </Pressable>
     </View>
   );
+}
+
+/** Whole numbers stay whole; anything else keeps a single decimal. */
+function formatTei(value: number): string {
+  const n = Number(value);
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
 function Tile({
@@ -145,7 +217,16 @@ function Tile({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 20 },
   name: { color: '#9C9C9C', fontSize: 20 },
+  loadError: { color: colors.red, fontSize: 14, lineHeight: 19 },
   ready: { color: colors.text, fontSize: 22, fontWeight: '500' },
+  scoreRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 6 },
+  scoreValue: {
+    color: colors.orange,
+    fontSize: 34,
+    fontWeight: '800',
+    letterSpacing: -1,
+  },
+  scoreCaption: { color: '#9C9C9C', fontSize: 15, marginLeft: 8 },
   grid: {
     flex: 1,
     flexDirection: 'row',

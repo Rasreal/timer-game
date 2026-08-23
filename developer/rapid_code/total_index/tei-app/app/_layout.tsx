@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Dimensions, View } from 'react-native';
@@ -24,7 +24,16 @@ const PUBLIC_ROUTES = new Set([
   'login',
   'account-type',
   'create-account',
+  // Reachable mid-sign-in, before the session has finished propagating.
+  'loading',
 ]);
+
+/**
+ * Public routes that a signed-in user may also stay on, rather than being
+ * bounced to /home. The plan picker doubles as the upgrade screen, so it has
+ * to work in both states.
+ */
+const ALSO_SIGNED_IN = new Set(['index', 'loading', 'account-type']);
 
 export default function RootLayout() {
   return (
@@ -36,12 +45,37 @@ export default function RootLayout() {
       <AuthProvider>
         <StoreProvider>
           <StatusBar style="light" />
+          <ResetDraftOnUserChange />
           <AuthGate />
           <GlobalToast />
         </StoreProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
+}
+
+/**
+ * Clears the in-progress calculator draft whenever the signed-in user
+ * changes, so nothing carries over between accounts on a shared device.
+ *
+ * This deliberately does NOT remount the store via a `key`: that would also
+ * remount the navigator underneath it and tear down the screen mid-transition
+ * as the session lands.
+ */
+function ResetDraftOnUserChange() {
+  const { session } = useAuth();
+  const { resetSession } = useStore();
+  const userId = session?.user.id ?? null;
+  const previous = useRef<string | null>(userId);
+
+  useEffect(() => {
+    if (previous.current !== userId) {
+      previous.current = userId;
+      resetSession();
+    }
+  }, [userId, resetSession]);
+
+  return null;
 }
 
 /**
@@ -53,22 +87,25 @@ function AuthGate() {
   const segments = useSegments();
   const router = useRouter();
 
+  // segments[0] is undefined on the index route.
+  const current: string = segments[0] ?? 'index';
+  const onPublicRoute = PUBLIC_ROUTES.has(current);
+  // A signed-out user on a protected route must not see that screen paint even
+  // for one frame, so compute this during render rather than after the effect.
+  const redirecting = !initializing && !session && !onPublicRoute;
+
   useEffect(() => {
     if (initializing) return;
 
-    // segments[0] is undefined on the index route.
-    const current: string = segments[0] ?? 'index';
-    const onPublicRoute = PUBLIC_ROUTES.has(current);
-
     if (!session && !onPublicRoute) {
       router.replace('/');
-    } else if (session && onPublicRoute && current !== 'index') {
+    } else if (session && onPublicRoute && !ALSO_SIGNED_IN.has(current)) {
       // Finished signing in or signing up — continue into the app.
       router.replace('/home');
     }
-  }, [session, initializing, segments, router]);
+  }, [session, initializing, current, onPublicRoute, router]);
 
-  if (initializing) {
+  if (initializing || redirecting) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center' }}>
         <ActivityIndicator color={colors.orange} size="large" />

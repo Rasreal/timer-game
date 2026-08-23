@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, Ellipsis } from '../src/components/Chrome';
+import { EyeIcon } from '../src/components/Icons';
 import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
 import { colors } from '../src/theme';
@@ -63,12 +64,9 @@ export default function CreateAccount() {
     });
 
     if (message) {
+      // signUp() already maps Supabase's wording to user-facing copy.
       setBusy(false);
-      setError(
-        message.toLowerCase().includes('already registered')
-          ? 'An account with that email already exists. Try logging in.'
-          : message,
-      );
+      setError(message);
       return;
     }
 
@@ -149,7 +147,7 @@ export default function CreateAccount() {
             hitSlop={10}
             style={styles.eye}
           >
-            <Text style={{ fontSize: 18 }}>{showPassword ? '🙈' : '👁'}</Text>
+            <EyeIcon crossed={!showPassword} />
           </Pressable>
         </View>
 

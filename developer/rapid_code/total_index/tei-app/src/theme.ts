@@ -23,6 +23,17 @@ export const colors = {
 export const radius = 11;
 
 /**
+ * Developer affordances that are NOT in the client's mock-ups — the TEI
+ * formula breakdown, the Sign Out link, "Forgot password?". They are useful
+ * while building and reviewing, but they should be off for a client
+ * walkthrough so the screens match the deck 1:1.
+ *
+ * Flip to true (or set EXPO_PUBLIC_SHOW_DEV_TOOLS=1) to bring them back.
+ */
+export const SHOW_DEV_TOOLS =
+  process.env.EXPO_PUBLIC_SHOW_DEV_TOOLS === '1';
+
+/**
  * The spec calls for a bold geometric sans. System faces are the closest
  * match available without shipping a font binary into the prototype:
  * SF Pro on iOS, Roboto on Android.

@@ -4,13 +4,22 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, Divider, OutlineButton } from '../src/components/Chrome';
 import { EFFECTIVE_RANGES } from '../src/lib/tei';
+import { useStore } from '../src/store';
+import { useAuth } from '../src/auth';
 import { colors } from '../src/theme';
 
 /** ELEMENTAL Screen 7 — Effective TEI Ranges. */
 export default function Ranges() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [selected, setSelected] = useState<string | null>(null);
+  // Persisted in the store so the calculators' "% of Target" bar can measure
+  // against the timeframe the user picked, per the client's tiered intent.
+  const { targetRange: selected, setTargetRange: setSelected } = useStore();
+  const { profile } = useAuth();
+  // On Elemental the screen is informational — there is no progress bar to
+  // drive — so the instruction is to make a note. Paid tiers actually tap a
+  // timeframe, which becomes the denominator of "% of Target".
+  const canTrack = profile != null && profile.tier !== 'elemental';
 
   return (
     <ScrollView
@@ -22,7 +31,7 @@ export default function Ranges() {
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <BackArrow onPress={() => router.back()} />
+        <BackArrow onPress={() => router.canGoBack() ? router.back() : router.replace('/calculator')} />
         <Text style={styles.title}>TEI - Effective Ranges</Text>
       </View>
 
@@ -38,7 +47,9 @@ export default function Ranges() {
       </Text>
 
       <Text style={styles.note}>
-        Make a note of the Timeframe Numbers you want to track for results:
+        {canTrack
+          ? 'Tap the Timeframe you want to track — your % of Target will be measured against it:'
+          : 'Make a note of the Timeframe Numbers you want to track for results:'}
       </Text>
 
       {EFFECTIVE_RANGES.map((r) => (

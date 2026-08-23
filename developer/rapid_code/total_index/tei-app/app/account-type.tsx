@@ -15,27 +15,51 @@ import {
   Ellipsis,
   OutlineButton,
 } from '../src/components/Chrome';
+import { useAuth } from '../src/auth';
 import { useStore, type Tier } from '../src/store';
 import { colors } from '../src/theme';
 
-/** Screen 5 — Account Type Selection. */
+function label(t: Tier): string {
+  return t === 'elemental' ? 'Elemental' : t === 'basic' ? 'Basic' : 'Premium';
+}
+
+/** Screen 5 — Account Type Selection, and the upgrade/downgrade screen. */
 export default function AccountType() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { setPendingTier, showToast } = useStore();
+  const { session, profile, changeTier } = useAuth();
   const [showFeatures, setShowFeatures] = useState(false);
+  const [busy, setBusy] = useState<Tier | null>(null);
 
-  function choose(tier: Tier) {
+  // Two modes: picking a tier during sign-up, or switching tier afterwards.
+  const signedIn = session != null;
+
+  async function choose(tier: Tier) {
     setShowFeatures(false);
-    if (tier !== 'elemental') {
-      // Only the free tier is in scope for this prototype.
-      showToast(
-        `TEI ${tier === 'basic' ? 'Basic' : 'Premium'} is not part of this prototype.`,
-      );
+
+    if (!signedIn) {
+      setPendingTier(tier);
+      router.push('/create-account');
       return;
     }
-    setPendingTier(tier);
-    router.push('/create-account');
+
+    if (profile?.tier === tier) {
+      showToast(`You are already on TEI ${label(tier)}.`);
+      return;
+    }
+
+    // Prototype: tiers switch freely, with no payment step.
+    setBusy(tier);
+    const error = await changeTier(tier);
+    setBusy(null);
+
+    if (error) {
+      showToast(`Could not switch plan: ${error}`);
+      return;
+    }
+    showToast(`Switched to TEI ${label(tier)}.`);
+    router.replace('/home');
   }
 
   return (
@@ -48,7 +72,7 @@ export default function AccountType() {
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-          <BackArrow onPress={() => router.back()} />
+          <BackArrow onPress={() => router.canGoBack() ? router.back() : router.replace('/home')} />
           <View style={{ flex: 1, alignItems: 'flex-end' }}>
             <Text style={styles.tei1}>TOTAL EFFECT INDEX</Text>
             <Text style={styles.tei2}>TEI</Text>
@@ -61,8 +85,16 @@ export default function AccountType() {
           provide?
         </Text>
 
+        {signedIn && (
+          <Text style={styles.switchNote}>
+            Prototype: plans switch instantly, with no payment.
+          </Text>
+        )}
+
         <TierRow
           label="Helpful"
+          current={profile?.tier === 'elemental'}
+          busy={busy === 'elemental'}
           subPrefix="TEI"
           subText=" Elemental - FREE"
           onSelect={() => choose('elemental')}
@@ -71,6 +103,8 @@ export default function AccountType() {
         <Divider style={{ marginVertical: 24, marginHorizontal: 34 }} />
         <TierRow
           label="Insightful"
+          current={profile?.tier === 'basic'}
+          busy={busy === 'basic'}
           subPrefix="TEI"
           subText=" Basic - $5 per month"
           onSelect={() => choose('basic')}
@@ -79,6 +113,8 @@ export default function AccountType() {
         <Divider style={{ marginVertical: 24, marginHorizontal: 34 }} />
         <TierRow
           label="Transformative"
+          current={profile?.tier === 'premium'}
+          busy={busy === 'premium'}
           subPrefix="TEI"
           subText=" Premium - $11 per month"
           onSelect={() => choose('premium')}
@@ -104,12 +140,17 @@ function TierRow({
   subText,
   onSelect,
   onEllipsis,
+  current = false,
+  busy = false,
 }: {
   label: string;
   subPrefix: string;
   subText: string;
   onSelect: () => void;
   onEllipsis: () => void;
+  /** True when this is the signed-in user's active plan. */
+  current?: boolean;
+  busy?: boolean;
 }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -125,9 +166,13 @@ function TierRow({
           style={({ pressed }) => [
             styles.pill,
             { backgroundColor: pressed ? '#4a4a4a' : '#3A3A3A' },
+            current && styles.pillCurrent,
           ]}
         >
-          <Text style={styles.pillText}>{label}</Text>
+          <Text style={styles.pillText}>
+            {busy ? '…' : label}
+            {current && !busy && <Text style={styles.pillCurrentTag}>  ✓</Text>}
+          </Text>
         </Pressable>
         <Text style={styles.pillSub}>
           <Text style={{ fontWeight: '700' }}>{subPrefix}</Text>
@@ -147,6 +192,10 @@ function TheThreeTei({
   onChoose: (t: Tier) => void;
 }) {
   const insets = useSafeAreaInsets();
+  // The per-plan SELECT pills commit immediately; the primary CTA at the foot
+  // commits whichever plan is currently highlighted, so it needs its own
+  // selection state. Nothing is preselected — the sheet is an explainer first.
+  const [picked, setPicked] = useState<Tier | null>(null);
   return (
     <View style={{ flex: 1, justifyContent: 'flex-end' }}>
       <View style={styles.sheet}>
@@ -177,6 +226,8 @@ function TheThreeTei({
             name="TEI Elemental"
             price="$0 per month"
             onSelect={() => onChoose('elemental')}
+            onHighlight={() => setPicked('elemental')}
+            picked={picked === 'elemental'}
             features={[
               {
                 title: 'Standard TEI Calculator',
@@ -188,6 +239,8 @@ function TheThreeTei({
             name="TEI Basic"
             price="$5 per month"
             onSelect={() => onChoose('basic')}
+            onHighlight={() => setPicked('basic')}
+            picked={picked === 'basic'}
             features={[
               {
                 title: 'Standard TEI Calculator',
@@ -203,6 +256,8 @@ function TheThreeTei({
             name="TEI Premium"
             price="$11 per month"
             onSelect={() => onChoose('premium')}
+            onHighlight={() => setPicked('premium')}
+            picked={picked === 'premium'}
             features={[
               {
                 title: 'Choose from 5 Different Training Formats',
@@ -213,7 +268,7 @@ function TheThreeTei({
                 body: 'Many points throughout the App have visual references that will help you make quick decisions about YOUR training session needs.',
               },
               {
-                title: 'Save & Track Your Week, Month, Year, etc…',
+                title: 'Save & Track Your Week, Month, Year, etc...',
                 body: 'Review & manage your total training load period to period, to know when to adjust or modify your plan - know when to push and when to recover to BE Your Best.',
               },
               {
@@ -225,7 +280,9 @@ function TheThreeTei({
 
           <OutlineButton
             title="Select Your TEI"
-            onPress={onClose}
+            // Commits the highlighted plan. With nothing highlighted there is
+            // no plan to commit, so it just dismisses — never a stray choice.
+            onPress={() => (picked ? onChoose(picked) : onClose())}
             fontSize={23}
             style={{ marginTop: 22 }}
           />
@@ -240,17 +297,32 @@ function PlanBlock({
   price,
   features,
   onSelect,
+  onHighlight,
+  picked = false,
 }: {
   name: string;
   price: string;
   features: { title: string; body: string }[];
   onSelect: () => void;
+  /** Highlights this plan for the sheet's primary "Select Your TEI" button. */
+  onHighlight: () => void;
+  picked?: boolean;
 }) {
   return (
     <View style={{ marginTop: 22 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={styles.planName}>{name}</Text>
-        <Text style={styles.planPrice}>{price}</Text>
+        <Pressable
+          onPress={onHighlight}
+          accessibilityRole="button"
+          accessibilityLabel={`Highlight ${name}`}
+          accessibilityState={{ selected: picked }}
+          style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+        >
+          <Text style={[styles.planName, picked && styles.planNamePicked]}>
+            {name}
+          </Text>
+          <Text style={styles.planPrice}>{price}</Text>
+        </Pressable>
         <Pressable
           onPress={onSelect}
           accessibilityRole="button"
@@ -298,6 +370,15 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 14,
   },
+  pillCurrent: { borderColor: colors.orange, borderWidth: 2 },
+  pillCurrentTag: { color: colors.orange, fontWeight: '700' },
+  switchNote: {
+    color: colors.orange,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: -22,
+    marginBottom: 24,
+  },
   pillText: {
     color: colors.text,
     fontSize: 22,
@@ -330,6 +411,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: -0.5,
   },
+  planNamePicked: { color: colors.text, fontWeight: '700' },
   planPrice: {
     color: colors.orange,
     fontSize: 14,

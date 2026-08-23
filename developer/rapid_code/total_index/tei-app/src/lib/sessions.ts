@@ -1,15 +1,24 @@
 import { supabase } from './supabase';
 import type { SessionRow } from './database.types';
+import type { CalculatorId } from './tei';
 
 export interface SaveSessionArgs {
   userId: string;
   performedAt: string;
-  sets: number;
-  restSeconds: number;
-  exertionPercent: number;
   cardioMinutes: number;
   tei: number;
-  calculator?: string;
+  /** Which of the five models produced this score; defaults to 'standard'. */
+  calculator?: CalculatorId;
+
+  // Only the variables the chosen calculator actually uses are supplied; the
+  // rest stay null in the row. Cardio ONLY, for instance, sets none of these.
+  sets?: number | null;
+  restSeconds?: number | null;
+  exertionPercent?: number | null;
+  breakdowns?: number | null;
+  exercises?: number | null;
+  circuits?: number | null;
+  yogaMinutes?: number | null;
 }
 
 /**
@@ -26,12 +35,16 @@ export async function saveSession(
     .insert({
       user_id: args.userId,
       performed_at: args.performedAt,
-      sets: args.sets,
-      rest_seconds: args.restSeconds,
-      exertion_percent: args.exertionPercent,
       cardio_minutes: args.cardioMinutes,
       tei: args.tei,
       calculator: args.calculator ?? 'standard',
+      sets: args.sets ?? null,
+      rest_seconds: args.restSeconds ?? null,
+      exertion_percent: args.exertionPercent ?? null,
+      breakdowns: args.breakdowns ?? null,
+      exercises: args.exercises ?? null,
+      circuits: args.circuits ?? null,
+      yoga_minutes: args.yogaMinutes ?? null,
     })
     .select()
     .single();
@@ -52,7 +65,11 @@ export async function listSessions(
   return { data: data ?? [], error: error ? error.message : null };
 }
 
-/** Sessions within a date range, oldest first — for the monthly calendar. */
+/**
+ * Sessions in the half-open range [fromIso, toIso), oldest first — for the
+ * monthly calendar. Half-open so callers can pass the first instant of the
+ * next month without double-counting or dropping the final second.
+ */
 export async function listSessionsBetween(
   fromIso: string,
   toIso: string,
@@ -61,20 +78,28 @@ export async function listSessionsBetween(
     .from('sessions')
     .select('*')
     .gte('performed_at', fromIso)
-    .lte('performed_at', toIso)
+    .lt('performed_at', toIso)
     .order('performed_at', { ascending: true });
 
   return { data: data ?? [], error: error ? error.message : null };
 }
 
-/** The single most recent session, or null. Drives the Home screen's score. */
-export async function latestSession(): Promise<SessionRow | null> {
-  const { data } = await supabase
+/**
+ * The single most recent session, or null. Drives the Home screen's score.
+ *
+ * Returns `error` like every sibling helper: dropping it made a permission or
+ * network failure indistinguishable from "no sessions yet".
+ */
+export async function latestSession(): Promise<{
+  data: SessionRow | null;
+  error: string | null;
+}> {
+  const { data, error } = await supabase
     .from('sessions')
     .select('*')
     .order('performed_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  return data ?? null;
+  return { data: data ?? null, error: error ? error.message : null };
 }
