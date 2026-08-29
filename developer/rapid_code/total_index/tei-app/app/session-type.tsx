@@ -55,18 +55,22 @@ export default function SessionType() {
       style={{ backgroundColor: colors.orange }}
       contentContainerStyle={{
         flexGrow: 1,
-        paddingTop: insets.top + 12,
-        paddingHorizontal: 24,
-        paddingBottom: Math.max(insets.bottom, 20) + 24,
+        paddingTop: insets.top + 6,
+        paddingHorizontal: 20,
+        paddingBottom: Math.max(insets.bottom, 12) + 8,
       }}
     >
       <BackArrow onPress={() => router.back()} color="#7A4A12" />
 
       <Text style={styles.heading}>This Training Session</Text>
 
-      <View style={{ alignItems: 'center' }}>
+      {/* Ken asked for the screen to finish without scrolling. Stacking the
+          two discs cost ~400pt of the viewport on its own; side by side they
+          keep their bevel, their type and their relative weight (the date disc
+          stays the larger of the two) inside a single ~190pt band. */}
+      <View style={styles.discs}>
         <BevelCircle
-          size={228}
+          size={150}
           onPress={pickDateTime}
           label={`Session date, ${sessionMonthYear(session.date)} ${sessionDay(session.date)}`}
         >
@@ -75,10 +79,9 @@ export default function SessionType() {
         </BevelCircle>
 
         <BevelCircle
-          size={150}
+          size={102}
           onPress={pickDateTime}
           label={`Session time, ${sessionTime(session.date)}`}
-          style={{ marginTop: 22 }}
         >
           <Text style={styles.time}>{sessionTime(session.date)}</Text>
         </BevelCircle>
@@ -120,7 +123,7 @@ export default function SessionType() {
         />
       </View>
 
-      <View style={{ flex: 1, minHeight: 22 }} />
+      <View style={{ flex: 1, minHeight: 8 }} />
 
       <DarkButton
         title="Go To TEI Calculator"
@@ -199,7 +202,14 @@ function CheckRow({
       <View style={styles.box}>
         {checked && <Text style={styles.boxMark}>X</Text>}
       </View>
-      <Text style={styles.rowLabel}>{label}</Text>
+      <Text
+        style={styles.rowLabel}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.85}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -211,8 +221,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
     letterSpacing: -0.6,
-    marginTop: 10,
-    marginBottom: 20,
+    lineHeight: 38,
+    marginTop: 0,
+    marginBottom: 6,
+  },
+  discs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
   },
   bevelOuter: {
     backgroundColor: '#242424',
@@ -231,19 +248,19 @@ const styles = StyleSheet.create({
   },
   day: {
     color: colors.text,
-    fontSize: 88,
+    fontSize: 60,
     fontWeight: '700',
     letterSpacing: -3,
-    lineHeight: 96,
+    lineHeight: 65,
   },
   monthYear: {
     color: colors.textDim,
-    fontSize: 17,
-    marginTop: -4,
+    fontSize: 13,
+    marginTop: -3,
   },
   time: {
     color: colors.text,
-    fontSize: 38,
+    fontSize: 25,
     fontWeight: '600',
     letterSpacing: -1,
     textAlign: 'center',
@@ -253,27 +270,28 @@ const styles = StyleSheet.create({
     fontSize: 27,
     fontWeight: '700',
     textAlign: 'center',
-    marginTop: 24,
+    lineHeight: 31,
+    marginTop: 8,
   },
   instruction: {
     color: '#1A1A1A',
     fontSize: 16,
     textAlign: 'center',
-    lineHeight: 21,
-    marginTop: 8,
+    lineHeight: 20,
+    marginTop: 4,
   },
   instructionBold: { fontWeight: '800' },
   rule: {
     backgroundColor: '#7A4A12',
-    marginTop: 14,
+    marginTop: 10,
     marginHorizontal: 12,
   },
-  options: { marginTop: 14, gap: 10 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  options: { marginTop: 8, gap: 5 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   box: {
-    width: 30,
-    height: 30,
-    borderRadius: 7,
+    width: 25,
+    height: 25,
+    borderRadius: 6,
     backgroundColor: '#242424',
     alignItems: 'center',
     justifyContent: 'center',
@@ -287,15 +305,21 @@ const styles = StyleSheet.create({
   rowLabel: {
     flex: 1,
     color: '#111',
-    fontSize: 21,
+    // 21 -> 18: at 21pt the two longest labels ("YOGA Training (strength
+    // option)" and "Aerobic/Cardiovascular Training") wrapped to two lines at
+    // 390pt, and those two extra lines were the whole reason the CTA fell
+    // below the fold. Still the heaviest text in the option list.
+    fontSize: 18,
+    lineHeight: 22,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   separator: {
     color: '#111',
     fontSize: 21,
     fontWeight: '800',
     letterSpacing: 2,
-    marginLeft: 44,
+    lineHeight: 14,
+    marginLeft: 35,
   },
 });

@@ -4,6 +4,13 @@ import { useStore } from '../../src/store';
 import { CALCULATOR_LABELS, LIMITS, calculateBreakdownTei } from '../../src/lib/tei';
 import { CalcShell, RingRow } from './_shared';
 
+/**
+ * Five rings wrap to three rows, which at the default 132pt pushed the CTA
+ * row well below the fold. Shrinking them keeps the whole calculator on one
+ * screen — ProgressRing scales its arc, number and ellipsis from `size`.
+ */
+const RING = 96;
+
 /** PREMIUM — Breakdown Strength Training Session Calculator. */
 export default function BreakdownCalculator() {
   const router = useRouter();
@@ -42,6 +49,7 @@ export default function BreakdownCalculator() {
       saveFields={{ sets, restSeconds, exertionPercent, cardioMinutes: cardioMinutes ?? 0,
           breakdowns,
         }}
+      tightRings
     >
       <RingRow>
         <ProgressRing
@@ -52,6 +60,7 @@ export default function BreakdownCalculator() {
           min={LIMITS.sets.min}
           max={LIMITS.sets.max}
           overAt={LIMITS.sets.overAt}
+          size={RING}
         />
         <ProgressRing
           value={breakdowns}
@@ -61,6 +70,7 @@ export default function BreakdownCalculator() {
           min={LIMITS.breakdowns.min}
           max={LIMITS.breakdowns.max}
           overAt={LIMITS.breakdowns.overAt}
+          size={RING}
         />
       </RingRow>
 
@@ -77,6 +87,7 @@ export default function BreakdownCalculator() {
           // session), so only a genuinely short rest is flagged — matching
           // the Standard calculator's Seconds ring.
           underAt={restSeconds !== null && restSeconds > 0 ? LIMITS.rest.underAt : undefined}
+          size={RING}
         />
       </RingRow>
 
@@ -90,6 +101,7 @@ export default function BreakdownCalculator() {
           max={LIMITS.exertion.max}
           overAt={LIMITS.exertion.max}
           underAt={LIMITS.exertion.min}
+          size={RING}
         />
         <ProgressRing
           value={cardioMinutes}
@@ -99,6 +111,7 @@ export default function BreakdownCalculator() {
           min={LIMITS.cardio.min}
           max={LIMITS.cardio.max}
           overAt={LIMITS.cardio.overAt}
+          size={RING}
         />
       </RingRow>
     </CalcShell>

@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { useRef } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors } from '../theme';
 import { Ellipsis } from './Chrome';
 
@@ -27,10 +28,29 @@ export function Ring({
   const hero = variant === 'hero';
   const size = hero ? 236 : 132;
   const numberSize = hero ? 74 : 44;
+  const inputRef = useRef<TextInput>(null);
+
+  // The ring graphic itself is the affordance: a press anywhere on the annulus
+  // — including the ellipsis embedded in its bottom edge — opens the variable
+  // support screen. The number field in the middle keeps its own touches so a
+  // tap there focuses the input instead.
+  // The embedded <Ellipsis> keeps the canonical `More about X` label, so the
+  // ring wrapper takes a distinct one — two nodes sharing a label would make
+  // every getByLabelText query ambiguous.
+  const Circle = onEllipsis ? Pressable : View;
+  const circlePressProps = onEllipsis
+    ? {
+        onPress: onEllipsis,
+        accessibilityRole: 'button' as const,
+        accessibilityLabel: `${label} ring`,
+        accessibilityHint: `Opens support for ${label}`,
+      }
+    : {};
 
   return (
     <View style={{ alignItems: 'center' }}>
-      <View
+      <Circle
+        {...circlePressProps}
         style={[
           {
             width: size,
@@ -64,9 +84,23 @@ export function Ring({
           </View>
         )}
 
-        <View style={{ alignItems: 'center', marginTop: hero ? -10 : -4 }}>
+        {/* The generous inner tap area. It swallows its own presses so a tap
+            on the number focuses the field instead of opening the support
+            screen; only the surrounding annulus and the embedded ellipsis
+            below it are the ring's press target. */}
+        <Pressable
+          onPress={() => inputRef.current?.focus()}
+          disabled={!onChange}
+          accessible={false}
+          style={{
+            alignItems: 'center',
+            marginTop: hero ? -10 : -4,
+            width: hero ? 168 : 104,
+          }}
+        >
           {onChange ? (
             <TextInput
+              ref={inputRef}
               value={value === null ? '' : String(value)}
               onChangeText={(raw) => {
                 const digits = raw.replace(/[^0-9]/g, '');
@@ -114,14 +148,19 @@ export function Ring({
           >
             {label}
           </Text>
-        </View>
-      </View>
+        </Pressable>
 
-      {onEllipsis && (
-        <View style={{ marginTop: 4 }}>
-          <Ellipsis onPress={onEllipsis} label={`More about ${label}`} />
-        </View>
-      )}
+        {/* Embedded in the bottom of the ring rather than sitting below it —
+            Ken's original design, which saves the vertical space. */}
+        {onEllipsis && (
+          <View
+            style={[styles.embeddedEllipsis, { bottom: hero ? 30 : 6 }]}
+            pointerEvents="box-none"
+          >
+            <Ellipsis onPress={onEllipsis} label={`More about ${label}`} />
+          </View>
+        )}
+      </Circle>
     </View>
   );
 }
@@ -147,6 +186,12 @@ const styles = StyleSheet.create({
     bottom: 26,
     borderRadius: 999,
     backgroundColor: '#17100A',
+  },
+  embeddedEllipsis: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
   },
   overRangeClip: {
     position: 'absolute',

@@ -1,4 +1,5 @@
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { useRef } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors } from '../theme';
 import { Ellipsis } from './Chrome';
 
@@ -55,6 +56,10 @@ export function ProgressRing({
   const ring = Math.max(6, Math.round(size * 0.085));
   const numberSize = Math.round(size * 0.34);
   const half = size / 2;
+  const inputRef = useRef<TextInput>(null);
+  // The inner typing area stops short of the rim, so the annulus and the
+  // ellipsis embedded in the bottom edge stay pressable as the ring target.
+  const inset = Math.round(size * 0.2);
 
   // 0..0.5 sweeps the right half from 12 o'clock; 0.5..1 carries on round the
   // left half. Each half rotates from -180deg (hidden) to 0deg (fully shown).
@@ -88,9 +93,24 @@ export function ProgressRing({
     </View>
   );
 
+  // A press anywhere on the ring graphic — annulus or the ellipsis embedded in
+  // its bottom edge — opens the variable support screen. The number field in
+  // the middle keeps its own touches, so tapping it focuses the input.
+  // The embedded <Ellipsis> keeps the canonical `More about X` label, so the
+  // ring wrapper takes a distinct one to avoid an ambiguous a11y query.
+  const Circle = onEllipsis ? Pressable : View;
+  const circlePressProps = onEllipsis
+    ? {
+        onPress: onEllipsis,
+        accessibilityRole: 'button' as const,
+        accessibilityLabel: `${label} ring`,
+        accessibilityHint: `Opens support for ${label}`,
+      }
+    : {};
+
   return (
     <View style={{ alignItems: 'center' }}>
-      <View style={{ width: size, height: size }}>
+      <Circle {...circlePressProps} style={{ width: size, height: size }}>
         <View
           style={{
             width: size,
@@ -107,9 +127,19 @@ export function ProgressRing({
         {(pct > 0 || over) && halfArc('right', rightDeg)}
         {pct > 0.5 && halfArc('left', leftDeg)}
 
-        <View style={styles.center} pointerEvents="box-none">
+        {/* The generous inner tap area. It swallows its own presses so a tap
+            on the number focuses the field rather than opening the support
+            screen; the annulus and the embedded ellipsis remain the ring's
+            press target. */}
+        <Pressable
+          onPress={() => inputRef.current?.focus()}
+          disabled={!onChange}
+          accessible={false}
+          style={[styles.center, { top: inset, left: inset, right: inset, bottom: inset }]}
+        >
           {onChange ? (
             <TextInput
+              ref={inputRef}
               value={value === null ? '' : String(value)}
               onChangeText={(raw) => {
                 const digits = raw.replace(/[^0-9]/g, '');
@@ -128,14 +158,23 @@ export function ProgressRing({
             </Text>
           )}
           <Text style={styles.label}>{label}</Text>
-        </View>
-      </View>
+        </Pressable>
 
-      {onEllipsis && (
-        <View style={{ marginTop: 2 }}>
-          <Ellipsis onPress={onEllipsis} label={`More about ${label}`} />
-        </View>
-      )}
+        {/* Embedded in the bottom of the ring rather than sitting below it —
+            Ken's original design, which saves the vertical space. */}
+        {onEllipsis && (
+          <View
+            style={[styles.embeddedEllipsis, { bottom: Math.round(size * 0.05) }]}
+            pointerEvents="box-none"
+          >
+            <Ellipsis
+              onPress={onEllipsis}
+              label={`More about ${label}`}
+              size={Math.max(14, Math.round(size * 0.14))}
+            />
+          </View>
+        )}
+      </Circle>
     </View>
   );
 }
@@ -150,6 +189,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  embeddedEllipsis: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
   },
   number: {
     color: colors.text,

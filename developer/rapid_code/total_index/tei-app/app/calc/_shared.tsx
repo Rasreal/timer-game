@@ -43,6 +43,12 @@ export interface CalcShellProps {
   };
   /** Yoga is the only mock-up carrying the Effective Ranges pill. */
   showRangesPill?: boolean;
+  /**
+   * Screens whose rings wrap to three rows (Breakdown) need a tighter gap
+   * between the rows than the two-row screens, so the whole page still lands
+   * above the fold. Purely spacing — see `styles.ringRow`.
+   */
+  tightRings?: boolean;
   children: ReactNode;
 }
 
@@ -53,6 +59,7 @@ export function CalcShell({
   compute,
   saveFields,
   showRangesPill = false,
+  tightRings = false,
   children,
 }: CalcShellProps) {
   const router = useRouter();
@@ -193,9 +200,9 @@ export function CalcShell({
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
       contentContainerStyle={{
-        paddingTop: insets.top + 12,
+        paddingTop: insets.top + 2,
         paddingHorizontal: 20,
-        paddingBottom: Math.max(insets.bottom, 16) + 16,
+        paddingBottom: Math.max(insets.bottom, 8) + 6,
         flexGrow: 1,
       }}
       keyboardShouldPersistTaps="handled"
@@ -261,9 +268,9 @@ export function CalcShell({
         <Text style={styles.sessionDate}>{formatSessionDate(session.date)}</Text>
       </View>
 
-      <View style={styles.rings}>{children}</View>
+      <View style={[styles.rings, tightRings && styles.ringsTight]}>{children}</View>
 
-      <View style={{ flex: 1, minHeight: 8 }} />
+      <View style={{ flex: 1, minHeight: 4 }} />
 
       <Text style={styles.greenLabel}>{sessionLabel}</Text>
 
@@ -341,57 +348,69 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    minHeight: 150,
+    minHeight: 104,
   },
-  lockupCol: { paddingTop: 26 },
+  lockupCol: { paddingTop: 0 },
   lockupWord: {
-    fontSize: 25,
+    fontSize: 24,
     fontWeight: '700',
     letterSpacing: 0.2,
-    lineHeight: 30,
+    lineHeight: 25,
     color: '#9A9A9A',
   },
   lockupTei: {
-    fontSize: 36,
+    fontSize: 34,
     fontWeight: '800',
     letterSpacing: -0.5,
-    lineHeight: 44,
+    lineHeight: 37,
     color: colors.text,
   },
   pill: {
     borderWidth: 1.5,
     borderColor: colors.orange,
     borderRadius: 999,
-    paddingVertical: 5,
-    paddingHorizontal: 14,
-    marginTop: 10,
+    paddingVertical: 3,
+    paddingHorizontal: 12,
+    marginTop: 4,
     alignSelf: 'flex-start',
   },
   pillText: { color: colors.orange, fontSize: 14, fontWeight: '700' },
   bigNumber: {
-    fontSize: 132,
+    fontSize: 100,
     fontWeight: '800',
-    letterSpacing: -5,
-    lineHeight: 150,
+    letterSpacing: -3.5,
+    lineHeight: 104,
     // Negative tracking clips the final glyph without a little breathing room.
     paddingRight: 6,
   },
-  targetBlock: { marginTop: 14 },
-  targetPct: { color: colors.text, fontSize: 30, fontWeight: '700' },
-  targetLabel: { color: '#C9C9C9', fontSize: 18, marginTop: -2 },
+  targetBlock: { marginTop: 2 },
+  targetPct: { color: colors.text, fontSize: 30, fontWeight: '700', lineHeight: 34 },
+  targetLabel: { color: '#C9C9C9', fontSize: 18, lineHeight: 21, marginTop: -2 },
   barTrack: {
     flexDirection: 'row',
-    height: 15,
+    height: 13,
     borderRadius: 3,
     backgroundColor: '#3A3A3A',
     overflow: 'hidden',
-    marginTop: 10,
+    marginTop: 6,
   },
   barFill: { backgroundColor: '#8A5A2B' },
-  sessionBlock: { marginTop: 14 },
+  sessionBlock: { marginTop: 6 },
   sessionRow: { flexDirection: 'row', alignItems: 'center' },
-  sessionLabelText: { color: '#C9C9C9', fontSize: 18, marginLeft: 8, marginRight: 8 },
-  sessionDate: { color: colors.text, fontSize: 24, fontWeight: '500', marginTop: 2 },
+  sessionLabelText: {
+    color: '#C9C9C9',
+    fontSize: 18,
+    lineHeight: 21,
+    marginLeft: 8,
+    marginRight: 8,
+  },
+  sessionDate: {
+    color: colors.text,
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: '500',
+    marginTop: 1,
+  },
   calGlyph: {
     width: 19,
     height: 19,
@@ -411,27 +430,31 @@ const styles = StyleSheet.create({
     gap: 1.5,
   },
   calDot: { width: 3, height: 3, backgroundColor: '#E0E0E0' },
-  rings: { marginTop: 20, marginBottom: 12 },
+  rings: { marginTop: 10, marginBottom: 6, rowGap: 4 },
+  // Breakdown wraps to three ring rows; pulling the rows together (and the
+  // block up under the session date) is what keeps its CTA above the fold.
+  ringsTight: { marginTop: -4, marginBottom: -4, rowGap: -18 },
   ringRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'flex-start',
     columnGap: 12,
-    rowGap: 10,
   },
   greenLabel: {
     color: colors.green,
     fontSize: 19,
+    lineHeight: 23,
     fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 12,
+    marginTop: 2,
+    marginBottom: 6,
   },
   ctaRow: { flexDirection: 'row', gap: 12 },
   rangeError: {
     color: '#FF6B6B',
     fontSize: 13,
     lineHeight: 18,
-    marginTop: 10,
+    marginTop: 6,
     textAlign: 'center',
   },
 });

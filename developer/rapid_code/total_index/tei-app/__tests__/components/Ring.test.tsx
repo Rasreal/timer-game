@@ -49,6 +49,42 @@ function assertNoNaN() {
   }
 }
 
+/** Walks up from `node` looking for `ancestor`. */
+function isDescendantOf(node: any, ancestor: any): boolean {
+  let cur = node?.parent;
+  while (cur) {
+    if (cur === ancestor) return true;
+    cur = cur.parent;
+  }
+  return false;
+}
+
+/**
+ * The absolutely-positioned holder between the ellipsis and the ring — this is
+ * the wrapper that embeds the dots in the bottom of the circle.
+ */
+function findAbsoluteBottomAncestorStyle(node: any, stopAt: any): unknown {
+  let cur = node?.parent;
+  while (cur && cur !== stopAt) {
+    const st = flatten(cur.props?.style);
+    if (st.position === 'absolute' && st.bottom !== undefined) return cur.props.style;
+    cur = cur.parent;
+  }
+  return {};
+}
+
+/** The Pressable wrapping the number field — the inner typing tap area. */
+function innerTapArea(input: any, ring: any): Record<string, unknown> {
+  let cur = input?.parent;
+  while (cur && cur !== ring) {
+    if (cur.props?.onPress || cur.props?.onStartShouldSetResponder) {
+      return flatten(cur.props.style);
+    }
+    cur = cur.parent;
+  }
+  return {};
+}
+
 describe('Ring', () => {
   it('renders its label and value', () => {
     render(<Ring value={12} label="Sets" />);
@@ -116,6 +152,146 @@ describe('Ring', () => {
   it('omits the ellipsis when no handler is given', () => {
     render(<Ring value={1} label="Sets" />);
     expect(screen.queryByLabelText('More about Sets')).toBeNull();
+    expect(screen.queryByLabelText('Sets ring')).toBeNull();
+  });
+
+  describe('embedded ellipsis + ring press target', () => {
+    it.each(['grid', 'hero'] as const)(
+      'nests the ellipsis inside the ring circle on the %s variant',
+      (variant) => {
+        render(
+          <Ring value={1} label="Sets" variant={variant} onEllipsis={jest.fn()} />,
+        );
+
+        const ring = screen.getByLabelText('Sets ring');
+        const ellipsis = screen.getByLabelText('More about Sets');
+
+        // Not a sibling below the circle any more — a descendant of it.
+        expect(isDescendantOf(ellipsis, ring)).toBe(true);
+      },
+    );
+
+    it.each(['grid', 'hero'] as const)(
+      'positions the ellipsis absolutely against the bottom edge (%s)',
+      (variant) => {
+        render(
+          <Ring value={1} label="Sets" variant={variant} onEllipsis={jest.fn()} />,
+        );
+
+        const holder = screen.getByLabelText('More about Sets').parent;
+        const style = flatten(findAbsoluteBottomAncestorStyle(
+          screen.getByLabelText('More about Sets'),
+          screen.getByLabelText('Sets ring'),
+        ));
+        expect(holder).toBeTruthy();
+        expect(style.position).toBe('absolute');
+        expect(typeof style.bottom).toBe('number');
+        // Inside the ring, not hanging off the bottom of it.
+        expect(style.bottom as number).toBeGreaterThan(0);
+        expect(style.marginTop).toBeUndefined();
+      },
+    );
+
+    it.each(['grid', 'hero'] as const)(
+      'fires onEllipsis when the ring graphic itself is pressed (%s)',
+      (variant) => {
+        const onEllipsis = jest.fn();
+        render(
+          <Ring
+            value={1}
+            label="Sets"
+            variant={variant}
+            onEllipsis={onEllipsis}
+          />,
+        );
+
+        fireEvent.press(screen.getByLabelText('Sets ring'));
+        expect(onEllipsis).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('still fires onEllipsis from the embedded ellipsis itself', () => {
+      const onEllipsis = jest.fn();
+      render(<Ring value={1} label="Sets" onEllipsis={onEllipsis} />);
+
+      fireEvent.press(screen.getByLabelText('More about Sets'));
+      expect(onEllipsis).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['grid', 'hero'] as const)(
+      'does not fire onEllipsis when the inner number field is used (%s)',
+      (variant) => {
+        const onEllipsis = jest.fn();
+        const onChange = jest.fn();
+        render(
+          <Ring
+            value={3}
+            label="Sets"
+            variant={variant}
+            onChange={onChange}
+            onEllipsis={onEllipsis}
+          />,
+        );
+
+        const input = screen.getByLabelText('Sets');
+        fireEvent(input, 'focus');
+        fireEvent.press(input);
+        fireEvent.changeText(input, '42');
+
+        expect(onChange).toHaveBeenCalledWith(42);
+        expect(onEllipsis).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['grid', 'hero'] as const)(
+      'the inner tap area does not blanket the whole ring (%s)',
+      (variant) => {
+        render(
+          <Ring
+            value={3}
+            label="Sets"
+            variant={variant}
+            onChange={jest.fn()}
+            onEllipsis={jest.fn()}
+          />,
+        );
+
+        const size = variant === 'hero' ? 236 : 132;
+        const area = innerTapArea(
+          screen.getByLabelText('Sets'),
+          screen.getByLabelText('Sets ring'),
+        );
+
+        // If it filled the circle it would swallow every annulus press and the
+        // ring would stop opening the support screen on a real device.
+        expect(area.width).toBeDefined();
+        expect(area.width as number).toBeLessThan(size);
+        expect(Object.keys(area)).not.toContain('position');
+      },
+    );
+
+    it('keeps the inner typing target large and clear of the ellipsis', () => {
+      render(
+        <Ring value={3} label="Sets" onChange={jest.fn()} onEllipsis={jest.fn()} />,
+      );
+
+      const input = flatten(screen.getByLabelText('Sets').props.style);
+      // A comfortable tap target for the number, per the design.
+      expect(input.width as number).toBeGreaterThanOrEqual(100);
+      expect(input.height as number).toBeGreaterThanOrEqual(44);
+    });
+
+    it('the ring press target is a button, distinct from the number field', () => {
+      render(
+        <Ring value={3} label="Sets" onChange={jest.fn()} onEllipsis={jest.fn()} />,
+      );
+
+      const ring = screen.getByLabelText('Sets ring');
+      expect(ring.props.accessibilityRole ?? ring.props.role).toBe('button');
+      // The two labels must stay distinct or every a11y query goes ambiguous.
+      expect(screen.getByLabelText('Sets')).not.toBe(ring);
+      expect(screen.getByLabelText('More about Sets')).not.toBe(ring);
+    });
   });
 });
 
@@ -223,5 +399,118 @@ describe('ProgressRing', () => {
 
     fireEvent.press(screen.getByLabelText('More about Sets'));
     expect(onEllipsis).toHaveBeenCalled();
+  });
+
+  describe('embedded ellipsis + ring press target', () => {
+    it('nests the ellipsis inside the ring circle', () => {
+      render(<ProgressRing {...base} value={10} onEllipsis={jest.fn()} />);
+
+      expect(
+        isDescendantOf(
+          screen.getByLabelText('More about Sets'),
+          screen.getByLabelText('Sets ring'),
+        ),
+      ).toBe(true);
+    });
+
+    it('positions the ellipsis absolutely against the bottom edge', () => {
+      render(<ProgressRing {...base} value={10} onEllipsis={jest.fn()} />);
+
+      const style = flatten(
+        findAbsoluteBottomAncestorStyle(
+          screen.getByLabelText('More about Sets'),
+          screen.getByLabelText('Sets ring'),
+        ),
+      );
+      expect(style.position).toBe('absolute');
+      expect(style.bottom as number).toBeGreaterThan(0);
+      expect(style.marginTop).toBeUndefined();
+    });
+
+    it('fires onEllipsis when the ring graphic itself is pressed', () => {
+      const onEllipsis = jest.fn();
+      render(<ProgressRing {...base} value={10} onEllipsis={onEllipsis} />);
+
+      fireEvent.press(screen.getByLabelText('Sets ring'));
+      expect(onEllipsis).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not fire onEllipsis when the inner number field is used', () => {
+      const onEllipsis = jest.fn();
+      const onChange = jest.fn();
+      render(
+        <ProgressRing
+          {...base}
+          value={10}
+          onChange={onChange}
+          onEllipsis={onEllipsis}
+        />,
+      );
+
+      const input = screen.getByLabelText('Sets');
+      fireEvent(input, 'focus');
+      fireEvent.press(input);
+      fireEvent.changeText(input, '55');
+
+      expect(onChange).toHaveBeenCalledWith(55);
+      expect(onEllipsis).not.toHaveBeenCalled();
+    });
+
+    it('omits both press targets when no handler is given', () => {
+      render(<ProgressRing {...base} value={10} />);
+      expect(screen.queryByLabelText('More about Sets')).toBeNull();
+      expect(screen.queryByLabelText('Sets ring')).toBeNull();
+    });
+
+    it('the inner tap area is inset, not a blanket over the whole ring', () => {
+      const size = 132;
+      render(
+        <ProgressRing
+          {...base}
+          value={10}
+          size={size}
+          onChange={jest.fn()}
+          onEllipsis={jest.fn()}
+        />,
+      );
+
+      const area = innerTapArea(
+        screen.getByLabelText('Sets'),
+        screen.getByLabelText('Sets ring'),
+      );
+
+      // An absolute fill with 0 insets would swallow every annulus press.
+      expect(area.position).toBe('absolute');
+      for (const edge of ['top', 'left', 'right', 'bottom'] as const) {
+        expect(typeof area[edge]).toBe('number');
+        expect(area[edge] as number).toBeGreaterThan(0);
+      }
+      // Still a comfortable target for typing.
+      expect(size - 2 * (area.top as number)).toBeGreaterThanOrEqual(44);
+    });
+
+    it('scales the embedded ellipsis with the ring size', () => {
+      const small = render(
+        <ProgressRing {...base} value={10} size={90} onEllipsis={jest.fn()} />,
+      );
+      const smallStyle = flatten(
+        findAbsoluteBottomAncestorStyle(
+          screen.getByLabelText('More about Sets'),
+          screen.getByLabelText('Sets ring'),
+        ),
+      );
+      small.unmount();
+
+      render(<ProgressRing {...base} value={10} size={300} onEllipsis={jest.fn()} />);
+      const bigStyle = flatten(
+        findAbsoluteBottomAncestorStyle(
+          screen.getByLabelText('More about Sets'),
+          screen.getByLabelText('Sets ring'),
+        ),
+      );
+
+      expect(bigStyle.bottom as number).toBeGreaterThan(smallStyle.bottom as number);
+      assertNoNaN();
+    });
   });
 });

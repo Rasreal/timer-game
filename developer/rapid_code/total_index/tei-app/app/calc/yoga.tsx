@@ -36,6 +36,7 @@ export default function YogaCalculator() {
           yogaMinutes,
         }}
       showRangesPill
+      tightRings
     >
       <RingRow>
         <ProgressRing
@@ -46,7 +47,7 @@ export default function YogaCalculator() {
           min={LIMITS.yogaMinutes.min}
           max={LIMITS.yogaMinutes.max}
           overAt={LIMITS.yogaMinutes.overAt}
-          size={186}
+          size={150}
         />
       </RingRow>
 
@@ -60,6 +61,7 @@ export default function YogaCalculator() {
           max={LIMITS.exertion.max}
           overAt={LIMITS.exertion.max}
           underAt={LIMITS.exertion.min}
+          size={116}
         />
         <ProgressRing
           value={cardioMinutes}
@@ -69,6 +71,7 @@ export default function YogaCalculator() {
           min={LIMITS.cardio.min}
           max={LIMITS.cardio.max}
           overAt={LIMITS.cardio.overAt}
+          size={116}
         />
       </RingRow>
     </CalcShell>

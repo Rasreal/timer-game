@@ -174,9 +174,9 @@ export default function Calculator() {
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
       contentContainerStyle={{
-        paddingTop: insets.top + 12,
+        paddingTop: insets.top + 6,
         paddingHorizontal: 20,
-        paddingBottom: Math.max(insets.bottom, 16) + 16,
+        paddingBottom: Math.max(insets.bottom, 12) + 8,
         flexGrow: 1,
       }}
     >
@@ -199,7 +199,7 @@ export default function Calculator() {
 
       {/* Large number + TEI lockup */}
       <View style={styles.headRow}>
-        <View style={{ paddingTop: 30 }}>
+        <View style={{ paddingTop: 18 }}>
           <TeiLockup align="left" size="sm" />
         </View>
 
@@ -212,12 +212,16 @@ export default function Calculator() {
 
       {showTargetBar && (
         <View style={styles.targetWrap}>
-          <Text style={styles.targetPct}>
-            {Math.round(targetFraction * 100)}%
-          </Text>
-          <Text style={styles.targetLabel}>
-            of {targetRange ? `${targetRange} Target` : 'Target'}
-          </Text>
+          {/* The percentage and its caption share a baseline row rather than
+              stacking — same type sizes, one line of height instead of two. */}
+          <View style={styles.targetHead}>
+            <Text style={styles.targetPct}>
+              {Math.round(targetFraction * 100)}%
+            </Text>
+            <Text style={styles.targetLabel}>
+              of {targetRange ? `${targetRange} Target` : 'Target'}
+            </Text>
+          </View>
           <View style={styles.targetTrack}>
             <View
               style={[styles.targetFill, { width: `${targetFraction * 100}%` }]}
@@ -227,7 +231,7 @@ export default function Calculator() {
       )}
 
       {/* Session date */}
-      <View style={{ marginTop: 8 }}>
+      <View style={{ marginTop: 2 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <CalendarGlyph />
           <Text style={styles.sessionLabel}>This Session</Text>
@@ -307,7 +311,7 @@ export default function Calculator() {
         />
       </View>
 
-      <View style={{ flex: 1, minHeight: 12 }} />
+      <View style={{ flex: 1, minHeight: 8 }} />
 
       <View style={{ flexDirection: 'row', gap: 12 }}>
         <OutlineButton
@@ -391,13 +395,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    minHeight: 150,
+    // Ken asked for the screen to finish above the fold. The lockup + score
+    // lockup keeps its 132pt type; only the empty leading/trailing space in
+    // the line box is reclaimed.
+    minHeight: 122,
   },
   bigNumber: {
     fontSize: 132,
     fontWeight: '800',
     letterSpacing: -5,
-    lineHeight: 150,
+    lineHeight: 122,
     // Negative tracking clips the final glyph without a little breathing room.
     paddingRight: 6,
   },
@@ -420,31 +427,33 @@ const styles = StyleSheet.create({
     gap: 1.5,
   },
   calDot: { width: 3, height: 3, backgroundColor: '#E0E0E0' },
-  targetWrap: { marginTop: 4, marginBottom: 4 },
-  targetPct: { color: colors.text, fontSize: 26, fontWeight: '700' },
-  targetLabel: { color: '#C9C9C9', fontSize: 16, marginTop: -2 },
+  targetWrap: { marginTop: 0, marginBottom: 0 },
+  targetHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  targetPct: { color: colors.text, fontSize: 26, fontWeight: '700', lineHeight: 30 },
+  targetLabel: { color: '#C9C9C9', fontSize: 16 },
   targetTrack: {
-    height: 12,
+    height: 10,
     backgroundColor: '#2E2E2E',
     borderRadius: 2,
-    marginTop: 8,
+    marginTop: 5,
     overflow: 'hidden',
   },
-  targetFill: { height: 12, backgroundColor: '#8A5A22' },
+  targetFill: { height: 10, backgroundColor: '#8A5A22' },
   sessionLabel: { color: '#C9C9C9', fontSize: 18, marginLeft: 8, marginRight: 8 },
   sessionDate: {
     color: colors.text,
     fontSize: 24,
     fontWeight: '500',
-    marginTop: 2,
+    marginTop: 0,
+    lineHeight: 28,
   },
   ringGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-around',
-    rowGap: 14,
-    marginTop: 22,
-    marginBottom: 16,
+    rowGap: 6,
+    marginTop: 12,
+    marginBottom: 8,
   },
   saveError: {
     color: '#FF6B6B',
@@ -456,8 +465,9 @@ const styles = StyleSheet.create({
   hint: {
     color: '#7A7A7A',
     fontSize: 13,
+    lineHeight: 17,
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: 8,
   },
   breakdown: {
     marginTop: 14,
