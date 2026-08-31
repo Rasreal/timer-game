@@ -11,11 +11,17 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BackArrow, Ellipsis } from '../src/components/Chrome';
+import { BackArrow, Ellipsis, RhinoWordmark } from '../src/components/Chrome';
 import { EyeIcon } from '../src/components/Icons';
 import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
-import { SHOW_DEV_TOOLS, colors } from '../src/theme';
+import {
+  DEFAULT_ACCENT,
+  SHOW_DEV_TOOLS,
+  accentsForTier,
+  colors,
+} from '../src/theme';
+import type { TeiTheme } from '../src/lib/database.types';
 
 /** ELEMENTAL Screen 8 — Edit Elemental Profile (white background per spec). */
 export default function Profile() {
@@ -26,6 +32,12 @@ export default function Profile() {
 
   const [firstName, setFirstName] = useState(profile?.first_name ?? '');
   const [lastName, setLastName] = useState(profile?.last_name ?? '');
+
+  // Tier-specific attributes (Basic and Premium). Seeded by the same effect
+  // as the names, so a deep-link/refresh does not lose them either.
+  const [accent, setAccent] = useState(profile?.accent_color ?? DEFAULT_ACCENT);
+  const [theme, setTheme] = useState<TeiTheme>(profile?.theme ?? 'dark');
+
   // Seed the fields once the profile arrives. useState only captures the
   // first render, and on a deep-link/refresh the profile is still loading
   // then, which previously left both name fields blank.
@@ -35,12 +47,20 @@ export default function Profile() {
       seeded.current = true;
       setFirstName(profile.first_name);
       setLastName(profile.last_name);
+      setAccent(profile.accent_color ?? DEFAULT_ACCENT);
+      setTheme(profile.theme ?? 'dark');
     }
   }, [profile]);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const tier = profile?.tier;
+  // Elemental gets no attributes at all; Basic two swatches; Premium eleven
+  // plus the Dark/Light theme row. See the client's Edit Profile mock-ups.
+  const swatches = accentsForTier(tier);
+  const isPremium = tier === 'premium';
 
   // Email changes require a confirmation round-trip, so it is read-only here.
   const email = profile?.email ?? '';
@@ -68,6 +88,10 @@ export default function Profile() {
       firstName,
       lastName,
       password: password === '' ? undefined : password,
+      // Only send what this tier is actually allowed to set, so a Basic or
+      // Elemental save can never write a value its screen never offered.
+      accentColor: swatches.length ? accent : undefined,
+      theme: isPremium ? theme : undefined,
     });
 
     setBusy(false);
@@ -109,7 +133,7 @@ export default function Profile() {
       >
         <BackArrow onPress={() => router.replace('/home')} color="#F5B078" />
 
-        <Text style={styles.rhinoWord}>RHINO ATHLETICS</Text>
+        <RhinoWordmark height={16.5} color="#5C5C5C" marginTop={8} />
         <Text style={styles.missionSimple}>
           Mission. <Text style={{ color: colors.orange }}>Simple.</Text>
         </Text>
@@ -171,6 +195,75 @@ export default function Profile() {
           </Rule>
         </View>
 
+        {swatches.length > 0 && (
+          <>
+            <View
+              style={[styles.hr, { marginTop: 20, marginHorizontal: 26 }]}
+            />
+
+            {isPremium && (
+              <View style={styles.themeRow}>
+                <Text style={styles.themeHeading}>Theme</Text>
+                <ThemeCheckbox
+                  label="Dark Mode"
+                  selected={theme === 'dark'}
+                  onPress={() => setTheme('dark')}
+                />
+                <ThemeCheckbox
+                  label="Light Mode"
+                  selected={theme === 'light'}
+                  onPress={() => setTheme('light')}
+                />
+              </View>
+            )}
+
+            {/*
+              Premium stacks the caption above a 6-wide grid; Basic runs the
+              two chips down the left of a two-line caption, per the mock-ups.
+            */}
+            {isPremium ? (
+              <>
+                <Text style={styles.accentHeading}>
+                  YOUR Preferred Accent Color for the App
+                </Text>
+                <View style={styles.swatchGrid}>
+                  {swatches.map((s) => (
+                    <Swatch
+                      key={s.value}
+                      color={s.value}
+                      name={s.name}
+                      selected={
+                        accent.toLowerCase() === s.value.toLowerCase()
+                      }
+                      onPress={() => setAccent(s.value)}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : (
+              <View style={styles.accentRowBasic}>
+                <View>
+                  {swatches.map((s) => (
+                    <Swatch
+                      key={s.value}
+                      color={s.value}
+                      name={s.name}
+                      size={30}
+                      selected={
+                        accent.toLowerCase() === s.value.toLowerCase()
+                      }
+                      onPress={() => setAccent(s.value)}
+                    />
+                  ))}
+                </View>
+                <Text style={[styles.accentHeading, styles.accentHeadingBasic]}>
+                  YOUR Preferred Accent Color for the App
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+
         <View style={[styles.hr, { marginVertical: 20, marginHorizontal: 26 }]} />
 
         <View style={{ alignItems: 'center' }}>
@@ -206,13 +299,16 @@ export default function Profile() {
           </Text>
         </Pressable>
 
-        <Pressable
-          onPress={() => router.push('/account-type')}
-          accessibilityRole="button"
-          style={styles.upgradeBtn}
-        >
-          <Text style={{ color: colors.orange, fontSize: 23 }}>Upgrade</Text>
-        </Pressable>
+        {/* Premium is the top tier, so its mock-up has no Upgrade button. */}
+        {!isPremium && (
+          <Pressable
+            onPress={() => router.push('/account-type')}
+            accessibilityRole="button"
+            style={styles.upgradeBtn}
+          >
+            <Text style={{ color: colors.orange, fontSize: 23 }}>Upgrade</Text>
+          </Pressable>
+        )}
 
         <Pressable
           onPress={handleSignOut}
@@ -256,6 +352,79 @@ function Field({
   );
 }
 
+/**
+ * One accent chip. The mock-ups mark the active colour with a big X drawn
+ * over it rather than a border or tick, so that is what this draws — two
+ * rotated bars in a darkened shade of the chip's own colour.
+ */
+function Swatch({
+  color,
+  name,
+  selected,
+  onPress,
+  size = 52,
+}: {
+  color: string;
+  name: string;
+  selected: boolean;
+  onPress: () => void;
+  size?: number;
+}) {
+  const bar = {
+    position: 'absolute' as const,
+    width: size * 0.86,
+    height: Math.max(3, size * 0.17),
+    backgroundColor: 'rgba(0,0,0,0.42)',
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${name} accent colour${selected ? ', selected' : ''}`}
+      style={[
+        styles.swatch,
+        { backgroundColor: color, width: size, height: size },
+      ]}
+    >
+      {selected && (
+        <>
+          <View style={[bar, { transform: [{ rotate: '45deg' }] }]} />
+          <View style={[bar, { transform: [{ rotate: '-45deg' }] }]} />
+        </>
+      )}
+    </Pressable>
+  );
+}
+
+/** Premium's Dark/Light theme choice — a square box with an X when picked. */
+function ThemeCheckbox({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={label}
+      style={styles.themeOption}
+      hitSlop={6}
+    >
+      <View style={styles.themeBox}>
+        {selected && <Text style={styles.themeBoxMark}>X</Text>}
+      </View>
+      <Text style={styles.themeLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
 function Rule({ ok, children }: { ok: boolean; children: string }) {
   return (
     <Text style={{ fontSize: 16, color: ok ? '#333' : '#B00', marginBottom: 2 }}>
@@ -266,13 +435,6 @@ function Rule({ ok, children }: { ok: boolean; children: string }) {
 }
 
 const styles = StyleSheet.create({
-  rhinoWord: {
-    color: '#5C5C5C',
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 1.4,
-    marginTop: 8,
-  },
   missionSimple: {
     color: '#111',
     fontSize: 36,
@@ -327,4 +489,51 @@ const styles = StyleSheet.create({
   inputReadonly: { backgroundColor: '#EFEFEF', justifyContent: 'center' },
   fieldNote: { color: '#777', fontSize: 12.5, marginTop: 6 },
   error: { color: '#B00020', fontSize: 14, lineHeight: 19, marginTop: 14 },
+
+  /* --- tier attributes: theme + accent swatches --- */
+  themeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14 },
+  themeHeading: {
+    color: '#111',
+    fontSize: 27,
+    fontWeight: '500',
+    letterSpacing: -0.6,
+    marginRight: 14,
+  },
+  themeOption: { flexDirection: 'row', alignItems: 'center', marginRight: 14 },
+  themeBox: {
+    width: 26,
+    height: 26,
+    backgroundColor: '#E4E4E4',
+    borderWidth: 1,
+    borderColor: '#B9B9B9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themeBoxMark: { color: '#333', fontSize: 17, fontWeight: '600' },
+  themeLabel: { color: '#111', fontSize: 17, marginLeft: 7 },
+  accentHeading: {
+    color: '#111',
+    fontSize: 20,
+    fontWeight: '500',
+    marginTop: 14,
+  },
+  accentHeadingBasic: { flex: 1, marginTop: 0, marginLeft: 12, fontSize: 22 },
+  accentRowBasic: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  swatchGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 10,
+    // The mock-up's first chip is double-width; a plain wrapped grid of equal
+    // chips reads the same and keeps the six-per-row rhythm.
+    gap: 10,
+  },
+  swatch: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
 });

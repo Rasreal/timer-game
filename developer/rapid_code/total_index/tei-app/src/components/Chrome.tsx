@@ -10,7 +10,49 @@ import {
 } from 'react-native';
 import { colors } from '../theme';
 
-const rhino = require('../../assets/rhino.png');
+const wordmark = require('../../assets/rhino-athletics-wordmark.png');
+
+/** Box aspect ratio of the wordmark artwork (2555 x 250). */
+const WORDMARK_RATIO = 2555 / 250;
+
+/**
+ * Ken's supplied RHINO ATHLETICS artwork, replacing the old hand-composed
+ * "RHIN" + rhino.png + "ATHLETICS" lockup that rendered blurry on device.
+ *
+ * The PNG is a single-colour silhouette, so `tintColor` recolours it to
+ * whatever grey the screen used before — the brand mark stays as recessive as
+ * it was designed to be, on both the dark and the light screens.
+ *
+ * `height` drives the size and `width` follows the artwork's 10.22:1 box
+ * ratio, so the mark can never distort.
+ */
+export function RhinoWordmark({
+  height,
+  color,
+  align = 'flex-start',
+  marginTop = 1,
+}: {
+  height: number;
+  color: string;
+  align?: 'flex-start' | 'flex-end';
+  marginTop?: number;
+}) {
+  return (
+    <Image
+      source={wordmark}
+      style={{
+        width: height * WORDMARK_RATIO,
+        height,
+        alignSelf: align,
+        marginTop,
+      }}
+      resizeMode="contain"
+      tintColor={color}
+      accessibilityRole="image"
+      accessibilityLabel="RHINO ATHLETICS"
+    />
+  );
+}
 
 /** "Mission. Simple." over the RHINO ATHLETICS wordmark. */
 export function BrandLockup({
@@ -32,19 +74,7 @@ export function BrandLockup({
       >
         Mission. <Text style={{ color: colors.orange }}>Simple.</Text>
       </Text>
-      <View style={styles.rhinoWord}>
-        <Text
-          style={[styles.rhinoWordText, { color: light ? '#6B6B6B' : '#3D3D3D' }]}
-        >
-          RHIN
-        </Text>
-        <Image source={rhino} style={styles.rhinoGlyph} resizeMode="contain" />
-        <Text
-          style={[styles.rhinoWordText, { color: light ? '#6B6B6B' : '#3D3D3D' }]}
-        >
-          ATHLETICS
-        </Text>
-      </View>
+      <RhinoWordmark height={18} color={light ? '#6B6B6B' : '#3D3D3D'} />
     </View>
   );
 }
@@ -241,22 +271,6 @@ export function ScreenBody({
 }
 
 const styles = StyleSheet.create({
-  rhinoWord: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 1,
-  },
-  rhinoWordText: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: 1.6,
-  },
-  rhinoGlyph: {
-    width: 22,
-    height: 17,
-    marginHorizontal: 1,
-    opacity: 0.85,
-  },
   outlineBtn: {
     borderWidth: 1.5,
     borderRadius: 8,

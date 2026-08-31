@@ -54,6 +54,7 @@ export function makeProfile(over: Partial<ProfileRow> = {}): ProfileRow {
     email: 'ada@example.com',
     tier: 'elemental' as TeiTier,
     accent_color: '#FF8A25',
+    theme: 'dark' as const,
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
     ...over,

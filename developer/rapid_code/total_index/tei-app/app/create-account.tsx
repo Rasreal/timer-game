@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BackArrow, Ellipsis } from '../src/components/Chrome';
+import { BackArrow, Ellipsis, RhinoWordmark } from '../src/components/Chrome';
 import { EyeIcon } from '../src/components/Icons';
 import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
@@ -96,7 +96,7 @@ export default function CreateAccount() {
       >
         <BackArrow onPress={() => router.back()} color="#F5B078" />
 
-        <Text style={styles.rhinoWord}>RHINO ATHLETICS</Text>
+        <RhinoWordmark height={16.5} color="#5C5C5C" marginTop={8} />
         <Text style={styles.missionSimple}>
           Mission. <Text style={{ color: colors.orange }}>Simple.</Text>
         </Text>
@@ -259,13 +259,6 @@ function Rule({ ok, children }: { ok: boolean; children: string }) {
 }
 
 const styles = StyleSheet.create({
-  rhinoWord: {
-    color: '#5C5C5C',
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 1.4,
-    marginTop: 8,
-  },
   missionSimple: {
     color: '#111',
     fontSize: 36,

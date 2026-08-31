@@ -27,21 +27,28 @@ function flatten(style: unknown): Record<string, unknown> {
 }
 
 describe('BrandLockup (header)', () => {
-  it('renders the tagline and the RHIN/ATHLETICS wordmark', () => {
+  it('renders the tagline and the RHINO ATHLETICS wordmark', () => {
     render(<BrandLockup />);
     expect(screen.getByText(/Mission\./)).toBeTruthy();
     expect(screen.getByText('Simple.')).toBeTruthy();
-    expect(screen.getByText('RHIN')).toBeTruthy();
-    expect(screen.getByText('ATHLETICS')).toBeTruthy();
+    expect(screen.getByLabelText('RHINO ATHLETICS')).toBeTruthy();
   });
 
   it('switches the wordmark colour in the light variant', () => {
     const dark = render(<BrandLockup />);
-    expect(flatten(dark.getByText('RHIN').props.style).color).toBe('#3D3D3D');
+    expect(dark.getByLabelText('RHINO ATHLETICS').props.tintColor).toBe('#3D3D3D');
     dark.unmount();
 
     render(<BrandLockup light />);
-    expect(flatten(screen.getByText('RHIN').props.style).color).toBe('#6B6B6B');
+    expect(screen.getByLabelText('RHINO ATHLETICS').props.tintColor).toBe(
+      '#6B6B6B',
+    );
+  });
+
+  it('renders the wordmark undistorted at the artwork aspect ratio', () => {
+    render(<BrandLockup />);
+    const style = flatten(screen.getByLabelText('RHINO ATHLETICS').props.style);
+    expect(Number(style.width) / Number(style.height)).toBeCloseTo(2555 / 250, 2);
   });
 
   it('honours the size prop', () => {

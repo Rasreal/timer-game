@@ -2,7 +2,12 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import Profile from '../../app/profile';
 import { useAuth } from '../../src/auth';
-import { makeAuth, makeProfile, renderMain } from '../helpers/mainRender';
+import {
+  MainProviders,
+  makeAuth,
+  makeProfile,
+  renderMain,
+} from '../helpers/mainRender';
 
 jest.mock('../../src/lib/supabase');
 jest.mock('../../src/lib/sessions');
@@ -25,7 +30,9 @@ describe('Profile', () => {
   it('renders the heading and the brand wordmark', () => {
     renderMain(<Profile />);
     expect(screen.getByText('Edit Profile')).toBeTruthy();
-    expect(screen.getByText('RHINO ATHLETICS')).toBeTruthy();
+    // The wordmark is now Ken's artwork rather than a text node, so it is
+    // reached by its accessibility label like every other lockup site.
+    expect(screen.getByLabelText('RHINO ATHLETICS')).toBeTruthy();
   });
 
   it("seeds the name fields from the user's profile", () => {
@@ -198,6 +205,219 @@ describe('Profile', () => {
       renderMain(<Profile />);
       fireEvent.press(screen.getByLabelText('Change subscription'));
       expect(router.push).toHaveBeenCalledWith('/account-type');
+    });
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* Tier-specific attributes (Edit Profile mock-ups, Aug 2026)          */
+  /* ------------------------------------------------------------------ */
+
+  describe('tier attributes', () => {
+    const swatch = (name: string) =>
+      screen.queryByLabelText(new RegExp(`^${name} accent colour`));
+
+    describe('elemental', () => {
+      it('shows no accent swatches and no theme row', () => {
+        signedIn({ profile: makeProfile({ tier: 'elemental' }) });
+        renderMain(<Profile />);
+
+        expect(
+          screen.queryByText(/Preferred Accent Color for the App/),
+        ).toBeNull();
+        expect(screen.queryByText('Theme')).toBeNull();
+        expect(swatch('Orange')).toBeNull();
+        expect(screen.queryByLabelText(/accent colour/)).toBeNull();
+      });
+
+      it('still offers Upgrade', () => {
+        signedIn({ profile: makeProfile({ tier: 'elemental' }) });
+        renderMain(<Profile />);
+        expect(screen.getByText('Upgrade')).toBeTruthy();
+      });
+    });
+
+    describe('basic', () => {
+      beforeEach(() => {
+        signedIn({ profile: makeProfile({ tier: 'basic' }) });
+      });
+
+      it('shows the accent caption and exactly two swatches', () => {
+        renderMain(<Profile />);
+
+        expect(
+          screen.getByText('YOUR Preferred Accent Color for the App'),
+        ).toBeTruthy();
+        expect(screen.getAllByLabelText(/accent colour/)).toHaveLength(2);
+        expect(swatch('Orange')).toBeTruthy();
+        expect(swatch('Lime')).toBeTruthy();
+      });
+
+      it('shows no theme row — that is Premium only', () => {
+        renderMain(<Profile />);
+        expect(screen.queryByText('Theme')).toBeNull();
+        expect(screen.queryByLabelText('Dark Mode')).toBeNull();
+        expect(screen.queryByLabelText('Light Mode')).toBeNull();
+      });
+
+      it('still offers Upgrade', () => {
+        renderMain(<Profile />);
+        expect(screen.getByText('Upgrade')).toBeTruthy();
+      });
+    });
+
+    describe('premium', () => {
+      beforeEach(() => {
+        signedIn({ profile: makeProfile({ tier: 'premium' }) });
+      });
+
+      it('shows all eleven swatches', () => {
+        renderMain(<Profile />);
+        expect(screen.getAllByLabelText(/accent colour/)).toHaveLength(11);
+      });
+
+      it('shows the theme row with Dark selected by default', () => {
+        renderMain(<Profile />);
+
+        expect(screen.getByText('Theme')).toBeTruthy();
+        expect(screen.getByLabelText('Dark Mode')).toBeTruthy();
+        expect(screen.getByLabelText('Light Mode')).toBeTruthy();
+        expect(screen.getByLabelText('Dark Mode')).toBeSelected();
+        expect(screen.getByLabelText('Light Mode')).not.toBeSelected();
+      });
+
+      it('has NO Upgrade button — it is already the top tier', () => {
+        renderMain(<Profile />);
+        expect(screen.queryByText('Upgrade')).toBeNull();
+      });
+    });
+
+    describe('selection', () => {
+      it("marks the profile's saved accent as the selected swatch", () => {
+        signedIn({
+          profile: makeProfile({ tier: 'basic', accent_color: '#81D742' }),
+        });
+        renderMain(<Profile />);
+
+        expect(swatch('Lime')).toBeSelected();
+        expect(swatch('Orange')).not.toBeSelected();
+      });
+
+      it('moves the selection when another swatch is tapped', () => {
+        signedIn({ profile: makeProfile({ tier: 'premium' }) });
+        renderMain(<Profile />);
+
+        fireEvent.press(swatch('Blue')!);
+
+        expect(swatch('Blue')).toBeSelected();
+        expect(swatch('Orange')).not.toBeSelected();
+      });
+
+      it('moves the theme selection when Light Mode is tapped', () => {
+        signedIn({ profile: makeProfile({ tier: 'premium' }) });
+        renderMain(<Profile />);
+
+        fireEvent.press(screen.getByLabelText('Light Mode'));
+
+        expect(screen.getByLabelText('Light Mode')).toBeSelected();
+        expect(screen.getByLabelText('Dark Mode')).not.toBeSelected();
+      });
+
+      it('seeds the theme from a profile that arrives after first render', () => {
+        signedIn({ profile: null });
+        const view = renderMain(<Profile />);
+
+        signedIn({ profile: makeProfile({ tier: 'premium', theme: 'light' }) });
+        // rerender() replaces the element inside the wrapper, so the providers
+        // have to be supplied again here.
+        view.rerender(
+          <MainProviders>
+            <Profile />
+          </MainProviders>,
+        );
+
+        expect(screen.getByLabelText('Light Mode')).toBeSelected();
+      });
+    });
+
+    describe('persistence', () => {
+      it('persists the chosen accent through the auth layer', async () => {
+        const auth = signedIn({ profile: makeProfile({ tier: 'basic' }) });
+        renderMain(<Profile />);
+
+        fireEvent.press(swatch('Lime')!);
+        await act(async () => {
+          fireEvent.press(screen.getByText(/Save Changes/));
+        });
+
+        expect(auth.updateProfile).toHaveBeenCalledWith(
+          expect.objectContaining({ accentColor: '#81D742' }),
+        );
+      });
+
+      it('persists the accent and theme together on Premium', async () => {
+        const auth = signedIn({ profile: makeProfile({ tier: 'premium' }) });
+        renderMain(<Profile />);
+
+        fireEvent.press(swatch('Pink')!);
+        fireEvent.press(screen.getByLabelText('Light Mode'));
+        await act(async () => {
+          fireEvent.press(screen.getByText(/Save Changes/));
+        });
+
+        expect(auth.updateProfile).toHaveBeenCalledWith(
+          expect.objectContaining({
+            accentColor: '#FF46A3',
+            theme: 'light',
+          }),
+        );
+      });
+
+      it('sends no accent or theme for Elemental, which cannot set either', async () => {
+        const auth = signedIn({ profile: makeProfile({ tier: 'elemental' }) });
+        renderMain(<Profile />);
+
+        await act(async () => {
+          fireEvent.press(screen.getByText(/Save Changes/));
+        });
+
+        expect(auth.updateProfile).toHaveBeenCalledWith(
+          expect.objectContaining({
+            accentColor: undefined,
+            theme: undefined,
+          }),
+        );
+      });
+
+      it('sends no theme for Basic, which has no theme row', async () => {
+        const auth = signedIn({ profile: makeProfile({ tier: 'basic' }) });
+        renderMain(<Profile />);
+
+        await act(async () => {
+          fireEvent.press(screen.getByText(/Save Changes/));
+        });
+
+        expect(auth.updateProfile).toHaveBeenCalledWith(
+          expect.objectContaining({ theme: undefined }),
+        );
+      });
+
+      it('surfaces the error and keeps the choice on screen when the save fails', async () => {
+        signedIn({
+          profile: makeProfile({ tier: 'premium' }),
+          updateProfile: jest.fn(async () => 'Network unreachable'),
+        });
+        renderMain(<Profile />);
+
+        fireEvent.press(swatch('Red')!);
+        await act(async () => {
+          fireEvent.press(screen.getByText(/Save Changes/));
+        });
+
+        expect(screen.getByText('Network unreachable')).toBeTruthy();
+        expect(router.replace).not.toHaveBeenCalledWith('/home');
+        // The user's pick is not thrown away by the failure.
+        expect(swatch('Red')).toBeSelected();
+      });
     });
   });
 

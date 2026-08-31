@@ -9,7 +9,13 @@ import {
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
-import type { Database, ProfileRow, TeiTier } from './lib/database.types';
+import type {
+  Database,
+  ProfileRow,
+  TeiTheme,
+  TeiTier,
+} from './lib/database.types';
+import { setAccent } from './theme';
 
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
 
@@ -45,6 +51,10 @@ interface AuthState {
     firstName?: string;
     lastName?: string;
     password?: string;
+    /** Paid-tier display preference — a hex swatch from theme.ACCENTS. */
+    accentColor?: string;
+    /** Premium-only display preference. */
+    theme?: TeiTheme;
   }) => Promise<string | null>;
 }
 
@@ -83,6 +93,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (data) {
         setProfile(data);
+        // The stored accent is what makes the choice survive a reload: the
+        // theme module is repainted from the profile on every load.
+        setAccent(data.accent_color, data.tier);
         setProfileError(null);
         return;
       }
@@ -110,6 +123,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null);
         setProfileError(null);
+        // Signed out: drop back to the brand orange so the next user on this
+        // device does not inherit the previous one's accent.
+        setAccent(null);
       }
     });
 
@@ -179,16 +195,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateProfile = useCallback<AuthState['updateProfile']>(
-    async ({ firstName, lastName, password }) => {
+    async ({ firstName, lastName, password, accentColor, theme }) => {
       if (!session) return 'Not signed in.';
 
       // Save the name FIRST. Doing the password first meant that a rejected
       // password (e.g. Supabase refusing a reuse of the current one) returned
       // early and silently discarded the user's name edit.
-      if (firstName !== undefined || lastName !== undefined) {
+      if (
+        firstName !== undefined ||
+        lastName !== undefined ||
+        accentColor !== undefined ||
+        theme !== undefined
+      ) {
         const patch: ProfileUpdate = {};
         if (firstName !== undefined) patch.first_name = firstName.trim();
         if (lastName !== undefined) patch.last_name = lastName.trim();
+        if (accentColor !== undefined) patch.accent_color = accentColor;
+        if (theme !== undefined) patch.theme = theme;
 
         const { data, error } = await supabase
           .from('profiles')
@@ -199,6 +222,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (error) return error.message;
         setProfile(data);
+        // Repaint immediately rather than waiting for the next profile load.
+        setAccent(data.accent_color, data.tier);
       }
 
       if (password) {
@@ -226,7 +251,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) return error.message;
-      if (data) setProfile(data as ProfileRow);
+      if (data) {
+        const row = data as ProfileRow;
+        setProfile(row);
+        // A downgrade can leave the profile holding an accent the new tier is
+        // not entitled to, so re-resolve it against the tier we just moved to.
+        setAccent(row.accent_color, row.tier);
+      }
       return null;
     },
     [session],

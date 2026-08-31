@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { RhinoWordmark } from '../src/components/Chrome';
 import { colors } from '../src/theme';
 
 const rhino = require('../assets/rhino.png');
@@ -28,11 +29,7 @@ export default function Launch() {
           <Text style={styles.missionSimple}>
             Mission. <Text style={{ color: colors.orange }}>Simple.</Text>
           </Text>
-          <View style={styles.rhinoWordRow}>
-            <Text style={styles.rhinoWordText}>RHIN</Text>
-            <Image source={rhino} style={styles.rhinoGlyph} resizeMode="contain" />
-            <Text style={styles.rhinoWordText}>ATHLETICS</Text>
-          </View>
+          <RhinoWordmark height={19} color="#333" align="flex-end" />
         </View>
 
         <Image
@@ -183,19 +180,6 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
     textAlign: 'right',
   },
-  rhinoWordRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: 1,
-  },
-  rhinoWordText: {
-    color: '#333',
-    fontSize: 23,
-    fontWeight: '800',
-    letterSpacing: 1.8,
-  },
-  rhinoGlyph: { width: 24, height: 18, marginHorizontal: 1, opacity: 0.85 },
   rhinoHero: { width: '100%', height: 240, marginTop: 20 },
   teiRow: {
     flexDirection: 'row',

@@ -97,6 +97,7 @@ jest.mock('../src/lib/supabase', () => ({
 }));
 
 import { AuthProvider, useAuth } from '../src/auth';
+import { DEFAULT_ACCENT, colors, setAccent } from '../src/theme';
 
 /* --------------------------------------------------------------- fixtures */
 
@@ -749,6 +750,70 @@ describe('updateProfile', () => {
     expect(updateCalls.at(-1)).toEqual([{ last_name: 'Hopper' }]);
   });
 
+  it('sends the accent colour and theme when they are provided', async () => {
+    mockAuth.getSession.mockImplementation(async () => ({
+      data: { session: SESSION },
+      error: null,
+    }));
+
+    const { result } = renderAuth();
+    await waitFor(() => expect(result.current.profile).toEqual(PROFILE));
+
+    const updated = { ...PROFILE, accent_color: '#81D742', theme: 'light' };
+    profileQueue.push({ data: updated, error: null });
+
+    let out: string | null = 'x';
+    await act(async () => {
+      out = await result.current.updateProfile({
+        accentColor: '#81D742',
+        theme: 'light',
+      });
+    });
+
+    expect(updateCalls.at(-1)).toEqual([
+      { accent_color: '#81D742', theme: 'light' },
+    ]);
+    expect(out).toBeNull();
+    expect(result.current.profile).toEqual(updated);
+  });
+
+  it('writes the accent alone without touching the name columns', async () => {
+    mockAuth.getSession.mockImplementation(async () => ({
+      data: { session: SESSION },
+      error: null,
+    }));
+
+    const { result } = renderAuth();
+    await waitFor(() => expect(result.current.profile).toEqual(PROFILE));
+
+    profileQueue.push({ data: PROFILE, error: null });
+    await act(async () => {
+      await result.current.updateProfile({ accentColor: '#FF46A3' });
+    });
+
+    expect(updateCalls.at(-1)).toEqual([{ accent_color: '#FF46A3' }]);
+  });
+
+  it('returns the error and leaves the profile alone when the accent write fails', async () => {
+    mockAuth.getSession.mockImplementation(async () => ({
+      data: { session: SESSION },
+      error: null,
+    }));
+
+    const { result } = renderAuth();
+    await waitFor(() => expect(result.current.profile).toEqual(PROFILE));
+
+    profileQueue.push({ data: null, error: { message: 'permission denied' } });
+
+    let out: string | null = null;
+    await act(async () => {
+      out = await result.current.updateProfile({ accentColor: '#0030FF' });
+    });
+
+    expect(out).toBe('permission denied');
+    expect(result.current.profile).toEqual(PROFILE);
+  });
+
   // SUSPECTED BUG: an empty-string password is falsy, so `if (password)` skips
   // the update entirely and updateProfile reports success without changing it.
   it('SUSPECTED BUG: an empty-string password is silently skipped', async () => {
@@ -846,5 +911,86 @@ describe('changeTier', () => {
 
     expect(out).toBeNull();
     expect(result.current.profile).toEqual(PROFILE);
+  });
+});
+
+/* ------------------------------------------------------- accent -> theme */
+
+describe('accent colour is applied to the theme', () => {
+  beforeEach(() => {
+    setAccent(null);
+  });
+
+  it('paints the saved accent when the profile loads', async () => {
+    mockAuth.getSession.mockImplementation(async () => ({
+      data: { session: SESSION },
+      error: null,
+    }));
+    // PROFILE is tier 'basic'; Lime is one of the two swatches Basic may use.
+    profileQueue.push({
+      data: { ...PROFILE, accent_color: '#81D742' },
+      error: null,
+    });
+
+    const { result } = renderAuth();
+    await waitFor(() => expect(result.current.profile).toBeTruthy());
+
+    expect(colors.orange).toBe('#81D742');
+  });
+
+  it('ignores an accent the profile tier is not entitled to', async () => {
+    mockAuth.getSession.mockImplementation(async () => ({
+      data: { session: SESSION },
+      error: null,
+    }));
+    // Pink is a Premium-only swatch, but this profile is Basic.
+    profileQueue.push({
+      data: { ...PROFILE, accent_color: '#FF46A3' },
+      error: null,
+    });
+
+    const { result } = renderAuth();
+    await waitFor(() => expect(result.current.profile).toBeTruthy());
+
+    expect(colors.orange).toBe(DEFAULT_ACCENT);
+  });
+
+  it('repaints immediately after a successful accent save', async () => {
+    mockAuth.getSession.mockImplementation(async () => ({
+      data: { session: SESSION },
+      error: null,
+    }));
+
+    const { result } = renderAuth();
+    await waitFor(() => expect(result.current.profile).toBeTruthy());
+
+    profileQueue.push({
+      data: { ...PROFILE, accent_color: '#81D742' },
+      error: null,
+    });
+    await act(async () => {
+      await result.current.updateProfile({ accentColor: '#81D742' });
+    });
+
+    expect(colors.orange).toBe('#81D742');
+  });
+
+  it('resets to the brand orange when the session goes away', async () => {
+    mockAuth.getSession.mockImplementation(async () => ({
+      data: { session: SESSION },
+      error: null,
+    }));
+    profileQueue.push({
+      data: { ...PROFILE, accent_color: '#81D742' },
+      error: null,
+    });
+
+    const { result } = renderAuth();
+    await waitFor(() => expect(colors.orange).toBe('#81D742'));
+
+    await emitAuthChange('SIGNED_OUT', null);
+
+    expect(result.current.profile).toBeNull();
+    expect(colors.orange).toBe(DEFAULT_ACCENT);
   });
 });

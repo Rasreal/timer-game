@@ -8,6 +8,9 @@
 
 export type TeiTier = 'elemental' | 'basic' | 'premium';
 
+/** Premium-only display preference. See migration 0008. */
+export type TeiTheme = 'dark' | 'light';
+
 export interface Database {
   public: {
     Tables: {
@@ -19,6 +22,7 @@ export interface Database {
           email: string;
           tier: TeiTier;
           accent_color: string;
+          theme: TeiTheme;
           created_at: string;
           updated_at: string;
         };
@@ -29,6 +33,7 @@ export interface Database {
           email: string;
           tier?: TeiTier;
           accent_color?: string;
+          theme?: TeiTheme;
           created_at?: string;
           updated_at?: string;
         };
@@ -39,6 +44,7 @@ export interface Database {
           email?: string;
           tier?: TeiTier;
           accent_color?: string;
+          theme?: TeiTheme;
           created_at?: string;
           updated_at?: string;
         };

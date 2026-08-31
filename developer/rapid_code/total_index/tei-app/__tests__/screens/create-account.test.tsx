@@ -63,7 +63,7 @@ describe('app/create-account.tsx — Create TEI Account', () => {
   it('shows the header copy, the account-type block and every field label', () => {
     renderScreen(<CreateAccount />);
 
-    expect(screen.getByText('RHINO ATHLETICS')).toBeTruthy();
+    expect(screen.getByLabelText('RHINO ATHLETICS')).toBeTruthy();
     expect(screen.getByText('Simple.')).toBeTruthy();
     expect(screen.getAllByText(/Create Account/).length).toBeGreaterThan(0);
     expect(screen.getByText('Account Type Selected')).toBeTruthy();

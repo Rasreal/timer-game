@@ -54,7 +54,7 @@ describe('app/login.tsx — Onboarding / Log In', () => {
     expect(screen.getByText(/Create account/)).toBeTruthy();
     // The brand lockup from Chrome.tsx.
     expect(screen.getByText('Simple.')).toBeTruthy();
-    expect(screen.getByText('RHIN')).toBeTruthy();
+    expect(screen.getByLabelText('RHINO ATHLETICS')).toBeTruthy();
   });
 
   it('renders empty email and password fields', () => {

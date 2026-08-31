@@ -16,8 +16,7 @@ describe('app/index.tsx — Onboarding Launch Screen', () => {
 
     // "Mission. Simple." is one Text with a nested Text; RNTL matches the leaf.
     expect(screen.getByText('Simple.')).toBeTruthy();
-    expect(screen.getByText('RHIN')).toBeTruthy();
-    expect(screen.getByText('ATHLETICS')).toBeTruthy();
+    expect(screen.getByLabelText('RHINO ATHLETICS')).toBeTruthy();
     expect(screen.getByText('Total Effect Index')).toBeTruthy();
     expect(screen.getByText('TEI')).toBeTruthy();
     expect(screen.getByText(/GO\s+TEI/)).toBeTruthy();
