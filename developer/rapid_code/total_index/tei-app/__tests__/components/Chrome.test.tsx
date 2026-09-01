@@ -36,7 +36,7 @@ describe('BrandLockup (header)', () => {
 
   it('switches the wordmark colour in the light variant', () => {
     const dark = render(<BrandLockup />);
-    expect(dark.getByLabelText('RHINO ATHLETICS').props.tintColor).toBe('#3D3D3D');
+    expect(dark.getByLabelText('RHINO ATHLETICS').props.tintColor).toBe('#5F5F5F');
     dark.unmount();
 
     render(<BrandLockup light />);
@@ -44,6 +44,26 @@ describe('BrandLockup (header)', () => {
       '#6B6B6B',
     );
   });
+
+  // Ken asked for the wordmark to read as recessed while still meeting the
+  // accessibility contrast minimum. At 18pt heavy it is "large text", so the
+  // applicable WCAG threshold is 3.0:1 rather than 4.5:1. Assert the ratio
+  // rather than a bare hex, so any future recolour still has to clear the bar.
+  it('keeps the dark-screen wordmark above the 3.0:1 contrast minimum', () => {
+    const relLum = (hex: string) => {
+      const h = hex.replace('#', '');
+      const ch = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+      const [r, g, b] = ch.map((v) =>
+        v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4,
+      );
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const tint = render(<BrandLockup />).getByLabelText('RHINO ATHLETICS').props
+      .tintColor as string;
+    const ratio = (relLum(tint) + 0.05) / (relLum('#000000') + 0.05);
+    expect(ratio).toBeGreaterThanOrEqual(3);
+  });
+
 
   it('renders the wordmark undistorted at the artwork aspect ratio', () => {
     render(<BrandLockup />);

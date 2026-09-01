@@ -29,7 +29,7 @@ export default function Launch() {
           <Text style={styles.missionSimple}>
             Mission. <Text style={{ color: colors.orange }}>Simple.</Text>
           </Text>
-          <RhinoWordmark height={19} color="#333" align="flex-end" />
+          <RhinoWordmark height={19} color="#5F5F5F" align="flex-end" />
         </View>
 
         <Image

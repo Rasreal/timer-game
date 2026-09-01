@@ -74,7 +74,11 @@ export function BrandLockup({
       >
         Mission. <Text style={{ color: colors.orange }}>Simple.</Text>
       </Text>
-      <RhinoWordmark height={18} color={light ? '#6B6B6B' : '#3D3D3D'} />
+      {/* Ken asked for the wordmark to stay visually recessed but still meet
+          the accessibility contrast minimum. At 18pt heavy it counts as large
+          text, so the applicable threshold is 3.0:1 — #5F5F5F clears it at
+          3.29:1 on black while staying well below the body copy in weight. */}
+      <RhinoWordmark height={18} color={light ? '#6B6B6B' : '#5F5F5F'} />
     </View>
   );
 }
