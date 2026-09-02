@@ -21,7 +21,7 @@ import {
   type PlanRow,
 } from '../src/lib/plans';
 import type { CalculatorId } from '../src/lib/tei';
-import { colors } from '../src/theme';
+import { colors, useAccent, useOnAccentTint } from '../src/theme';
 
 const DAYS = 7;
 
@@ -40,6 +40,8 @@ export default function Planner() {
   const { profile, session } = useAuth();
   const { showToast } = useStore();
   const params = useLocalSearchParams<{ start?: string }>();
+  const accent = useAccent();
+  const onAccent = useOnAccentTint();
 
   // The start date is state, not a derived value: answering YES to "plan
   // another week" advances it in place rather than re-navigating.
@@ -195,7 +197,7 @@ export default function Planner() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.orange }}>
+    <View style={{ flex: 1, backgroundColor: accent }}>
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + 12,
@@ -204,7 +206,7 @@ export default function Planner() {
         }}
       >
         <View style={styles.headerRow}>
-          <BackArrow onPress={() => router.canGoBack() ? router.back() : router.replace('/plan')} color="#7A4A12" />
+          <BackArrow onPress={() => router.canGoBack() ? router.back() : router.replace('/plan')} color={onAccent} />
           <Text style={styles.heading}>TEI - 7 Day Planner</Text>
           {/* Balances the chevron so the heading stays optically centred. */}
           <View style={styles.headerSpacer} />
@@ -224,10 +226,12 @@ export default function Planner() {
         </Pressable>
 
         {loading ? (
-          <ActivityIndicator color="#3A2308" style={{ marginTop: 48 }} />
+          <ActivityIndicator color={onAccent} style={{ marginTop: 48 }} />
         ) : (
           <>
-            {error && <Text style={styles.error}>{error}</Text>}
+            {error && (
+              <Text style={[styles.error, { color: onAccent }]}>{error}</Text>
+            )}
 
             <View style={styles.dayList}>
               {days.map((day, i) => (
@@ -246,7 +250,7 @@ export default function Planner() {
             <View style={styles.footer}>
               <View style={styles.footerLeft}>
                 <Text style={styles.totalLabel}>This 7 DAY Total TEI</Text>
-                <Divider style={styles.totalRule} />
+                <Divider style={[styles.totalRule, { backgroundColor: onAccent }]} />
                 <DarkButton
                   title={saving ? 'Saving…' : 'Save this PLAN'}
                   onPress={() => void save()}
@@ -273,7 +277,7 @@ export default function Planner() {
       >
         <View style={styles.modalScrim}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Plan saved</Text>
+            <Text style={[styles.modalTitle, { color: accent }]}>Plan saved</Text>
             <Text style={styles.modalBody}>
               Would you like to plan another week?
             </Text>
@@ -298,11 +302,11 @@ export default function Planner() {
                 accessibilityLabel="Yes, plan the next seven days"
                 style={({ pressed }) => [
                   styles.modalBtn,
-                  styles.modalBtnPrimary,
+                  { borderColor: accent },
                   { opacity: pressed ? 0.7 : 1 },
                 ]}
               >
-                <Text style={[styles.modalBtnText, styles.modalBtnTextPrimary]}>
+                <Text style={[styles.modalBtnText, { color: accent }]}>
                   YES
                 </Text>
               </Pressable>
@@ -329,6 +333,9 @@ function DayRow({
   onClear: () => void;
   clearing?: boolean;
 }) {
+  const accent = useAccent();
+  const onAccent = useOnAccentTint();
+
   const label = plan
     ? `Day ${index}, ${longDate(date)}, ${plan.tei} TEI. Change this plan.`
     : `Day ${index}, ${longDate(date)}, not planned. Plan this day.`;
@@ -354,17 +361,18 @@ function DayRow({
               hitSlop={10}
               style={({ pressed }) => [
                 styles.clearBtn,
+                { backgroundColor: onAccent },
                 { opacity: pressed || clearing ? 0.55 : 1 },
               ]}
             >
-              <Text style={styles.clearText}>
+              <Text style={[styles.clearText, { color: accent }]}>
                 {clearing ? '…' : 'CLEAR'}
               </Text>
             </Pressable>
           )}
         </View>
 
-        <Divider style={styles.dayRule} />
+        <Divider style={[styles.dayRule, { backgroundColor: onAccent }]} />
 
         <View style={styles.varRow}>
           <VarCell value={plan?.sets} label="Sets" />
@@ -542,7 +550,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
   },
   error: {
-    color: '#5A1A00',
     fontSize: 14,
     marginTop: 16,
   },
@@ -562,10 +569,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 4,
-    backgroundColor: '#3A2308',
   },
   clearText: {
-    color: colors.orange,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -579,7 +584,6 @@ const styles = StyleSheet.create({
   dayDate: { fontWeight: '700' },
   dayDateEmpty: { fontWeight: '700', letterSpacing: 1 },
   dayRule: {
-    backgroundColor: '#3A2308',
     marginTop: 3,
   },
   varRow: {
@@ -659,7 +663,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   totalRule: {
-    backgroundColor: '#3A2308',
     marginTop: 3,
   },
   saveBtn: {
@@ -684,7 +687,6 @@ const styles = StyleSheet.create({
     padding: 22,
   },
   modalTitle: {
-    color: colors.orange,
     fontSize: 20,
     fontWeight: '800',
   },
@@ -707,13 +709,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#4A4A4A',
   },
-  modalBtnPrimary: { borderColor: colors.orange },
   modalBtnText: {
     color: colors.textDim,
     fontSize: 16,
     fontWeight: '700',
   },
-  modalBtnTextPrimary: { color: colors.orange },
   calGlyph: { width: 34, alignItems: 'center' },
   calTabs: {
     flexDirection: 'row',

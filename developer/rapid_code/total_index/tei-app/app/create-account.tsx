@@ -15,7 +15,7 @@ import { BackArrow, Ellipsis, RhinoWordmark } from '../src/components/Chrome';
 import { EyeIcon } from '../src/components/Icons';
 import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
-import { colors } from '../src/theme';
+import { colors, useAccentTint } from '../src/theme';
 
 /** Screen 7 — Create TEI Elemental Account (white background per spec). */
 export default function CreateAccount() {
@@ -32,6 +32,9 @@ export default function CreateAccount() {
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // White background: the accent needs its lighter tint to stay legible.
+  const backTint = useAccentTint();
 
   const rules = {
     length: password.length >= 8,
@@ -94,7 +97,7 @@ export default function CreateAccount() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <BackArrow onPress={() => router.back()} color="#F5B078" />
+        <BackArrow onPress={() => router.back()} color={backTint} />
 
         <RhinoWordmark height={16.5} color="#5C5C5C" marginTop={8} />
         <Text style={styles.missionSimple}>

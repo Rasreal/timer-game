@@ -15,7 +15,7 @@ import { listSessionsBetween } from '../src/lib/sessions';
 import { listPlansBetween, planDayKey } from '../src/lib/plans';
 import { GRADE_COLORS, gradeAgainstPlan } from '../src/lib/tei';
 import type { SessionRow } from '../src/lib/database.types';
-import { colors } from '../src/theme';
+import { colors, useAccent } from '../src/theme';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -40,6 +40,7 @@ export default function Review() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
+  const accent = useAccent();
 
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
@@ -190,7 +191,7 @@ export default function Review() {
                 accessibilityLabel="Previous month"
                 hitSlop={14}
               >
-                <Text style={styles.monthArrow}>←</Text>
+                <Text style={[styles.monthArrow, { color: accent }]}>←</Text>
               </Pressable>
               <Pressable
                 onPress={() => shiftMonth(1)}
@@ -199,7 +200,7 @@ export default function Review() {
                 hitSlop={14}
                 style={{ marginLeft: 22 }}
               >
-                <Text style={styles.monthArrow}>→</Text>
+                <Text style={[styles.monthArrow, { color: accent }]}>→</Text>
               </Pressable>
             </View>
           </View>
@@ -232,7 +233,11 @@ export default function Review() {
               >
                 {/* Selected-week marker, as drawn in the mock-up */}
                 <View style={styles.selectorSlot}>
-                  {selectedWeek === wi && <View style={styles.selectorDot} />}
+                  {selectedWeek === wi && (
+                    <View
+                      style={[styles.selectorDot, { backgroundColor: accent }]}
+                    />
+                  )}
                 </View>
 
                 <View style={styles.weekCells}>
@@ -288,7 +293,7 @@ export default function Review() {
       >
         <View style={styles.footerTop}>
           <View style={styles.footerDotWrap}>
-            <View style={styles.footerDot} />
+            <View style={[styles.footerDot, { backgroundColor: accent }]} />
           </View>
 
           <View style={{ flex: 1, marginLeft: 4 }}>
@@ -383,7 +388,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   monthArrows: { flexDirection: 'row', alignItems: 'center' },
-  monthArrow: { color: colors.orange, fontSize: 27 },
+  monthArrow: { fontSize: 27 },
   weekdayRow: { flexDirection: 'row', marginTop: 10, paddingLeft: 22 },
   weekday: {
     flex: 1,
@@ -406,7 +411,6 @@ const styles = StyleSheet.create({
     width: 11,
     height: 11,
     borderRadius: 6,
-    backgroundColor: colors.orange,
   },
   weekCells: { flex: 1, flexDirection: 'row' },
   dayCell: { flex: 1, alignItems: 'center' },
@@ -435,7 +439,6 @@ const styles = StyleSheet.create({
     width: 13,
     height: 13,
     borderRadius: 7,
-    backgroundColor: colors.orange,
     borderWidth: 2.5,
     borderColor: '#1A1A1A',
   },

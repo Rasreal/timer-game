@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../src/theme';
+import { colors, useAccent } from '../src/theme';
 
 const rhino = require('../assets/rhino.png');
 
@@ -9,6 +9,7 @@ const rhino = require('../assets/rhino.png');
 export default function Loading() {
   const router = useRouter();
   const progress = useRef(new Animated.Value(0)).current;
+  const accent = useAccent();
 
   useEffect(() => {
     const anim = Animated.loop(
@@ -49,7 +50,9 @@ export default function Loading() {
         />
 
         <View style={styles.track}>
-          <Animated.View style={[styles.bar, { left, width }]} />
+          <Animated.View
+            style={[styles.bar, { left, width, backgroundColor: accent }]}
+          />
         </View>
 
         <Text style={styles.tei}>TEI</Text>
@@ -63,7 +66,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
   rhino: { width: '100%', height: 250 },
   track: { height: 2, backgroundColor: '#3A2A18', overflow: 'hidden' },
-  bar: { position: 'absolute', top: 0, bottom: 0, backgroundColor: colors.orange },
+  bar: { position: 'absolute', top: 0, bottom: 0 },
   tei: {
     color: colors.text,
     fontSize: 58,

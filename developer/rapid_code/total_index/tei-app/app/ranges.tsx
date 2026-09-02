@@ -6,7 +6,7 @@ import { BackArrow, Divider, OutlineButton } from '../src/components/Chrome';
 import { EFFECTIVE_RANGES } from '../src/lib/tei';
 import { useStore } from '../src/store';
 import { useAuth } from '../src/auth';
-import { colors } from '../src/theme';
+import { colors, useAccent } from '../src/theme';
 
 /** ELEMENTAL Screen 7 — Effective TEI Ranges. */
 export default function Ranges() {
@@ -16,6 +16,7 @@ export default function Ranges() {
   // against the timeframe the user picked, per the client's tiered intent.
   const { targetRange: selected, setTargetRange: setSelected } = useStore();
   const { profile } = useAuth();
+  const accent = useAccent();
   // On Elemental the screen is informational — there is no progress bar to
   // drive — so the instruction is to make a note. Paid tiers actually tap a
   // timeframe, which becomes the denominator of "% of Target".
@@ -46,7 +47,7 @@ export default function Ranges() {
         while exceeding the Maximum could lead to over-training and injury.
       </Text>
 
-      <Text style={styles.note}>
+      <Text style={[styles.note, { color: accent }]}>
         {canTrack
           ? 'Tap the Timeframe you want to track — your % of Target will be measured against it:'
           : 'Make a note of the Timeframe Numbers you want to track for results:'}
@@ -152,7 +153,6 @@ const styles = StyleSheet.create({
   },
   body: { color: '#F0F0F0', fontSize: 15.5, lineHeight: 21, marginBottom: 16 },
   note: {
-    color: colors.orange,
     fontSize: 19,
     lineHeight: 24,
     marginBottom: 20,

@@ -17,7 +17,7 @@ import {
 } from '../src/components/Chrome';
 import { useAuth } from '../src/auth';
 import { useStore, type Tier } from '../src/store';
-import { colors } from '../src/theme';
+import { colors, useAccent } from '../src/theme';
 
 function label(t: Tier): string {
   return t === 'elemental' ? 'Elemental' : t === 'basic' ? 'Basic' : 'Premium';
@@ -31,6 +31,7 @@ export default function AccountType() {
   const { session, profile, changeTier } = useAuth();
   const [showFeatures, setShowFeatures] = useState(false);
   const [busy, setBusy] = useState<Tier | null>(null);
+  const accent = useAccent();
 
   // Two modes: picking a tier during sign-up, or switching tier afterwards.
   const signedIn = session != null;
@@ -75,7 +76,7 @@ export default function AccountType() {
           <BackArrow onPress={() => router.canGoBack() ? router.back() : router.replace('/home')} />
           <View style={{ flex: 1, alignItems: 'flex-end' }}>
             <Text style={styles.tei1}>TOTAL EFFECT INDEX</Text>
-            <Text style={styles.tei2}>TEI</Text>
+            <Text style={[styles.tei2, { color: accent }]}>TEI</Text>
           </View>
         </View>
 
@@ -86,7 +87,7 @@ export default function AccountType() {
         </Text>
 
         {signedIn && (
-          <Text style={styles.switchNote}>
+          <Text style={[styles.switchNote, { color: accent }]}>
             Prototype: plans switch instantly, with no payment.
           </Text>
         )}
@@ -152,11 +153,13 @@ function TierRow({
   current?: boolean;
   busy?: boolean;
 }) {
+  const accent = useAccent();
+
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <Ellipsis
         onPress={onEllipsis}
-        color={colors.orange}
+        color={accent}
         label={`More about ${label}`}
       />
       <View style={{ flex: 1, marginLeft: 14 }}>
@@ -166,12 +169,12 @@ function TierRow({
           style={({ pressed }) => [
             styles.pill,
             { backgroundColor: pressed ? '#4a4a4a' : '#3A3A3A' },
-            current && styles.pillCurrent,
+            current && [styles.pillCurrent, { borderColor: accent }],
           ]}
         >
           <Text style={styles.pillText}>
             {busy ? '…' : label}
-            {current && !busy && <Text style={styles.pillCurrentTag}>  ✓</Text>}
+            {current && !busy && <Text style={[styles.pillCurrentTag, { color: accent }]}>  ✓</Text>}
           </Text>
         </Pressable>
         <Text style={styles.pillSub}>
@@ -308,6 +311,8 @@ function PlanBlock({
   onHighlight: () => void;
   picked?: boolean;
 }) {
+  const accent = useAccent();
+
   return (
     <View style={{ marginTop: 22 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -318,17 +323,23 @@ function PlanBlock({
           accessibilityState={{ selected: picked }}
           style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
         >
-          <Text style={[styles.planName, picked && styles.planNamePicked]}>
+          <Text
+            style={[
+              styles.planName,
+              { color: accent },
+              picked && styles.planNamePicked,
+            ]}
+          >
             {name}
           </Text>
-          <Text style={styles.planPrice}>{price}</Text>
+          <Text style={[styles.planPrice, { color: accent }]}>{price}</Text>
         </Pressable>
         <Pressable
           onPress={onSelect}
           accessibilityRole="button"
-          style={styles.selectBtn}
+          style={[styles.selectBtn, { borderColor: accent }]}
         >
-          <Text style={styles.selectText}>SELECT</Text>
+          <Text style={[styles.selectText, { color: accent }]}>SELECT</Text>
         </Pressable>
       </View>
       {features.map((f) => (
@@ -349,7 +360,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   tei2: {
-    color: colors.orange,
     fontSize: 44,
     fontWeight: '800',
     letterSpacing: -1.5,
@@ -370,10 +380,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 14,
   },
-  pillCurrent: { borderColor: colors.orange, borderWidth: 2 },
-  pillCurrentTag: { color: colors.orange, fontWeight: '700' },
+  pillCurrent: { borderWidth: 2 },
+  pillCurrentTag: { fontWeight: '700' },
   switchNote: {
-    color: colors.orange,
     fontSize: 14,
     textAlign: 'center',
     marginTop: -22,
@@ -406,26 +415,23 @@ const styles = StyleSheet.create({
   sheetSub: { color: colors.text, fontSize: 23, fontWeight: '500', marginTop: 2 },
   planName: {
     flex: 1,
-    color: colors.orange,
     fontSize: 26,
     fontWeight: '500',
     letterSpacing: -0.5,
   },
   planNamePicked: { color: colors.text, fontWeight: '700' },
   planPrice: {
-    color: colors.orange,
     fontSize: 14,
     fontStyle: 'italic',
     marginRight: 10,
   },
   selectBtn: {
     borderWidth: 1,
-    borderColor: colors.orange,
     borderRadius: 999,
     paddingVertical: 5,
     paddingHorizontal: 14,
   },
-  selectText: { color: colors.orange, fontSize: 12, letterSpacing: 0.4 },
+  selectText: { fontSize: 12, letterSpacing: 0.4 },
   featTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
   featBody: { color: '#D2D2D2', fontSize: 15.5, lineHeight: 21 },
 });

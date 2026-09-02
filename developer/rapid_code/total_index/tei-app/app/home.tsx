@@ -15,7 +15,7 @@ import { useAuth } from '../src/auth';
 import { latestSession } from '../src/lib/sessions';
 import type { SessionRow } from '../src/lib/database.types';
 import { useStore } from '../src/store';
-import { colors } from '../src/theme';
+import { colors, useAccent } from '../src/theme';
 
 /**
  * ELEMENTAL Screen 1 — TEI Elemental Home Screen.
@@ -28,6 +28,7 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const { showToast } = useStore();
   const { profile, profileError, reloadProfile } = useAuth();
+  const accent = useAccent();
 
   const fullName = profile
     ? `${profile.first_name} ${profile.last_name}`.trim() || profile.email
@@ -101,7 +102,7 @@ export default function Home() {
             </Text>
           ) : (
             <View style={styles.scoreRow}>
-              <Text style={styles.scoreValue}>
+              <Text style={[styles.scoreValue, { color: accent }]}>
                 {latest ? formatTei(latest.tei) : '0'}
               </Text>
               <Text style={styles.scoreCaption}>
@@ -178,6 +179,8 @@ function Tile({
   locked?: boolean;
   onPress: () => void;
 }) {
+  const accent = useAccent();
+
   return (
     <Pressable
       onPress={onPress}
@@ -185,7 +188,7 @@ function Tile({
       accessibilityLabel={title.replace('\n', ' ')}
       style={({ pressed }) => [
         styles.tile,
-        locked ? styles.tileLocked : styles.tileActive,
+        locked ? styles.tileLocked : { backgroundColor: accent },
         { opacity: pressed ? 0.85 : 1 },
       ]}
     >
@@ -221,7 +224,6 @@ const styles = StyleSheet.create({
   ready: { color: colors.text, fontSize: 22, fontWeight: '500' },
   scoreRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 6 },
   scoreValue: {
-    color: colors.orange,
     fontSize: 34,
     fontWeight: '800',
     letterSpacing: -1,
@@ -239,7 +241,6 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: '3%',
   },
-  tileActive: { backgroundColor: colors.orange },
   tileLocked: {
     backgroundColor: '#151515',
     borderWidth: 1,

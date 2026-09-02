@@ -14,7 +14,7 @@ import {
   sessionTime,
   type StrengthOption,
 } from '../src/lib/selector';
-import { colors } from '../src/theme';
+import { colors, useAccent, useOnAccentTint } from '../src/theme';
 
 /**
  * TEI Premium — "5 Types of Training Session Selector".
@@ -29,6 +29,9 @@ export default function SessionType() {
   const { plan } = useLocalSearchParams<{ plan?: string }>();
   const insets = useSafeAreaInsets();
   const { session, showToast } = useStore();
+
+  const accent = useAccent();
+  const onAccent = useOnAccentTint();
 
   const [strength, setStrength] = useState<StrengthOption | null>(null);
   const [aerobic, setAerobic] = useState(false);
@@ -52,7 +55,7 @@ export default function SessionType() {
 
   return (
     <ScrollView
-      style={{ backgroundColor: colors.orange }}
+      style={{ backgroundColor: accent }}
       contentContainerStyle={{
         flexGrow: 1,
         paddingTop: insets.top + 6,
@@ -60,7 +63,7 @@ export default function SessionType() {
         paddingBottom: Math.max(insets.bottom, 12) + 8,
       }}
     >
-      <BackArrow onPress={() => router.back()} color="#7A4A12" />
+      <BackArrow onPress={() => router.back()} color={onAccent} />
 
       <Text style={styles.heading}>This Training Session</Text>
 
@@ -96,7 +99,7 @@ export default function SessionType() {
         option for this Training Session
       </Text>
 
-      <Divider style={styles.rule} />
+      <Divider style={[styles.rule, { backgroundColor: onAccent }]} />
 
       <View style={styles.options}>
         {STRENGTH_OPTIONS.map((option) => (
@@ -282,7 +285,6 @@ const styles = StyleSheet.create({
   },
   instructionBold: { fontWeight: '800' },
   rule: {
-    backgroundColor: '#7A4A12',
     marginTop: 10,
     marginHorizontal: 12,
   },

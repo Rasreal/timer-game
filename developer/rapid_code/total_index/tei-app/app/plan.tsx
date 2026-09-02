@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, OutlineButton } from '../src/components/Chrome';
 import { useAuth } from '../src/auth';
 import { listPlansBetween, planDayKey, type PlanRow } from '../src/lib/plans';
-import { colors } from '../src/theme';
+import { colors, useAccent } from '../src/theme';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -38,6 +38,7 @@ export default function Plan() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
+  const accent = useAccent();
 
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
@@ -176,7 +177,7 @@ export default function Plan() {
                 accessibilityLabel="Previous month"
                 hitSlop={14}
               >
-                <Text style={styles.monthArrow}>←</Text>
+                <Text style={[styles.monthArrow, { color: accent }]}>←</Text>
               </Pressable>
               <Pressable
                 onPress={() => shiftMonth(1)}
@@ -185,7 +186,7 @@ export default function Plan() {
                 hitSlop={14}
                 style={{ marginLeft: 22 }}
               >
-                <Text style={styles.monthArrow}>→</Text>
+                <Text style={[styles.monthArrow, { color: accent }]}>→</Text>
               </Pressable>
             </View>
           </View>
@@ -260,7 +261,7 @@ export default function Plan() {
                           ]}
                         >
                           {value !== undefined ? (
-                            <Text style={styles.dayScore}>
+                            <Text style={[styles.dayScore, { color: accent }]}>
                               {Math.round(value)}
                             </Text>
                           ) : cell.inMonth &&
@@ -354,7 +355,7 @@ export default function Plan() {
                 accessibilityLabel="Cancel"
                 hitSlop={14}
               >
-                <Text style={styles.sheetClose}>✕</Text>
+                <Text style={[styles.sheetClose, { color: accent }]}>✕</Text>
               </Pressable>
             </View>
 
@@ -449,7 +450,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   monthArrows: { flexDirection: 'row', alignItems: 'center' },
-  monthArrow: { color: colors.orange, fontSize: 27 },
+  monthArrow: { fontSize: 27 },
   weekdayRow: { flexDirection: 'row', marginTop: 10, paddingLeft: 22 },
   weekday: {
     flex: 1,
@@ -487,7 +488,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 4,
   },
-  dayScore: { color: colors.orange, fontSize: 19, fontWeight: '700' },
+  dayScore: { fontSize: 19, fontWeight: '700' },
   // Past days are dimmed to show they are not plannable.
   dayCirclePast: { opacity: 0.45 },
   dayRest: { color: '#4A4A4A', fontSize: 19, fontWeight: '700' },
@@ -599,7 +600,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   sheetHead: { alignItems: 'flex-end', paddingTop: 10 },
-  sheetClose: { color: colors.orange, fontSize: 26, fontWeight: '300' },
+  sheetClose: { fontSize: 26, fontWeight: '300' },
   sheetBody: {
     color: colors.text,
     fontSize: 18,

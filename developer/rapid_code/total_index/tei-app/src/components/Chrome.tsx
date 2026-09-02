@@ -8,7 +8,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { colors } from '../theme';
+import { colors, accentAlpha, useAccent } from '../theme';
 
 const wordmark = require('../../assets/rhino-athletics-wordmark.png');
 
@@ -185,6 +185,8 @@ export function OutlineButton({
   style?: StyleProp<ViewStyle>;
   fontSize?: number;
 }) {
+  const accent = useAccent();
+
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
@@ -193,15 +195,15 @@ export function OutlineButton({
       style={({ pressed }) => [
         styles.outlineBtn,
         {
-          borderColor: disabled ? '#4A4A4A' : colors.orange,
-          backgroundColor: pressed ? 'rgba(255,138,37,0.16)' : 'transparent',
+          borderColor: disabled ? '#4A4A4A' : accent,
+          backgroundColor: pressed ? accentAlpha(accent, 0.16) : 'transparent',
         },
         style,
       ]}
     >
       <Text
         style={{
-          color: disabled ? '#5A5A5A' : colors.orange,
+          color: disabled ? '#5A5A5A' : accent,
           fontSize,
           fontWeight: '600',
           textAlign: 'center',

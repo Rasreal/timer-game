@@ -20,6 +20,7 @@ import {
   SHOW_DEV_TOOLS,
   accentsForTier,
   colors,
+  lightTint,
 } from '../src/theme';
 import type { TeiTheme } from '../src/lib/database.types';
 
@@ -61,6 +62,13 @@ export default function Profile() {
   // plus the Dark/Light theme row. See the client's Edit Profile mock-ups.
   const swatches = accentsForTier(tier);
   const isPremium = tier === 'premium';
+
+  // The back arrow sits on this screen's WHITE background, where the accent
+  // at full strength is too dark and saturated, so it takes the lighter tint
+  // (the designer's #F5B078 for the default orange). It follows the swatch
+  // being previewed rather than the saved one, so tapping a colour updates
+  // the arrow immediately -- exactly as the swatches themselves do.
+  const backTint = lightTint(accent);
 
   // Email changes require a confirmation round-trip, so it is read-only here.
   const email = profile?.email ?? '';
@@ -131,7 +139,7 @@ export default function Profile() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <BackArrow onPress={() => router.replace('/home')} color="#F5B078" />
+        <BackArrow onPress={() => router.replace('/home')} color={backTint} />
 
         <RhinoWordmark height={16.5} color="#5C5C5C" marginTop={8} />
         <Text style={styles.missionSimple}>

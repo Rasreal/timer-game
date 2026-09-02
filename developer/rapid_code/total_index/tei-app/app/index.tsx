@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RhinoWordmark } from '../src/components/Chrome';
-import { colors } from '../src/theme';
+import { colors, useAccent, accentAlpha } from '../src/theme';
 
 const rhino = require('../assets/rhino.png');
 
@@ -20,6 +20,7 @@ export default function Launch() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [showWhat, setShowWhat] = useState(false);
+  const accent = useAccent();
 
   return (
     <View style={styles.root}>
@@ -59,10 +60,11 @@ export default function Launch() {
           accessibilityRole="button"
           style={({ pressed }) => [
             styles.goTei,
-            { backgroundColor: pressed ? 'rgba(255,138,37,0.16)' : 'transparent' },
+            { borderColor: accent },
+            { backgroundColor: pressed ? accentAlpha(accent, 0.16) : 'transparent' },
           ]}
         >
-          <Text style={styles.goTeiText}>GO{'\n'}TEI</Text>
+          <Text style={[styles.goTeiText, { color: accent }]}>GO{'\n'}TEI</Text>
         </Pressable>
 
         <Pressable onPress={() => setShowWhat(true)} accessibilityRole="button">
@@ -93,6 +95,7 @@ export default function Launch() {
 /** Screen 2 — "What is TEI?" micro-screen. */
 function WhatIsTei({ onClose, onGo }: { onClose: () => void; onGo: () => void }) {
   const insets = useSafeAreaInsets();
+  const accent = useAccent();
   return (
     <View style={styles.sheetBackdrop}>
       <View style={styles.sheet}>
@@ -122,7 +125,7 @@ function WhatIsTei({ onClose, onGo }: { onClose: () => void; onGo: () => void })
             consistently.
           </Text>
 
-          <Text style={styles.howItWorks}>How it Works...</Text>
+          <Text style={[styles.howItWorks, { color: accent }]}>How it Works...</Text>
 
           <Step
             n="1."
@@ -213,13 +216,11 @@ const styles = StyleSheet.create({
   },
   goTei: {
     borderWidth: 1.5,
-    borderColor: colors.orange,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 18,
   },
   goTeiText: {
-    color: colors.orange,
     fontSize: 25,
     fontWeight: '700',
     textAlign: 'center',
@@ -255,7 +256,6 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   howItWorks: {
-    color: colors.orange,
     fontSize: 27,
     fontWeight: '600',
     textAlign: 'center',

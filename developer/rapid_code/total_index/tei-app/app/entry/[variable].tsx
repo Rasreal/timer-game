@@ -16,7 +16,7 @@ import { BackArrow, DarkButton } from '../../src/components/Chrome';
 import { Ring } from '../../src/components/Ring';
 import { formatSessionDate, useStore, type SessionDraft } from '../../src/store';
 import { LIMITS } from '../../src/lib/tei';
-import { colors } from '../../src/theme';
+import { colors, useAccent, useOnAccentTint } from '../../src/theme';
 
 type VariableKey =
   | 'sets'
@@ -174,6 +174,8 @@ export default function VariableEntry() {
     from?: string;
   }>();
   const { session, setSessionField } = useStore();
+  const accent = useAccent();
+  const onAccent = useOnAccentTint();
 
   // An id this route does not know used to fall through to `sets`, so a typo
   // or a CALCULATOR_FIELDS-style name (`restSeconds`) silently rendered the
@@ -228,8 +230,8 @@ export default function VariableEntry() {
 
   if (!known) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.orange, paddingTop: insets.top + 12 }}>
-        <BackArrow onPress={() => router.replace(backTo as never)} color="#7A4A12" />
+      <View style={{ flex: 1, backgroundColor: accent, paddingTop: insets.top + 12 }}>
+        <BackArrow onPress={() => router.replace(backTo as never)} color={onAccent} />
         <View style={styles.unknownWrap}>
           <Text style={styles.heading}>Unknown Variable</Text>
           <Text style={styles.description}>
@@ -248,7 +250,7 @@ export default function VariableEntry() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.orange }}
+      style={{ flex: 1, backgroundColor: accent }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
@@ -260,7 +262,7 @@ export default function VariableEntry() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <BackArrow onPress={() => router.replace(backTo as never)} color="#7A4A12" />
+        <BackArrow onPress={() => router.replace(backTo as never)} color={onAccent} />
 
         <Text
           style={[

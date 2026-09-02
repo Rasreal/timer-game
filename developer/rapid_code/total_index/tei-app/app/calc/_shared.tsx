@@ -10,7 +10,7 @@ import { saveSession } from '../../src/lib/sessions';
 import { savePlan } from '../../src/lib/plans';
 import { DEFAULT_TARGET_MAX, EFFECTIVE_RANGES,
   LIMITS, displayTei, validateSessionInputs, type CalculatorId } from '../../src/lib/tei';
-import { colors } from '../../src/theme';
+import { colors, useAccent, accentAlpha } from '../../src/theme';
 
 /**
  * The four PREMIUM calculators differ only in which rings they show and which
@@ -75,6 +75,7 @@ export function CalcShell({
   // second press must not write a duplicate row.
   const [saved, setSaved] = useState(false);
   const [rangeError, setRangeError] = useState<string | null>(null);
+  const accent = useAccent();
 
   // These four calculators ship with TEI Premium only. `profile` is null while
   // it loads, so wait for it rather than bouncing a Premium user to Home.
@@ -234,10 +235,11 @@ export function CalcShell({
               accessibilityRole="button"
               style={({ pressed }) => [
                 styles.pill,
-                { backgroundColor: pressed ? 'rgba(255,138,37,0.16)' : 'transparent' },
+                { borderColor: accent },
+                { backgroundColor: pressed ? accentAlpha(accent, 0.16) : 'transparent' },
               ]}
             >
-              <Text style={styles.pillText}>Effective Ranges</Text>
+              <Text style={[styles.pillText, { color: accent }]}>Effective Ranges</Text>
             </Pressable>
           )}
         </View>
@@ -367,14 +369,13 @@ const styles = StyleSheet.create({
   },
   pill: {
     borderWidth: 1.5,
-    borderColor: colors.orange,
     borderRadius: 999,
     paddingVertical: 3,
     paddingHorizontal: 12,
     marginTop: 4,
     alignSelf: 'flex-start',
   },
-  pillText: { color: colors.orange, fontSize: 14, fontWeight: '700' },
+  pillText: { fontSize: 14, fontWeight: '700' },
   bigNumber: {
     fontSize: 100,
     fontWeight: '800',
