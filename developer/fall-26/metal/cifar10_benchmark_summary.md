@@ -1,7 +1,9 @@
 # CIFAR-10 CUDA / Apple MPS / CPU benchmark summary
 
-Generated: `2026-09-21T02:44:44+05:00`  
-Source: measurements generated from the notebook's benchmark functions  
+Generated: `2026-09-21T02:44:44+05:00`
+
+Source: measurements generated from the notebook's benchmark functions
+
 Notebook: [`cifar10_cuda_mps_benchmark.ipynb`](cifar10_cuda_mps_benchmark.ipynb)
 
 ## Executive summary
