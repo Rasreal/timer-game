@@ -43,3 +43,9 @@ document.querySelector('#visit-form').addEventListener('submit', (event) => {
   const message = `Здравствуйте! Хочу записаться на экскурсию в детский сад «Альтаир».\n\nИмя: ${name}\nТелефон: ${phone}${comment ? `\nКомментарий: ${comment}` : ''}`;
   window.open(`https://wa.me/77789827017?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
 });
+
+document.querySelectorAll('.back-top').forEach((link) => link.addEventListener('click', (event) => {
+  event.preventDefault();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  history.replaceState(null, '', `${location.pathname}${location.search}`);
+}));
