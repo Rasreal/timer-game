@@ -39,6 +39,8 @@ npm run build:web
   `detectSessionInUrl: false` for native compatibility.
 - `app.json` registers the `tei://` scheme. Details of the required dashboard
   allowlist and email setup are in [SUPABASE_SETUP.md](SUPABASE_SETUP.md).
+- The current web deployment is `https://tei-app-blue.vercel.app`; keep its
+  `/reset-password` route in Supabase's Redirect URL allowlist.
 
 ## Data and security invariants
 

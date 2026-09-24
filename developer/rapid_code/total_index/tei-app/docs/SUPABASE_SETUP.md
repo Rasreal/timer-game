@@ -7,13 +7,13 @@ standard email recovery flow and the app's existing `updateUser` permission.
 
 In the Supabase dashboard, open **Authentication → URL Configuration**.
 
-1. Set **Site URL** to the canonical production web app, for example
-   `https://tei.example.com`.
+1. Set **Site URL** to the current production web app:
+   `https://tei-app-blue.vercel.app`.
 2. Add these exact values under **Redirect URLs** (replace the web domain):
 
    ```text
    tei://reset-password
-   https://tei.example.com/reset-password
+   https://tei-app-blue.vercel.app/reset-password
    ```
 
 3. Add an exact reset URL for every staging/preview web deployment that sends
