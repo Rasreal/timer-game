@@ -208,6 +208,12 @@ requires a session; `AuthGate` in `app/_layout.tsx` redirects otherwise.
 
 ## Design tokens
 
+## Brand assets
+
+The supplied **RA Logo — Long Form — 1a** is the in-app wordmark. The native
+launcher icon and web favicon use an RA rhino-mark adaptation on black, with a
+transparent foreground version for Android adaptive and monochrome icons.
+
 From the deck's "Suggested Tokens" and colour-palette slides, in
 `src/theme.ts`:
 

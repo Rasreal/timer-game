@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "tei",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/ra-app-icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#000000",
     "ios": {
@@ -16,14 +16,14 @@
       "package": "com.rhinoathletics.tei",
       "adaptiveIcon": {
         "backgroundColor": "#000000",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/ra-app-icon-foreground.png",
+        "monochromeImage": "./assets/ra-app-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/ra-app-icon.png"
     },
     "plugins": ["expo-router"],
     "experiments": {

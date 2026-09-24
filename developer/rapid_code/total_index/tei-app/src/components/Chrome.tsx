@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 import { colors, accentAlpha, useAccent } from '../theme';
 
-const wordmark = require('../../assets/rhino-athletics-wordmark.png');
+// Client-supplied RA long-form logo. It is the in-app source of truth for the
+// branded wordmark; tintColor adapts the single-colour artwork per screen.
+const wordmark = require('../../assets/new/RA Logo - Long Form - 1a (1).png');
 
 /** Box aspect ratio of the wordmark artwork (2555 x 250). */
 const WORDMARK_RATIO = 2555 / 250;
