@@ -44,6 +44,13 @@ interface AuthState {
   /** True while the initial session restore is in flight. */
   initializing: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
+  /** Sends a password-recovery email to the supplied redirect URL. */
+  requestPasswordReset: (
+    email: string,
+    redirectTo: string,
+  ) => Promise<string | null>;
+  /** Updates the password for the temporary session created by a recovery link. */
+  completePasswordReset: (password: string) => Promise<string | null>;
   signUp: (args: SignUpArgs) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   /** Resolves to the failure message, or null on success — as signIn does. */
   signOut: () => Promise<string | null>;
@@ -142,6 +149,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return error ? error.message : null;
   }, []);
+
+  const requestPasswordReset = useCallback<AuthState['requestPasswordReset']>(
+    async (email, redirectTo) => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo,
+      });
+      return error ? error.message : null;
+    },
+    [],
+  );
+
+  const completePasswordReset = useCallback<AuthState['completePasswordReset']>(
+    async (password) => {
+      // Supabase accepts this only while the recovery link's temporary session
+      // is active. We intentionally do not check React state here: its auth
+      // listener can lag one render behind `setSession()` on the reset screen.
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) return updateError.message;
+
+      // A recovery link signs the user in. End that temporary session so the
+      // next action is an explicit login with the freshly chosen password.
+      const { error: signOutError } = await supabase.auth.signOut();
+      return signOutError ? signOutError.message : null;
+    },
+    [],
+  );
 
   const signUp = useCallback<AuthState['signUp']>(
     async ({ firstName, lastName, email, password, tier }) => {
@@ -272,6 +305,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       changeTier,
       initializing,
       signIn,
+      requestPasswordReset,
+      completePasswordReset,
       signUp,
       signOut,
       updateProfile,
@@ -284,6 +319,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       changeTier,
       initializing,
       signIn,
+      requestPasswordReset,
+      completePasswordReset,
       signUp,
       signOut,
       updateProfile,

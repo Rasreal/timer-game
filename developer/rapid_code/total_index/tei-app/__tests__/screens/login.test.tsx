@@ -63,9 +63,10 @@ describe('app/login.tsx — Onboarding / Log In', () => {
     expect(screen.getByPlaceholderText('Password').props.value).toBe('');
   });
 
-  it('does not show the "Forgot password?" dev affordance (SHOW_DEV_TOOLS is off)', () => {
+  it('shows the Forgot password link and routes to the reset request screen', () => {
     renderScreen(<Login />);
-    expect(screen.queryByText('Forgot password?')).toBeNull();
+    fireEvent.press(screen.getByText('Forgot password?'));
+    expect(router.push).toHaveBeenCalledWith('/forgot-password');
   });
 
   it('typing updates both inputs', () => {

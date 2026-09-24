@@ -22,6 +22,8 @@ const FALLBACK_METRICS = {
 const PUBLIC_ROUTES = new Set([
   'index',
   'login',
+  'forgot-password',
+  'reset-password',
   'account-type',
   'create-account',
   // Reachable mid-sign-in, before the session has finished propagating.
@@ -33,7 +35,14 @@ const PUBLIC_ROUTES = new Set([
  * bounced to /home. The plan picker doubles as the upgrade screen, so it has
  * to work in both states.
  */
-const ALSO_SIGNED_IN = new Set(['index', 'loading', 'account-type']);
+const ALSO_SIGNED_IN = new Set([
+  'index',
+  'loading',
+  'account-type',
+  // Supabase's recovery link creates a short-lived signed-in session. Keep
+  // the user on this route long enough to choose a new password.
+  'reset-password',
+]);
 
 export default function RootLayout() {
   return (

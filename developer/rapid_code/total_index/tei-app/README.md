@@ -51,6 +51,9 @@ the data. **The `service_role` key must never go in `.env`** or anywhere else
 in the app: it bypasses RLS entirely and is trivially extracted from a mobile
 binary. Keep it out of the repo and use it only for local admin scripts.
 
+For the Auth dashboard setup, including the password-recovery redirect URLs
+and production email configuration, see [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
+
 ### Schema
 
 `supabase/migrations/0001_init.sql` creates:
@@ -174,6 +177,8 @@ Every screen maps to a numbered mock-up in the client's deck.
 | ----- | ------- |
 | `/` | Screen 1 — Onboarding Launch (+ Screen 2 "What is TEI?" sheet) |
 | `/login` | Screen 4 — Onboarding / Log In |
+| `/forgot-password` | Password-recovery email request |
+| `/reset-password` | Choose a new password after opening a recovery link |
 | `/account-type` | Screen 5 — Account Type Selection (+ Screen 6 "The 3 TEI" sheet) |
 | `/create-account` | Screen 7 — Create TEI Elemental Account |
 | `/loading` | Screen 12 — App Loading |
@@ -198,7 +203,7 @@ Every screen maps to a numbered mock-up in the client's deck.
 | `/plan` | PREMIUM Screen 20 — Plan TEI, monthly calendar |
 | `/planner` | PREMIUM Screen 21 — TEI 7 Day Planner |
 
-Everything except the launch, log in, account type and create account routes
+Everything except onboarding, authentication, and password-recovery routes
 requires a session; `AuthGate` in `app/_layout.tsx` redirects otherwise.
 
 ## Design tokens
@@ -251,7 +256,9 @@ Deliberate, and matching the agreed scope:
   the service_role key.
 - **Email is read-only on the Profile screen.** Changing it needs a
   confirmation round-trip that is not wired up.
-- **No password reset.** The "Forgot password?" link shows a notice.
+- **Password reset requires Supabase email configuration.** The app flow is
+  complete, but dashboard redirect URLs and a production SMTP sender must be
+  configured; see `docs/SUPABASE_SETUP.md`.
 - **Planning has no date picker.** The 7-day planner takes its start date from
   the calendar you tapped; changing it in place is not wired up.
 - **The pop-up planner variants** (PREMIUM Screens 23-27) are not separate

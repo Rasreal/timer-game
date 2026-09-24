@@ -13,14 +13,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandLockup, Divider, OutlineButton } from '../src/components/Chrome';
 import { useAuth } from '../src/auth';
-import { useStore } from '../src/store';
-import { SHOW_DEV_TOOLS, colors } from '../src/theme';
+import { colors } from '../src/theme';
 
 /** Screen 4 — Onboarding / Log In. */
 export default function Login() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { showToast } = useStore();
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -133,17 +131,13 @@ export default function Login() {
           </Text>
         )}
 
-        {SHOW_DEV_TOOLS && (
         <Pressable
-          onPress={() =>
-            showToast('Password reset is out of scope for the prototype.')
-          }
+          onPress={() => router.push('/forgot-password' as never)}
           accessibilityRole="button"
           style={{ alignSelf: 'flex-start', marginTop: 14 }}
         >
-          <Text style={{ color: '#666', fontSize: 13 }}>Forgot password?</Text>
+          <Text style={{ color: '#A8A8A8', fontSize: 14 }}>Forgot password?</Text>
         </Pressable>
-        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );

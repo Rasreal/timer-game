@@ -48,6 +48,7 @@ const mockAuth: {
   getSession: AnyMock;
   onAuthStateChange: AnyMock;
   signInWithPassword: AnyMock;
+  resetPasswordForEmail: AnyMock;
   signUp: AnyMock;
   signOut: AnyMock;
   updateUser: AnyMock;
@@ -57,6 +58,7 @@ const mockAuth: {
     data: { subscription: { unsubscribe: unsubscribeMock } },
   })),
   signInWithPassword: jest.fn(async () => ({ data: {}, error: null })),
+  resetPasswordForEmail: jest.fn(async () => ({ data: {}, error: null })),
   signUp: jest.fn(async () => ({
     data: { user: { id: 'u1', identities: [{ id: 'i1' }] }, session: {} },
     error: null,
@@ -79,6 +81,10 @@ jest.mock('../src/lib/supabase', () => ({
       signInWithPassword: (...a: unknown[]) =>
         (
           mockAuth.signInWithPassword as unknown as (...x: unknown[]) => unknown
+        )(...a),
+      resetPasswordForEmail: (...a: unknown[]) =>
+        (
+          mockAuth.resetPasswordForEmail as unknown as (...x: unknown[]) => unknown
         )(...a),
       signUp: (...a: unknown[]) =>
         (mockAuth.signUp as unknown as (...x: unknown[]) => unknown)(...a),
@@ -155,6 +161,10 @@ beforeEach(() => {
     data: { subscription: { unsubscribe: unsubscribeMock } },
   }));
   mockAuth.signInWithPassword.mockImplementation(async () => ({
+    data: {},
+    error: null,
+  }));
+  mockAuth.resetPasswordForEmail.mockImplementation(async () => ({
     data: {},
     error: null,
   }));
@@ -451,6 +461,76 @@ describe('signIn', () => {
     });
 
     expect(out).toBe('Invalid login credentials');
+  });
+});
+
+describe('password recovery', () => {
+  it('trims the email and sends the supplied app redirect URL', async () => {
+    const { result } = renderAuth();
+    await waitFor(() => expect(result.current.initializing).toBe(false));
+
+    let out: string | null = 'x';
+    await act(async () => {
+      out = await result.current.requestPasswordReset(
+        '  ada@example.com  ',
+        'tei://reset-password',
+      );
+    });
+
+    expect(mockAuth.resetPasswordForEmail).toHaveBeenCalledWith('ada@example.com', {
+      redirectTo: 'tei://reset-password',
+    });
+    expect(out).toBeNull();
+  });
+
+  it('returns a reset-email failure message', async () => {
+    mockAuth.resetPasswordForEmail.mockImplementation(async () => ({
+      data: {},
+      error: { message: 'Email rate limit exceeded' },
+    }));
+    const { result } = renderAuth();
+    await waitFor(() => expect(result.current.initializing).toBe(false));
+
+    let out: string | null = null;
+    await act(async () => {
+      out = await result.current.requestPasswordReset(
+        'ada@example.com',
+        'tei://reset-password',
+      );
+    });
+
+    expect(out).toBe('Email rate limit exceeded');
+  });
+
+  it('updates the password and ends the temporary recovery session', async () => {
+    const { result } = renderAuth();
+    await waitFor(() => expect(result.current.initializing).toBe(false));
+
+    let out: string | null = 'x';
+    await act(async () => {
+      out = await result.current.completePasswordReset('Password1');
+    });
+
+    expect(mockAuth.updateUser).toHaveBeenCalledWith({ password: 'Password1' });
+    expect(mockAuth.signOut).toHaveBeenCalledTimes(1);
+    expect(out).toBeNull();
+  });
+
+  it('does not sign out when Supabase rejects the new password', async () => {
+    mockAuth.updateUser.mockImplementation(async () => ({
+      data: {},
+      error: { message: 'Password should be different from the old password' },
+    }));
+    const { result } = renderAuth();
+    await waitFor(() => expect(result.current.initializing).toBe(false));
+
+    let out: string | null = null;
+    await act(async () => {
+      out = await result.current.completePasswordReset('Password1');
+    });
+
+    expect(out).toBe('Password should be different from the old password');
+    expect(mockAuth.signOut).not.toHaveBeenCalled();
   });
 });
 
