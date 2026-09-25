@@ -533,6 +533,7 @@ describe('calculator — tier behaviour', () => {
   it('persists the session on Basic with the engine score', async () => {
     auth('basic');
     const { store } = renderCalc(<Calculator />, { seed: REFERENCE });
+    const beforeSave = Date.now();
 
     pressCalculate();
 
@@ -544,6 +545,12 @@ describe('calculator — tier behaviour', () => {
         tei: Number(calculateTei(REFERENCE).tei.toFixed(2)),
       }),
     );
+    // TEI-12 records when the workout was saved. It must be a real ISO
+    // instant, not the display-only session-date string in the calculator UI.
+    const { performedAt } = (saveSession as jest.Mock).mock.calls[0][0];
+    expect(performedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    expect(Date.parse(performedAt)).toBeGreaterThanOrEqual(beforeSave);
+    expect(Date.parse(performedAt)).toBeLessThanOrEqual(Date.now());
     await waitFor(() => expect(store.toast()).toMatch(/^Saved — TEI/));
   });
 

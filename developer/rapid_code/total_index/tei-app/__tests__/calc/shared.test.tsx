@@ -320,6 +320,7 @@ describe('CalcShell — save', () => {
       saveFields: { cardioMinutes: 41, yogaMinutes: 53, exertionPercent: 80 },
     });
 
+    const beforeSave = Date.now();
     pressCalculate();
     pressSave();
 
@@ -340,6 +341,10 @@ describe('CalcShell — save', () => {
         circuits: null,
       }),
     );
+    const { performedAt } = (saveSession as jest.Mock).mock.calls[0][0];
+    expect(performedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    expect(Date.parse(performedAt)).toBeGreaterThanOrEqual(beforeSave);
+    expect(Date.parse(performedAt)).toBeLessThanOrEqual(Date.now());
     await waitFor(() => expect(store.toast()).toBe('Saved — TEI 16.50'));
   });
 
