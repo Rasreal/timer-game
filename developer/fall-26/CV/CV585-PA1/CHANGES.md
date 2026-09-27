@@ -2,20 +2,20 @@
 
 ## Run the assignment
 
-Open a terminal in this folder and start Jupyter:
+Open the `CV585-PA1` folder in VS Code, open `Assignment1.ipynb`, and choose **Python 3.13 (CV585 PA1)** from **Select Kernel**. Then choose **Run All**.
+
+The `.vscode/settings.json` file selects this environment automatically when this folder is opened as the VS Code workspace.
+
+To recreate the environment from a terminal in this folder, run:
 
 ```bash
-cd CV585-PA1
-jupyter notebook
+uv venv --clear --seed --python /opt/homebrew/Cellar/python@3.13/3.13.3_1/Frameworks/Python.framework/Versions/3.13/bin/python3.13 .venv
+source .venv/bin/activate
+uv pip install numpy matplotlib scikit-image ipykernel
+python -m ipykernel install --user --name cv585-pa1 --display-name "Python 3.13 (CV585 PA1)"
 ```
 
-Open `Assignment1.ipynb` and select **Run All Cells**. Run it from this folder because the notebook uses relative paths for the images.
-
-The environment needs the libraries named in the assignment:
-
-```bash
-python3 -m pip install numpy matplotlib scikit-image
-```
+Run the notebook from this folder because it uses relative paths for the images.
 
 The notebook should finish without an `AssertionError`. The important expected results are:
 
@@ -41,5 +41,7 @@ The image cells should display Astana, Khan Shatyr, the modified images, and the
 | `image_manipulation.py` | Implemented RGB channel removal and left/right image mixing. | These produce the requested channel-decomposed and mixed images. |
 | `convolution.py` | Implemented `conv_naive` with four loops and a flipped kernel. | This follows the definition of convolution directly. |
 | `convolution.py` | Implemented zero padding and `conv_fast` with two loops and array operations. | Padding keeps the input size; array multiplication and `np.sum` reduce the inner-loop work. |
+| `.vscode/settings.json` | Selected the local Python environment and local Jupyter server. | VS Code can use the assignment environment automatically. |
+| `.gitignore` | Excluded the local environment and Python cache files. | Generated local files should not be committed. |
 
 No dependencies were added. The code only uses NumPy and scikit-image utilities already permitted by the assignment.
