@@ -85,15 +85,6 @@ REFERENCES = [
      "Peer-reviewed. DOCX and PPTX."),
 ]
 
-CHECKS = [
-    ("R12", "Local files name a PACM MACS venue; the identified 2025 work is an arXiv preprint.", "Confirm a final peer-reviewed version, if any, before submission."),
-    ("R14", "Apple MLX/M5 platform evidence lacks title, author, publication date, and URL.", "Replace with the exact Apple report and an access date."),
-    ("R15", "Wu et al. lacks title, venue, and persistent identifier.", "Locate and enter a complete APA 7 citation before relying on its claim."),
-    ("R16", "MLPerf Inference lacks a version, benchmark paper, and ruleset.", "Cite the exact version and scenario used to guide the experiment."),
-    ("Sample PDF", "The IoT/MEC sample has no reference pages in the supplied extract.", "Obtain its bibliography before making a separate IoT-offloading table."),
-]
-
-
 def shorten(text: str, width: int) -> str:
     return "\n".join(wrap(text, width=width, break_long_words=False, break_on_hyphens=False))
 
@@ -140,39 +131,12 @@ def add_reference_page(pdf: PdfPages, items: list[tuple], page: int, total: int)
     plt.close(fig)
 
 
-def add_checks_page(pdf: PdfPages) -> None:
-    fig, axis = plt.subplots(figsize=(11.69, 8.27))
-    axis.axis("off")
-    axis.text(0.02, 0.965, "Citation checks required before thesis submission", fontsize=16, fontweight="bold", color="#1F4E78", va="top")
-    rows = [[item[0], shorten(item[1], 57), shorten(item[2], 58)] for item in CHECKS]
-    table = axis.table(
-        cellText=rows,
-        colLabels=["Reference", "Issue", "Required action"],
-        cellLoc="left", colLoc="center", colWidths=[0.14, 0.43, 0.43], bbox=[0.02, 0.19, 0.96, 0.70],
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    for (row, _), cell in table.get_celld().items():
-        cell.set_edgecolor("#B7B7B7")
-        cell.PAD = 0.03
-        if row == 0:
-            cell.set_facecolor("#5B9BD5")
-            cell.get_text().set_color("white")
-            cell.get_text().set_fontweight("bold")
-        else:
-            cell.get_text().set_va("top")
-            cell.set_facecolor("#FFF2CC")
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
-
-
 def main() -> None:
     # Two entries per landscape page keep the content readable when printed.
     chunks = [REFERENCES[index:index + 2] for index in range(0, len(REFERENCES), 2)]
     with PdfPages(OUTPUT) as pdf:
         for page, entries in enumerate(chunks, 1):
             add_reference_page(pdf, entries, page, len(chunks))
-        add_checks_page(pdf)
     print(f"Created {OUTPUT}")
 
 
