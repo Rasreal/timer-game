@@ -106,28 +106,6 @@ def shorten(text: str, width: int) -> str:
     return "\n".join(wrap(text, width=width, break_long_words=False, break_on_hyphens=False))
 
 
-def add_cover(pdf: PdfPages) -> None:
-    fig, axis = plt.subplots(figsize=(11.69, 8.27))
-    axis.axis("off")
-    axis.text(0.06, 0.84, "Literature Review Evidence Table", fontsize=25, fontweight="bold", color="#1F4E78")
-    axis.text(0.06, 0.76, "Hardware-Aware Transformer Inference on CUDA and Apple Metal", fontsize=16, color="#1F4E78")
-    body = (
-        "Scope\n"
-        "This PDF synthesizes all 17 individually identifiable CUDA/Metal works or sources cited in the thesis DOCX and PPTX materials. "
-        "The review is organized by performance mechanism: workload foundations, attention and memory efficiency, platforms and profiling, serving, and evaluation.\n\n"
-        "How to read the table\n"
-        "Each row states the source's main contribution, the evidence it contributes to the thesis, and the role it should play in the proposed controlled portability study. "
-        "Citation statuses identify sources that need verification before final submission.\n\n"
-        "Scope limitation\n"
-        "The supplied Sample Literature.pdf concerns IoT/MEC offloading and contains numbered citations without a bibliography in the provided extract. "
-        "It is listed in the source inventory but is not mixed into this CUDA/Metal literature synthesis."
-    )
-    axis.text(0.06, 0.62, body, fontsize=12, va="top", wrap=True, linespacing=1.55)
-    axis.text(0.06, 0.08, "Prepared from the thesis-directory source set • 29 September 2026", fontsize=9, color="#666666")
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
-
-
 def add_reference_page(pdf: PdfPages, items: list[tuple], page: int, total: int) -> None:
     fig, axis = plt.subplots(figsize=(11.69, 8.27))
     axis.axis("off")
@@ -226,7 +204,6 @@ def main() -> None:
     # Two entries per landscape page keep the content readable when printed.
     chunks = [REFERENCES[index:index + 2] for index in range(0, len(REFERENCES), 2)]
     with PdfPages(OUTPUT) as pdf:
-        add_cover(pdf)
         for page, entries in enumerate(chunks, 1):
             add_reference_page(pdf, entries, page, len(chunks))
         add_inventory_page(pdf)
