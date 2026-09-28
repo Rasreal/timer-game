@@ -4,4 +4,6 @@ data/
 wheels/
 *.pt
 benchmark_*.json
+profile_*.json
+__pycache__/
 .ipynb_checkpoints/
