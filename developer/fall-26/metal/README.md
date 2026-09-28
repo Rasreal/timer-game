@@ -47,6 +47,16 @@ The JSON report also includes the top CPU/CUDA PyTorch operators. On MPS those
 operator rows are CPU-side dispatch costs; inspect the Instruments trace for
 Metal kernel names and durations.
 
+To place the most recent local MPS profile alongside the existing CUDA baseline
+in the Excel workbook, run:
+
+```bash
+.venv/bin/python update_benchmark_workbook.py
+```
+
+It refreshes the **Detailed profile (MPS)** and **Profile comparison** sheets
+in `cifar10_benchmark_statistics.xlsx`.
+
 `NUM_WORKERS` is deliberately zero on macOS to keep notebook DataLoader use
 stable. The primary comparison excludes CUDA AMP and disables CUDA TF32 where
 the installed PyTorch exposes that option.
