@@ -85,14 +85,6 @@ REFERENCES = [
      "Peer-reviewed. DOCX and PPTX."),
 ]
 
-INVENTORY = [
-    ("Tursyn_CSCI693_Literature_Review_Introduction_AI_Free_APA7.docx", "Primary prose draft; selected-reference set."),
-    ("Tursyn_CSCI693_Literature_Review_Introduction.docx", "Near-duplicate prose draft; no additional identifiable sources."),
-    ("Tursyn_CSCI693_Literature_Review_Introduction2.docx", "Earlier draft; adds incomplete references to Devlin, Apple MLX, Wu, and MLPerf."),
-    ("Tursyn_CSCI693_Thesis_Literature_Review_Introduction_Final.pptx", "Presentation; adds Kirk & Hwu and confirms the mechanism-based review structure."),
-    ("Sample Literature.pdf", "Unrelated IoT/MEC-offloading excerpt. It has numbered citations but no supplied bibliography; excluded from this CUDA/Metal synthesis."),
-]
-
 CHECKS = [
     ("R12", "Local files name a PACM MACS venue; the identified 2025 work is an arXiv preprint.", "Confirm a final peer-reviewed version, if any, before submission."),
     ("R14", "Apple MLX/M5 platform evidence lacks title, author, publication date, and URL.", "Replace with the exact Apple report and an access date."),
@@ -148,32 +140,6 @@ def add_reference_page(pdf: PdfPages, items: list[tuple], page: int, total: int)
     plt.close(fig)
 
 
-def add_inventory_page(pdf: PdfPages) -> None:
-    fig, axis = plt.subplots(figsize=(11.69, 8.27))
-    axis.axis("off")
-    axis.text(0.02, 0.965, "Source inventory and coverage", fontsize=16, fontweight="bold", color="#1F4E78", va="top")
-    rows = [[shorten(name, 54), shorten(note, 86)] for name, note in INVENTORY]
-    table = axis.table(
-        cellText=rows,
-        colLabels=["Local thesis-directory file", "Coverage decision"],
-        cellLoc="left", colLoc="center", colWidths=[0.36, 0.64], bbox=[0.02, 0.24, 0.96, 0.65],
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    for (row, _), cell in table.get_celld().items():
-        cell.set_edgecolor("#B7B7B7")
-        cell.PAD = 0.03
-        if row == 0:
-            cell.set_facecolor("#5B9BD5")
-            cell.get_text().set_color("white")
-            cell.get_text().set_fontweight("bold")
-        else:
-            cell.get_text().set_va("top")
-    axis.text(0.02, 0.15, "Coverage total: 17 individually identifiable CUDA/Metal works or sources (R01–R17).", fontsize=11, fontweight="bold")
-    pdf.savefig(fig, bbox_inches="tight")
-    plt.close(fig)
-
-
 def add_checks_page(pdf: PdfPages) -> None:
     fig, axis = plt.subplots(figsize=(11.69, 8.27))
     axis.axis("off")
@@ -206,7 +172,6 @@ def main() -> None:
     with PdfPages(OUTPUT) as pdf:
         for page, entries in enumerate(chunks, 1):
             add_reference_page(pdf, entries, page, len(chunks))
-        add_inventory_page(pdf)
         add_checks_page(pdf)
     print(f"Created {OUTPUT}")
 
