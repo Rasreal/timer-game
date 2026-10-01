@@ -8,12 +8,19 @@
 import { fireEvent, screen } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import VariableEntry from '../../app/entry/[variable]';
+import { useAuth } from '../../src/auth';
 import { CALCULATOR_FIELDS, LIMITS } from '../../src/lib/tei';
 import { colors } from '../../src/theme';
 import { renderCalc } from '../helpers/calcRender';
 
 jest.mock('../../src/lib/supabase', () => ({ supabase: {} }));
 jest.mock('../../src/auth', () => ({ useAuth: jest.fn(() => ({ profile: null })) }));
+
+const mockedAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+
+beforeEach(() => {
+  mockedAuth.mockReturnValue({ profile: null } as ReturnType<typeof useAuth>);
+});
 
 /** Route param -> the SessionDraft field it writes. */
 const VARIABLES = {
@@ -71,6 +78,36 @@ function openEntry(variable: string, from?: string) {
   );
   return renderCalc(<VariableEntry />);
 }
+
+describe('entry — subscription gate', () => {
+  it.each(['elemental', 'basic'] as const)(
+    '%s cannot deep-link into a Premium-only field',
+    (tier) => {
+      mockedAuth.mockReturnValue({ profile: { tier } } as ReturnType<typeof useAuth>);
+
+      openEntry('breakdowns');
+
+      expect(router.replace).toHaveBeenCalledWith('/home');
+    },
+  );
+
+  it('Premium can open Premium-only fields', () => {
+    mockedAuth.mockReturnValue({ profile: { tier: 'premium' } } as ReturnType<typeof useAuth>);
+
+    openEntry('breakdowns');
+
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it('Basic keeps the shared Standard fields', () => {
+    mockedAuth.mockReturnValue({ profile: { tier: 'basic' } } as ReturnType<typeof useAuth>);
+
+    openEntry('sets');
+
+    expect(screen.getByText(HEADINGS.sets)).toBeTruthy();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+});
 
 function type(variable: RouteKey, text: string) {
   fireEvent.changeText(screen.getByLabelText(RING_LABELS[variable]), text);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   KeyboardAvoidingView,
@@ -14,6 +14,7 @@ import Slider from '@react-native-community/slider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BackArrow, DarkButton } from '../../src/components/Chrome';
 import { Ring } from '../../src/components/Ring';
+import { useAuth } from '../../src/auth';
 import { formatSessionDate, useStore, type SessionDraft } from '../../src/store';
 import { LIMITS } from '../../src/lib/tei';
 import { colors, useAccent, useOnAccentTint } from '../../src/theme';
@@ -162,6 +163,13 @@ const CONFIG: Record<VariableKey, VariableConfig> = {
   },
 };
 
+const PREMIUM_VARIABLES = new Set<VariableKey>([
+  'breakdowns',
+  'exercises',
+  'circuits',
+  'yoga',
+]);
+
 /**
  * ELEMENTAL Screens 3-6 — the orange variable data-entry screens.
  * One route drives all four; they differ only in copy and helper controls.
@@ -174,6 +182,7 @@ export default function VariableEntry() {
     from?: string;
   }>();
   const { session, setSessionField } = useStore();
+  const { profile } = useAuth();
   const accent = useAccent();
   const onAccent = useOnAccentTint();
 
@@ -184,6 +193,20 @@ export default function VariableEntry() {
   const known = Boolean(variable) && variable in CONFIG;
   const key = (known ? variable : 'sets') as VariableKey;
   const config = CONFIG[key];
+
+  // These fields belong only to the four Premium calculators. Guard this
+  // shared route too: otherwise a Basic account can deep-link directly to a
+  // Premium input screen before the calculator shell turns it around.
+  useEffect(() => {
+    if (
+      known &&
+      PREMIUM_VARIABLES.has(key) &&
+      profile &&
+      profile.tier !== 'premium'
+    ) {
+      router.replace('/home');
+    }
+  }, [key, known, profile, router]);
 
   const stored = session[config.field];
   const [value, setValue] = useState<number | null>(

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, DarkButton, Divider } from '../src/components/Chrome';
+import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
 import {
   AEROBIC_LABEL,
@@ -29,12 +30,20 @@ export default function SessionType() {
   const { plan } = useLocalSearchParams<{ plan?: string }>();
   const insets = useSafeAreaInsets();
   const { session, showToast } = useStore();
+  const { profile } = useAuth();
 
   const accent = useAccent();
   const onAccent = useOnAccentTint();
 
   const [strength, setStrength] = useState<StrengthOption | null>(null);
   const [aerobic, setAerobic] = useState(false);
+
+  // The selector is the gateway to the Premium calculators. Calculator
+  // screens already enforce this as well, but doing it here closes the
+  // deep-link path before a lower-tier account can start a Premium draft.
+  useEffect(() => {
+    if (profile && profile.tier !== 'premium') router.replace('/home');
+  }, [profile, router]);
 
   const target = resolveCalculator({ strength, aerobic });
 
@@ -63,7 +72,12 @@ export default function SessionType() {
         paddingBottom: Math.max(insets.bottom, 12) + 8,
       }}
     >
-      <BackArrow onPress={() => router.back()} color={onAccent} />
+      <BackArrow
+        onPress={() =>
+          router.canGoBack() ? router.back() : router.replace('/home')
+        }
+        color={onAccent}
+      />
 
       <Text style={styles.heading}>This Training Session</Text>
 

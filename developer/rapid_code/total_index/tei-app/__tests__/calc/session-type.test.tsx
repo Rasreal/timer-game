@@ -8,6 +8,7 @@
 import { fireEvent, screen } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import SessionType from '../../app/session-type';
+import { useAuth } from '../../src/auth';
 import {
   AEROBIC_LABEL,
   CALCULATOR_ROUTES,
@@ -23,8 +24,33 @@ jest.mock('../../src/auth', () => ({
   useAuth: jest.fn(() => ({ profile: null })),
 }));
 
+const mockedAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+
 beforeEach(() => {
   (useLocalSearchParams as jest.Mock).mockReturnValue({});
+  mockedAuth.mockReturnValue({ profile: null } as ReturnType<typeof useAuth>);
+  (router as unknown as { canGoBack: jest.Mock }).canGoBack = jest.fn(() => true);
+});
+
+describe('session-type — subscription gate', () => {
+  it.each(['elemental', 'basic'] as const)(
+    '%s is sent home before using the Premium selector',
+    (tier) => {
+      mockedAuth.mockReturnValue({ profile: { tier } } as ReturnType<typeof useAuth>);
+
+      renderCalc(<SessionType />);
+
+      expect(router.replace).toHaveBeenCalledWith('/home');
+    },
+  );
+
+  it('Premium remains on the selector', () => {
+    mockedAuth.mockReturnValue({ profile: { tier: 'premium' } } as ReturnType<typeof useAuth>);
+
+    renderCalc(<SessionType />);
+
+    expect(router.replace).not.toHaveBeenCalled();
+  });
 });
 
 const LABELS: Record<StrengthOption, string> = {
@@ -307,10 +333,7 @@ describe('session-type — navigation and stubs', () => {
     expect(store.toast()).toBe('Date picking is not wired up in the prototype.');
   });
 
-  // SUSPECTED BUG: the back arrow calls router.back() unconditionally, with no
-  // canGoBack() fallback — unlike app/calculator.tsx and app/calc/_shared.tsx,
-  // which both guard it. Reached by deep link, this arrow is visibly dead.
-  it('SUSPECTED BUG: the back arrow has no canGoBack() fallback', () => {
+  it('deep-link back falls back to Home when there is no navigation history', () => {
     (router as unknown as { canGoBack: jest.Mock }).canGoBack = jest.fn(
       () => false,
     );
@@ -318,7 +341,7 @@ describe('session-type — navigation and stubs', () => {
 
     fireEvent.press(screen.getByLabelText('Back'));
 
-    expect(router.back).toHaveBeenCalled();
-    expect(router.replace).not.toHaveBeenCalled();
+    expect(router.back).not.toHaveBeenCalled();
+    expect(router.replace).toHaveBeenCalledWith('/home');
   });
 });
