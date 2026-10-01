@@ -48,14 +48,29 @@ npm run build:web
   migration for schema or policy changes.
 - Keep Row Level Security enabled. The mobile app must never contain a
   `service_role`/secret key.
-- `set_my_tier` exists only to demo tiers without billing. Remove it before a
-  production launch and move entitlement updates to a trusted payment webhook.
+- `set_my_tier` was a prototype-only demo RPC. Migration `0009` removes it;
+  do not restore any client-controlled entitlement update.
 - Elemental accounts intentionally do not persist session history. Paid tiers
   do.
 
+## Billing
+
+- Stripe-hosted Checkout runs in `app/subscribe.tsx`; it does not collect card
+  data in TEI. `src/lib/billing.ts` calls authenticated Supabase Edge
+  Functions to create Checkout and Billing Portal sessions.
+- `0009_stripe_subscriptions.sql` removes the demo `set_my_tier` RPC. A
+  verified Stripe webhook is the only way to change a user's paid entitlement;
+  it projects the provider state into `subscriptions` and `profiles.tier`.
+- Edge Function secrets live in ignored `supabase/functions/.env` locally and
+  in Supabase Edge Function Secrets in production. Never put `STRIPE_SECRET_KEY`
+  or webhook secrets in a client environment variable. Deployment steps are in
+  [STRIPE_SUBSCRIPTIONS_SETUP.md](STRIPE_SUBSCRIPTIONS_SETUP.md).
+
 ## Current product boundaries
 
-- No real billing or entitlement source exists yet.
+- Stripe test-mode billing is implemented in the repository but awaits the
+  one-time Supabase project-owner deployment described in the Stripe setup
+  document; do not represent it as live until the webhook test succeeds.
 - Email change confirmation and date picking are not implemented.
 - The app has thorough unit/screen coverage, but a device test and a real
   Supabase recovery-email test remain necessary before release.

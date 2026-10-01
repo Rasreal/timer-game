@@ -35,12 +35,6 @@ interface AuthState {
   profileError: string | null;
   /** Re-attempt a failed profile load. */
   reloadProfile: () => void;
-  /**
-   * PROTOTYPE ONLY: switch subscription tier with no payment, so all three
-   * tiers can be demoed. Backed by the `set_my_tier` RPC — see
-   * supabase/migrations/0003, which must be removed once billing exists.
-   */
-  changeTier: (tier: TeiTier) => Promise<string | null>;
   /** True while the initial session restore is in flight. */
   initializing: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
@@ -275,34 +269,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session) void loadProfile(session.user.id);
   }, [session, loadProfile]);
 
-  const changeTier = useCallback<AuthState['changeTier']>(
-    async (tier) => {
-      if (!session) return 'Not signed in.';
-
-      const { data, error } = await supabase.rpc('set_my_tier', {
-        new_tier: tier,
-      });
-
-      if (error) return error.message;
-      if (data) {
-        const row = data as ProfileRow;
-        setProfile(row);
-        // A downgrade can leave the profile holding an accent the new tier is
-        // not entitled to, so re-resolve it against the tier we just moved to.
-        setAccent(row.accent_color, row.tier);
-      }
-      return null;
-    },
-    [session],
-  );
-
   const value = useMemo(
     () => ({
       session,
       profile,
       profileError,
       reloadProfile,
-      changeTier,
       initializing,
       signIn,
       requestPasswordReset,
@@ -316,7 +288,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       profileError,
       reloadProfile,
-      changeTier,
       initializing,
       signIn,
       requestPasswordReset,

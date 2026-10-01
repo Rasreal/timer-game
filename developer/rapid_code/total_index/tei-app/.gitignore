@@ -20,6 +20,7 @@ jest_html_reporters.html
 builds/
 # Recorded walkthroughs / screenshots from QA runs
 test-artifacts/
+/supabase/.temp/
 
 # Native Android build output (the project itself IS committed, below it)
 android/.gradle/

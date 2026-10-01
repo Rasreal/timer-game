@@ -54,6 +54,10 @@ binary. Keep it out of the repo and use it only for local admin scripts.
 For the Auth dashboard setup, including the password-recovery redirect URLs
 and production email configuration, see [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
 
+For Stripe-hosted subscription Checkout, Edge Function deployment, webhook
+verification, and test/live-mode setup, see
+[docs/STRIPE_SUBSCRIPTIONS_SETUP.md](docs/STRIPE_SUBSCRIPTIONS_SETUP.md).
+
 ### Schema
 
 `supabase/migrations/0001_init.sql` creates:

@@ -151,15 +151,27 @@ export interface Database {
         };
         Relationships: [];
       };
-    };
-    Views: Record<never, never>;
-    Functions: {
-      /** PROTOTYPE ONLY — see supabase/migrations/0003_prototype_tier_switch.sql */
-      set_my_tier: {
-        Args: { new_tier: TeiTier };
-        Returns: Database['public']['Tables']['profiles']['Row'];
+      subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          stripe_customer_id: string;
+          stripe_subscription_id: string;
+          stripe_price_id: string | null;
+          tier: Exclude<TeiTier, 'elemental'>;
+          status: string;
+          cancel_at_period_end: boolean;
+          current_period_end: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
       };
     };
+    Views: Record<never, never>;
+    Functions: Record<never, never>;
     Enums: {
       tei_tier: TeiTier;
     };

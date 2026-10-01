@@ -64,10 +64,10 @@ describe('app/account-type.tsx — Account Type Selection (signed out)', () => {
     expect(screen.getByText(/Premium - \$11 per month/)).toBeTruthy();
   });
 
-  it('hides the prototype "plans switch instantly" note when signed out', () => {
+  it('hides the signed-in Stripe billing note when signed out', () => {
     renderScreen(<AccountType />);
     expect(
-      screen.queryByText('Prototype: plans switch instantly, with no payment.'),
+      screen.queryByText('Secure payment and billing are managed by Stripe.'),
     ).toBeNull();
   });
 
@@ -212,10 +212,10 @@ describe('app/account-type.tsx — signed-in upgrade/downgrade mode', () => {
     mockAuth.profile = { tier: 'elemental' };
   });
 
-  it('shows the prototype switching note', () => {
+  it('shows the Stripe billing note', () => {
     renderScreen(<AccountType />);
     expect(
-      screen.getByText('Prototype: plans switch instantly, with no payment.'),
+      screen.getByText('Secure payment and billing are managed by Stripe.'),
     ).toBeTruthy();
   });
 
@@ -224,17 +224,16 @@ describe('app/account-type.tsx — signed-in upgrade/downgrade mode', () => {
     expect(screen.getByText(/Helpful\s+✓/)).toBeTruthy();
   });
 
-  it('picking a different tier calls changeTier and replaces to /home', async () => {
+  it('picking a paid tier opens Stripe Checkout', async () => {
     renderScreen(<AccountType />);
 
     fireEvent.press(screen.getByText('Transformative'));
 
-    await waitFor(() => expect(mockChangeTier).toHaveBeenCalledWith('premium'));
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/home'));
-    expect(router.push).not.toHaveBeenCalled();
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/subscribe?tier=premium'));
+    expect(mockChangeTier).not.toHaveBeenCalled();
   });
 
-  it('re-picking the current tier is a no-op (toast only, no changeTier, no nav)', () => {
+  it('re-picking the current tier is a no-op (toast only, no nav)', () => {
     renderScreen(<AccountType />);
 
     fireEvent.press(screen.getByText(/Helpful/));
@@ -244,13 +243,11 @@ describe('app/account-type.tsx — signed-in upgrade/downgrade mode', () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it('a failed changeTier leaves the user on the screen', async () => {
-    mockChangeTier.mockResolvedValue('permission denied for function set_my_tier');
+  it('picking Basic opens the Basic Stripe Checkout', async () => {
     renderScreen(<AccountType />);
 
     fireEvent.press(screen.getByText('Insightful'));
 
-    await waitFor(() => expect(mockChangeTier).toHaveBeenCalledWith('basic'));
-    await waitFor(() => expect(router.replace).not.toHaveBeenCalled());
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/subscribe?tier=basic'));
   });
 });

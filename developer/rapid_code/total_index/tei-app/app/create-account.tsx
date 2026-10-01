@@ -81,7 +81,7 @@ export default function CreateAccount() {
       return;
     }
 
-    router.replace('/loading');
+    router.replace((pendingTier === 'elemental' ? '/loading' : `/subscribe?tier=${pendingTier}`) as never);
   }
 
   return (

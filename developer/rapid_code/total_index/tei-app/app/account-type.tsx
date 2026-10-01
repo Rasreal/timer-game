@@ -28,9 +28,8 @@ export default function AccountType() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { setPendingTier, showToast } = useStore();
-  const { session, profile, changeTier } = useAuth();
+  const { session, profile } = useAuth();
   const [showFeatures, setShowFeatures] = useState(false);
-  const [busy, setBusy] = useState<Tier | null>(null);
   const accent = useAccent();
 
   // Two modes: picking a tier during sign-up, or switching tier afterwards.
@@ -50,17 +49,11 @@ export default function AccountType() {
       return;
     }
 
-    // Prototype: tiers switch freely, with no payment step.
-    setBusy(tier);
-    const error = await changeTier(tier);
-    setBusy(null);
-
-    if (error) {
-      showToast(`Could not switch plan: ${error}`);
+    if (tier === 'elemental') {
+      router.push('/subscribe?manage=1' as never);
       return;
     }
-    showToast(`Switched to TEI ${label(tier)}.`);
-    router.replace('/home');
+    router.push(`/subscribe?tier=${tier}` as never);
   }
 
   return (
@@ -86,16 +79,12 @@ export default function AccountType() {
           provide?
         </Text>
 
-        {signedIn && (
-          <Text style={[styles.switchNote, { color: accent }]}>
-            Prototype: plans switch instantly, with no payment.
-          </Text>
-        )}
+        {signedIn && <Text style={[styles.switchNote, { color: accent }]}>Secure payment and billing are managed by Stripe.</Text>}
 
         <TierRow
           label="Helpful"
           current={profile?.tier === 'elemental'}
-          busy={busy === 'elemental'}
+          busy={false}
           subPrefix="TEI"
           subText=" Elemental - FREE"
           onSelect={() => choose('elemental')}
@@ -105,7 +94,7 @@ export default function AccountType() {
         <TierRow
           label="Insightful"
           current={profile?.tier === 'basic'}
-          busy={busy === 'basic'}
+          busy={false}
           subPrefix="TEI"
           subText=" Basic - $5 per month"
           onSelect={() => choose('basic')}
@@ -115,7 +104,7 @@ export default function AccountType() {
         <TierRow
           label="Transformative"
           current={profile?.tier === 'premium'}
-          busy={busy === 'premium'}
+          busy={false}
           subPrefix="TEI"
           subText=" Premium - $11 per month"
           onSelect={() => choose('premium')}
