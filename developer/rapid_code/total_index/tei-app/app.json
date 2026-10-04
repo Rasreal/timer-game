@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rhinoathletics.tei",
+      "buildNumber": "2",
       "appleTeamId": "UDD38L4JNJ",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
