@@ -83,10 +83,32 @@ REFERENCES = [
      "Unifies speedup and efficiency models and analyzes overhead and scalability.",
      "Report within-platform relative speedups and explain residual serial and system overhead.",
      "Peer-reviewed. DOCX and PPTX."),
+    ("R18", "Metal and cross-platform execution", "Gebraad & Fichtner (2023). Seamless GPU Acceleration for C++-Based Physics with the Metal Shading Language on Apple’s M Series Unified Chips. Seismological Research Letters, 94(3), 1670–1675. https://doi.org/10.1785/0220220241",
+     "Implements Metal compute kernels on Apple M-series unified-memory systems and evaluates array and stencil workloads.",
+     "Use as direct published evidence that Metal’s unified-memory model changes host-device data-management assumptions; validate the same effect for the thesis workload.",
+     "Peer-reviewed journal article. Added source; Metal-specific."),
+    ("R19", "Metal and cross-platform execution", "Black et al. (2025). Accelerating Euclidean Distance Transforms: A Fast and Flexible Approach With Multi-Vendor GPU, Multi-Threading, and Multi-Language Support. IEEE Access, 13, 44636–44649. https://doi.org/10.1109/ACCESS.2025.3548563",
+     "Demonstrates one implementation across NVIDIA CUDA, AMD ROCm, Apple Metal, and Intel oneAPI, while reporting cross-platform benchmarks.",
+     "Supports separating portable algorithm design from backend-specific tuning and reporting the backend and hardware for every comparison.",
+     "Peer-reviewed IEEE journal article. Added source; CUDA/Metal cross-platform."),
+    ("R20", "CUDA performance modeling", "Lym et al. (2019). DeLTA: GPU Performance Model for Deep Learning Applications with In-Depth Memory System Traffic Analysis. ISPASS, 129–139. https://doi.org/10.1109/ISPASS.2019.00041",
+     "Models deep-learning GPU performance from traffic at multiple memory-hierarchy levels and accounts for reuse in parallel convolution.",
+     "Motivates collecting memory-traffic and reuse evidence alongside elapsed time when diagnosing CUDA attention or inference kernels.",
+     "Peer-reviewed IEEE conference article. Added source; CUDA/GPU memory analysis."),
+    ("R21", "CUDA inference kernels", "Sun et al. (2022). Accelerating Sparse Deep Neural Network Inference Using GPU Tensor Cores. HPEC. https://doi.org/10.1109/HPEC55821.2022.9926300",
+     "Maps locally dense regions to NVIDIA Tensor Cores and sparse regions to CUDA Cores to improve sparse DNN inference throughput.",
+     "Shows why an optimization’s benefit may depend on NVIDIA-specific execution units; distinguish portable sparsity ideas from CUDA-only mappings.",
+     "Peer-reviewed IEEE conference article. Added source; CUDA/Tensor Cores."),
+    ("R22", "CUDA serving and batching", "Zhang et al. (2024). BatOpt: Optimizing GPU-Based Deep Learning Inference Using Dynamic Batch Processing. IEEE Transactions on Cloud Computing, 12(1), 174–185. https://doi.org/10.1109/TCC.2024.3350561",
+     "Uses queueing-based dynamic batching to balance service latency and GPU memory use for DNN inference.",
+     "Supports reporting batch policy, queueing conditions, memory use, and latency together in end-to-end CUDA/Metal serving experiments.",
+     "Peer-reviewed IEEE journal article. Added source; GPU serving."),
 ]
 
 def shorten(text: str, width: int) -> str:
-    return "\n".join(wrap(text, width=width, break_long_words=False, break_on_hyphens=False))
+    # DOI URLs exceed a table column's width; allowing those unspaced strings to
+    # wrap keeps the complete identifier inside the printable cell.
+    return "\n".join(wrap(text, width=width, break_long_words=True, break_on_hyphens=False))
 
 
 def add_reference_page(pdf: PdfPages, items: list[tuple], page: int, total: int) -> None:
