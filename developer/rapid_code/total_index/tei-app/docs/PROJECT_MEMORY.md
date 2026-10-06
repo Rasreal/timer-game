@@ -52,6 +52,9 @@ npm run build:web
   do not restore any client-controlled entitlement update.
 - Elemental accounts intentionally do not persist session history. Paid tiers
   do.
+- Review is tiered: Basic can inspect neutral monthly saved scores and weekly
+  totals; Premium also receives planned-target colors, saved-session details,
+  and current week/month/quarter/semi-annual/year aggregate valuation.
 
 ## Billing
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,7 +14,7 @@ import { BackArrow, OutlineButton } from '../src/components/Chrome';
 import { useAuth } from '../src/auth';
 import { listSessionsBetween } from '../src/lib/sessions';
 import { listPlansBetween, planDayKey } from '../src/lib/plans';
-import { GRADE_COLORS, gradeAgainstPlan } from '../src/lib/tei';
+import { CALCULATOR_LABELS, GRADE_COLORS, gradeAgainstPlan, type CalculatorId } from '../src/lib/tei';
 import type { SessionRow } from '../src/lib/database.types';
 import { colors, useAccent } from '../src/theme';
 
@@ -53,6 +54,8 @@ export default function Review() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState(0);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const isPremium = profile?.tier === 'premium';
 
   // Review is a paid-tier feature; deep-linking here as Elemental must not
   // show the calendar. (The DB also refuses Elemental writes, so there is
@@ -157,6 +160,20 @@ export default function Review() {
     [byDay],
   );
 
+  const weekPlanTotal = useCallback(
+    (week: Cell[] | undefined) =>
+      (week ?? []).reduce(
+        (sum, cell) => sum + (planned.get(planDayKey(cell.date)) ?? 0),
+        0,
+      ),
+    [planned],
+  );
+
+  const sessionsForDay = useCallback(
+    (date: Date) => rows.filter((row) => dayKey(new Date(row.performed_at)) === dayKey(date)),
+    [rows],
+  );
+
   function shiftMonth(delta: number) {
     setSelectedWeek(0);
     setCursor((c) => new Date(c.getFullYear(), c.getMonth() + delta, 1));
@@ -164,6 +181,11 @@ export default function Review() {
 
   const activeWeek = weeks[selectedWeek] ?? weeks[0];
   const weekStart = activeWeek?.[0]?.date;
+  const activeWeekGrade = gradeAgainstPlan(
+    weekTotal(activeWeek),
+    weekPlanTotal(activeWeek) || null,
+  );
+  const selectedSessions = selectedDay ? sessionsForDay(selectedDay) : [];
 
   return (
     <View style={styles.root}>
@@ -243,6 +265,7 @@ export default function Review() {
                 <View style={styles.weekCells}>
                   {week.map((cell, di) => {
                     const value = byDay.get(dayKey(cell.date));
+                    const daySessions = sessionsForDay(cell.date);
                     // Colour the logged score by how it landed against that
                     // day's plan; ungraded days keep GRADE_COLORS.none.
                     const grade = gradeAgainstPlan(
@@ -250,7 +273,22 @@ export default function Review() {
                       planned.get(planDayKey(cell.date)),
                     );
                     return (
-                      <View key={di} style={styles.dayCell}>
+                      <Pressable
+                        key={di}
+                        onPress={() => {
+                          setSelectedWeek(wi);
+                          if (isPremium && daySessions.length > 0) {
+                            setSelectedDay(cell.date);
+                          }
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          daySessions.length > 0
+                            ? `View ${daySessions.length} ${daySessions.length === 1 ? 'session' : 'sessions'} on ${formatDate(cell.date)}, ${Math.round(value ?? 0)} TEI`
+                            : `Select week of ${formatWeekOf(week[0].date)}`
+                        }
+                        style={styles.dayCell}
+                      >
                         <Text
                           style={[
                             styles.dayNum,
@@ -264,7 +302,9 @@ export default function Review() {
                             <Text
                               style={[
                                 styles.dayScore,
-                                { color: GRADE_COLORS[grade] },
+                                // The deck reserves planned-target valuation
+                                // for Premium. Basic shows a neutral score.
+                                { color: isPremium ? GRADE_COLORS[grade] : colors.text },
                               ]}
                             >
                               {Math.round(value)}
@@ -274,7 +314,7 @@ export default function Review() {
                             <Text style={styles.dayRest}>X</Text>
                           ) : null}
                         </View>
-                      </View>
+                      </Pressable>
                     );
                   })}
                 </View>
@@ -317,7 +357,14 @@ export default function Review() {
 
           <View style={styles.totalRing}>
             <View style={styles.totalRingInner}>
-              <Text style={styles.totalValue}>
+              <Text
+                style={[
+                  styles.totalValue,
+                  // Premium's weekly aggregate is valued against the total
+                  // planned TEI for the selected week, as the workbook says.
+                  isPremium && { color: GRADE_COLORS[activeWeekGrade] },
+                ]}
+              >
                 {Math.round(weekTotal(activeWeek))}
               </Text>
               <Text style={styles.totalUnit}>TEI</Text>
@@ -328,12 +375,55 @@ export default function Review() {
         {error && <Text style={styles.error}>{error}</Text>}
 
         <OutlineButton
-          title="See Ideal Ranges of TEI"
-          onPress={() => router.push('/ranges')}
+          title={isPremium ? 'All Current Timeframes & Ranges' : 'See Ideal Ranges of TEI'}
+          // The generated Expo route union refreshes on the next dev/build
+          // pass; keep this conditional route valid for a clean type check.
+          onPress={() => router.push((isPremium ? '/review-timeframe' : '/ranges') as never)}
           fontSize={21}
           style={styles.rangesBtn}
         />
       </View>
+
+      <Modal
+        visible={selectedDay !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedDay(null)}
+      >
+        <View style={styles.modalScrim}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Workout details</Text>
+                <Text style={styles.modalDate}>{selectedDay ? formatDate(selectedDay) : ''}</Text>
+              </View>
+              <Pressable
+                onPress={() => setSelectedDay(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Close workout details"
+                hitSlop={12}
+              >
+                <Text style={[styles.modalClose, { color: accent }]}>×</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.modalTotal}>
+              {Math.round(selectedSessions.reduce((sum, session) => sum + Number(session.tei), 0))} TEI total
+            </Text>
+            <ScrollView contentContainerStyle={styles.sessionList}>
+              {selectedSessions.map((session) => (
+                <View key={session.id} style={styles.sessionCard}>
+                  <View style={styles.sessionCardTop}>
+                    <Text style={styles.sessionName}>{calculatorName(session.calculator)}</Text>
+                    <Text style={[styles.sessionTei, { color: accent }]}>{Math.round(session.tei)} TEI</Text>
+                  </View>
+                  <Text style={styles.sessionTime}>{formatTime(session.performed_at)}</Text>
+                  <Text style={styles.sessionInputs}>{sessionInputs(session)}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -359,6 +449,40 @@ function formatWeekOfSplit(d: Date): { month: string; year: string } {
     month: `${d.toLocaleString('en-US', { month: 'long' })} ${d.getDate()},`,
     year: String(d.getFullYear()),
   };
+}
+
+function formatDate(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function calculatorName(calculator: string): string {
+  return CALCULATOR_LABELS[calculator as CalculatorId] ?? calculator;
+}
+
+function sessionInputs(session: SessionRow): string {
+  const fields: Array<[string, number | null]> = [
+    ['Sets', session.sets],
+    ['Rest', session.rest_seconds],
+    ['Exertion', session.exertion_percent],
+    ['Cardio', session.cardio_minutes],
+    ['Breakdowns', session.breakdowns],
+    ['Exercises', session.exercises],
+    ['Circuits', session.circuits],
+    ['Yoga', session.yoga_minutes],
+  ];
+  return fields
+    .filter(([, value]) => value !== null)
+    .map(([label, value]) => {
+      if (label === 'Rest') return `${label}: ${value}s`;
+      if (label === 'Exertion') return `${label}: ${value}%`;
+      if (label === 'Cardio' || label === 'Yoga') return `${label}: ${value} min`;
+      return `${label}: ${value}`;
+    })
+    .join(' · ');
 }
 
 const GREY_BAND = '#6E6E6E';
@@ -512,4 +636,29 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   error: { color: '#FFD2D2', fontSize: 13, marginTop: 10 },
+  modalScrim: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    maxHeight: '72%',
+    backgroundColor: '#1C1C1C',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 20,
+    paddingBottom: 30,
+  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  modalTitle: { color: colors.text, fontSize: 24, fontWeight: '800' },
+  modalDate: { color: colors.textMuted, fontSize: 15, marginTop: 3 },
+  modalClose: { fontSize: 34, lineHeight: 30, fontWeight: '300' },
+  modalTotal: { color: colors.green, fontSize: 18, fontWeight: '700', marginTop: 17 },
+  sessionList: { gap: 10, paddingTop: 12 },
+  sessionCard: { backgroundColor: '#292929', borderRadius: 12, padding: 14 },
+  sessionCardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  sessionName: { color: colors.text, flex: 1, fontSize: 16, fontWeight: '700' },
+  sessionTei: { fontSize: 16, fontWeight: '800' },
+  sessionTime: { color: colors.textMuted, fontSize: 13, marginTop: 4 },
+  sessionInputs: { color: '#C7C7C7', fontSize: 13, lineHeight: 18, marginTop: 8 },
 });

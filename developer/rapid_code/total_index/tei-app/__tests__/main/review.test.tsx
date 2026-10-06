@@ -302,9 +302,20 @@ describe('Review', () => {
       fireEvent.press(screen.getByText('See Ideal Ranges of TEI'));
       expect(router.push).toHaveBeenCalledWith('/ranges');
     });
+
+    it('sends Premium to the aggregate timeframe review', async () => {
+      signedIn({ profile: makeProfile({ tier: 'premium' }) });
+      await renderReview();
+      fireEvent.press(screen.getByText('All Current Timeframes & Ranges'));
+      expect(router.push).toHaveBeenCalledWith('/review-timeframe');
+    });
   });
 
   describe('plan grading', () => {
+    beforeEach(() => {
+      signedIn({ profile: makeProfile({ tier: 'premium' }) });
+    });
+
     // Reference behaviour of the helper the brief expects Review to use.
     it.each([
       [15, 10, 'over'],
@@ -386,6 +397,66 @@ describe('Review', () => {
       const score = gradedNodes().find((n) => String(n.props.children) === '30');
       expect(score).toBeTruthy();
       expect(flatten(score!.props.style).color).toBe(GRADE_COLORS.none);
+    });
+
+    it('keeps Basic scores neutral even when a day has a plan', async () => {
+      signedIn({ profile: makeProfile({ tier: 'basic' }) });
+      const day = dayInThisMonth(11);
+      listBetween.mockResolvedValue({
+        data: [makeSession({ performed_at: day.toISOString(), tei: 30 })],
+        error: null,
+      });
+      listPlans.mockResolvedValue({
+        data: [makePlan({ planned_for: dayKey(day), tei: 10 })],
+        error: null,
+      });
+      await renderReview();
+
+      const score = gradedNodes().find((n) => String(n.props.children) === '30');
+      expect(flatten(score!.props.style).color).toBe(colors.text);
+    });
+
+    it('grades the Premium weekly footer total against the week plan', async () => {
+      const day = dayInThisMonth(15);
+      listBetween.mockResolvedValue({
+        data: [makeSession({ performed_at: day.toISOString(), tei: 30 })],
+        error: null,
+      });
+      listPlans.mockResolvedValue({
+        data: [makePlan({ planned_for: dayKey(day), tei: 10 })],
+        error: null,
+      });
+      await renderReview();
+
+      const selected = screen.getAllByLabelText(/^Week of /).find((week) =>
+        /total 30 TEI/.test(String(week.props.accessibilityLabel)),
+      );
+      fireEvent.press(selected!);
+      const total = screen.UNSAFE_getAllByType(Text).find((n) => {
+        const style = flatten(n.props.style);
+        return style.fontSize === 34 && n.props.children === 30;
+      });
+      expect(flatten(total!.props.style).color).toBe(GRADE_COLORS.over);
+    });
+
+    it('opens Premium per-session details from a saved day', async () => {
+      const day = dayInThisMonth(13);
+      listBetween.mockResolvedValue({
+        data: [makeSession({
+          id: 'yoga-session',
+          calculator: 'yoga',
+          yoga_minutes: 30,
+          performed_at: day.toISOString(),
+          tei: 18,
+        })],
+        error: null,
+      });
+      await renderReview();
+
+      fireEvent.press(screen.getByLabelText(/^View 1 session on /));
+      expect(screen.getByText('Workout details')).toBeTruthy();
+      expect(screen.getByText('YOGA Training')).toBeTruthy();
+      expect(screen.getByText(/Yoga: 30 min/)).toBeTruthy();
     });
   });
 });

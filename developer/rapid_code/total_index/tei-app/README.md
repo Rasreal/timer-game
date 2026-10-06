@@ -195,6 +195,7 @@ Every screen maps to a numbered mock-up in the client's deck.
 | `/ranges` | ELEMENTAL Screen 7 — Effective TEI Ranges |
 | `/profile` | ELEMENTAL Screen 8 — Edit Elemental Profile |
 | `/review` | BASIC Screen 8 — Review TEI, monthly calendar (paid tiers) |
+| `/review-timeframe` | PREMIUM Screen 18 — current TEI aggregates by timeframe |
 | `/session-type` | PREMIUM Screen 2 — 5 Types of Training Session Selector |
 | `/calc/breakdown` | PREMIUM Screen 4 — Breakdown Strength Training |
 | `/calc/circuit` | PREMIUM Screen 5 — Circuit Strength Training |
@@ -274,8 +275,10 @@ Deliberate, and matching the agreed scope:
 - **The pop-up planner variants** (PREMIUM Screens 23-27) are not separate
   screens: tapping a day routes to the normal calculator with a `?plan=` day,
   which saves a target instead of a logged session. Same maths, one screen.
-- **TEI Premium Review by timeframe** (Screens 17-19) is not built; the Basic
-  monthly Review is.
+- **Premium review** includes the monthly calendar, individual saved-session
+  detail sheet, weekly plan valuation, and current week/month/quarter/
+  semi-annual/year aggregate view. The aggregate windows use the device's
+  local calendar and end at the current day.
 
 ## Source documents
 
