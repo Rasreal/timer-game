@@ -297,22 +297,31 @@ export default function Review() {
                         >
                           {cell.date.getDate()}
                         </Text>
-                        <View style={styles.dayCircle}>
-                          {value !== undefined ? (
-                            <Text
-                              style={[
-                                styles.dayScore,
-                                // The deck reserves planned-target valuation
-                                // for Premium. Basic shows a neutral score.
-                                { color: isPremium ? GRADE_COLORS[grade] : colors.text },
-                              ]}
-                            >
-                              {Math.round(value)}
-                            </Text>
-                          ) : cell.inMonth && !isFuture(cell.date) ? (
-                            // No session logged: a rest day.
-                            <Text style={styles.dayRest}>X</Text>
-                          ) : null}
+                        <View style={styles.dayScoreWrap}>
+                          <View style={styles.dayCircle}>
+                            {value !== undefined ? (
+                              <Text
+                                style={[
+                                  styles.dayScore,
+                                  // The deck reserves planned-target valuation
+                                  // for Premium. Basic shows a neutral score.
+                                  { color: isPremium ? GRADE_COLORS[grade] : colors.text },
+                                ]}
+                              >
+                                {Math.round(value)}
+                              </Text>
+                            ) : cell.inMonth && !isFuture(cell.date) ? (
+                              // No session logged: a rest day.
+                              <Text style={styles.dayRest}>X</Text>
+                            ) : null}
+                          </View>
+                          {daySessions.length > 0 && (
+                            <View
+                              testID={`workout-indicator-${planDayKey(cell.date)}`}
+                              accessibilityLabel={`Workout recorded on ${formatDate(cell.date)}`}
+                              style={[styles.workoutIndicator, { backgroundColor: accent }]}
+                            />
+                          )}
                         </View>
                       </Pressable>
                     );
@@ -540,6 +549,7 @@ const styles = StyleSheet.create({
   dayCell: { flex: 1, alignItems: 'center' },
   dayNum: { color: colors.text, fontSize: 15, fontWeight: '500' },
   dayNumMuted: { color: '#7E7E7E' },
+  dayScoreWrap: { position: 'relative', marginTop: 4 },
   dayCircle: {
     width: 42,
     height: 42,
@@ -547,7 +557,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#0A0A0A',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+  },
+  workoutIndicator: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#0A0A0A',
+    bottom: -3,
+    alignSelf: 'center',
   },
   dayScore: { color: colors.text, fontSize: 19, fontWeight: '700' },
   dayRest: { color: '#4A4A4A', fontSize: 19, fontWeight: '700' },

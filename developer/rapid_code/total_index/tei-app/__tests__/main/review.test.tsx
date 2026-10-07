@@ -169,6 +169,23 @@ describe('Review', () => {
       expect(dayScores()).toContain('15');
     });
 
+    it('shows one workout indicator only for a saved-workout day', async () => {
+      const savedDay = dayInThisMonth(7);
+      const restDay = dayInThisMonth(8);
+      listBetween.mockResolvedValue({
+        data: [
+          makeSession({ id: 's1', performed_at: savedDay.toISOString(), tei: 10 }),
+          makeSession({ id: 's2', performed_at: savedDay.toISOString(), tei: 5 }),
+        ],
+        error: null,
+      });
+      await renderReview();
+
+      expect(screen.getByTestId(`workout-indicator-${dayKey(savedDay)}`)).toBeTruthy();
+      expect(screen.queryByTestId(`workout-indicator-${dayKey(restDay)}`)).toBeNull();
+      expect(screen.getAllByLabelText(/^Workout recorded on /)).toHaveLength(1);
+    });
+
     it('puts the week total, rounded, in the footer ring', async () => {
       const day = dayInThisMonth(15);
       listBetween.mockResolvedValue({
