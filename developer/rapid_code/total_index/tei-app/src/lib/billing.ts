@@ -48,3 +48,9 @@ export function createBillingPortal(returnUrl: string) {
 export function getSubscription() {
   return invoke<{ subscription: SubscriptionSnapshot | null }>('get-subscription');
 }
+
+export function confirmCheckoutSession(sessionId: string) {
+  return invoke<{ confirmed: boolean; subscription: SubscriptionSnapshot | null }>('confirm-checkout-session', {
+    sessionId,
+  });
+}

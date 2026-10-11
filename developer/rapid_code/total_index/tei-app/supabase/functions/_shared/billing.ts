@@ -2,6 +2,24 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 export type PaidTier = 'basic' | 'premium';
 
+export type StripeSubscription = {
+  id: string;
+  customer: string;
+  status: string;
+  cancel_at_period_end?: boolean;
+  current_period_end?: number | null;
+  metadata?: Record<string, string>;
+  items?: { data?: Array<{ price?: { id?: string } }> };
+};
+
+export type SyncedSubscription = {
+  tier: PaidTier;
+  status: string;
+  cancel_at_period_end: boolean;
+  current_period_end: string | null;
+  updated_at: string;
+};
+
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -87,6 +105,60 @@ export async function stripeGet(path: string) {
     throw new Error(payload?.error?.message ?? 'Stripe could not retrieve this subscription.');
   }
   return payload;
+}
+
+/**
+ * Project a Stripe subscription into TEI's server-owned billing records.
+ *
+ * The webhook uses this for every provider event. Checkout confirmation uses
+ * the same path after it has fetched the session from Stripe and verified that
+ * it belongs to the authenticated TEI user. Keeping this server-side means a
+ * client can never grant itself a tier.
+ */
+export async function syncStripeSubscription(subscription: StripeSubscription): Promise<SyncedSubscription> {
+  const admin = adminClient();
+  let userId = subscription.metadata?.supabase_user_id;
+  let tier = subscription.metadata?.tei_tier;
+
+  if (!userId || !isPaidTier(tier)) {
+    const { data: prior, error } = await admin
+      .from('subscriptions')
+      .select('user_id, tier')
+      .or(`stripe_subscription_id.eq.${subscription.id},stripe_customer_id.eq.${subscription.customer}`)
+      .maybeSingle();
+    if (error) throw error;
+    userId = prior?.user_id;
+    tier = prior?.tier;
+  }
+
+  if (!userId || !isPaidTier(tier)) {
+    throw new Error('Subscription has no TEI user or plan metadata.');
+  }
+
+  const status = subscription.status;
+  const currentPeriodEnd = subscription.current_period_end
+    ? new Date(subscription.current_period_end * 1000).toISOString()
+    : null;
+  const { data: synced, error: upsertError } = await admin.from('subscriptions').upsert({
+    user_id: userId,
+    stripe_customer_id: subscription.customer,
+    stripe_subscription_id: subscription.id,
+    stripe_price_id: subscription.items?.data?.[0]?.price?.id ?? null,
+    tier,
+    status,
+    cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+    current_period_end: currentPeriodEnd,
+  }, { onConflict: 'user_id' }).select('tier, status, cancel_at_period_end, current_period_end, updated_at').single();
+  if (upsertError) throw upsertError;
+
+  const active = status === 'active' || status === 'trialing';
+  const { error: profileError } = await admin
+    .from('profiles')
+    .update({ tier: active ? tier : 'elemental' })
+    .eq('id', userId);
+  if (profileError) throw profileError;
+
+  return synced;
 }
 
 export function validReturnUrl(value: unknown): value is string {

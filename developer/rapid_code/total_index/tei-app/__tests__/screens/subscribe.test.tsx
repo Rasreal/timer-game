@@ -6,6 +6,7 @@ const mockReloadProfile = jest.fn();
 const mockGetSubscription = jest.fn();
 const mockCreateCheckout = jest.fn();
 const mockCreatePortal = jest.fn();
+const mockConfirmCheckout = jest.fn();
 
 jest.mock('expo-linking', () => ({ createURL: jest.fn(() => 'tei://subscribe') }));
 jest.mock('react-native-webview', () => {
@@ -21,6 +22,7 @@ jest.mock('../../src/lib/billing', () => ({
   getSubscription: (...args: unknown[]) => mockGetSubscription(...args),
   createCheckoutSession: (...args: unknown[]) => mockCreateCheckout(...args),
   createBillingPortal: (...args: unknown[]) => mockCreatePortal(...args),
+  confirmCheckoutSession: (...args: unknown[]) => mockConfirmCheckout(...args),
 }));
 
 import Subscribe from '../../app/subscribe';
@@ -35,6 +37,7 @@ beforeEach(() => {
     error: null,
   });
   mockCreatePortal.mockReset();
+  mockConfirmCheckout.mockReset().mockResolvedValue({ data: { confirmed: false, subscription: null }, error: null });
   searchParams.mockReturnValue({ tier: 'premium' } as never);
 });
 
@@ -71,5 +74,25 @@ describe('app/subscribe.tsx', () => {
 
     fireEvent.press(screen.getByLabelText('Back'));
     expect(router.back).toHaveBeenCalled();
+  });
+
+  it('confirms a completed Checkout Session directly with the server after the return URL', async () => {
+    mockConfirmCheckout.mockResolvedValue({
+      data: {
+        confirmed: true,
+        subscription: { tier: 'premium', status: 'active', cancel_at_period_end: false },
+      },
+      error: null,
+    });
+    searchParams.mockReturnValue({
+      tier: 'premium',
+      stripe_checkout: 'success',
+      session_id: 'cs_test_complete_123',
+    } as never);
+    renderScreen(<Subscribe />);
+
+    await waitFor(() => expect(mockConfirmCheckout).toHaveBeenCalledWith('cs_test_complete_123'));
+    await waitFor(() => expect(screen.getByText('Manage Billing')).toBeTruthy());
+    expect(mockReloadProfile).toHaveBeenCalled();
   });
 });

@@ -9,9 +9,15 @@ revokes TEI Basic/Premium access.
 ## Included implementation
 
 - `app/subscribe.tsx` starts secure Checkout for Basic ($5/month) or Premium
-  ($11/month), then opens Stripe's hosted page in a native WebView.
+  ($11/month), then opens Stripe's hosted page in a native WebView. On the
+  redirect (or a manual **Check status** tap), it asks the authenticated server
+  to verify that exact Checkout Session with Stripe. A delayed webhook can no
+  longer leave a successful customer looking unsubscribed.
 - `create-checkout-session` authenticates the TEI user, chooses the price on
   the server, and attaches the user ID/tier to Stripe subscription metadata.
+- `confirm-checkout-session` verifies the returned Checkout Session belongs to
+  the signed-in TEI user, fetches its Stripe subscription, and safely projects
+  it into the account. It never trusts a tier from the app or redirect URL.
 - `stripe-webhook` validates the unmodified request body against the
   `Stripe-Signature` header, deduplicates events, updates `subscriptions`, and
   updates `profiles.tier` only for `active` or `trialing` subscriptions.
@@ -62,6 +68,7 @@ supabase secrets set --env-file supabase/functions/.env
 supabase functions deploy create-checkout-session --use-api
 supabase functions deploy create-billing-portal --use-api
 supabase functions deploy get-subscription --use-api
+supabase functions deploy confirm-checkout-session --use-api
 supabase functions deploy stripe-webhook --use-api --no-verify-jwt
 ```
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import {
@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow } from '../src/components/Chrome';
 import { useAuth } from '../src/auth';
 import {
+  confirmCheckoutSession,
   createBillingPortal,
   createCheckoutSession,
   getSubscription,
@@ -33,17 +34,21 @@ function selectedTier(value: string | string[] | undefined): PaidTier {
 export default function Subscribe() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ tier?: string; stripe_checkout?: string }>();
+  const params = useLocalSearchParams<{ tier?: string; stripe_checkout?: string; session_id?: string }>();
   const { reloadProfile } = useAuth();
   const tier = selectedTier(params.tier);
   const returnUrl = useMemo(() => Linking.createURL('subscribe'), []);
   const [subscription, setSubscription] = useState<SubscriptionSnapshot | null>(null);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(
+    typeof params.session_id === 'string' ? params.session_id : null,
+  );
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(
     params.stripe_checkout === 'cancel' ? 'Checkout was cancelled. No payment was made.' : null,
   );
+  const confirmedSessions = useRef(new Set<string>());
 
   const refresh = useCallback(async () => {
     setBusy(true);
@@ -59,6 +64,36 @@ export default function Subscribe() {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
+  const confirmCheckout = useCallback(async (sessionId: string) => {
+    if (confirmedSessions.current.has(sessionId)) return;
+    setBusy(true);
+    setError(null);
+    const result = await confirmCheckoutSession(sessionId);
+    setBusy(false);
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    if (result.data?.confirmed && result.data.subscription) {
+      confirmedSessions.current.add(sessionId);
+      setCheckoutUrl(null);
+      setSubscription(result.data.subscription);
+      setNotice('Payment confirmed. Your TEI membership is now active.');
+      reloadProfile();
+      return;
+    }
+
+    setNotice('Payment is still being confirmed. Please wait a moment, then tap Check payment status.');
+  }, [reloadProfile]);
+
+  useEffect(() => {
+    if (params.stripe_checkout !== 'success' || typeof params.session_id !== 'string') return;
+    setCheckoutSessionId(params.session_id);
+    void confirmCheckout(params.session_id);
+  }, [confirmCheckout, params.session_id, params.stripe_checkout]);
+
   async function openCheckout() {
     setBusy(true);
     setError(null);
@@ -68,6 +103,7 @@ export default function Subscribe() {
       setError(result.error ?? 'Stripe did not return a checkout page.');
       return;
     }
+    setCheckoutSessionId(result.data.sessionId);
     if (Platform.OS === 'web') {
       window.location.assign(result.data.checkoutUrl);
       return;
@@ -95,9 +131,12 @@ export default function Subscribe() {
     if (!url.startsWith(returnUrl)) return false;
     setCheckoutUrl(null);
     if (url.includes('stripe_checkout=success')) {
-      setNotice('Payment received. Activating your subscription…');
-      // Stripe webhooks are authoritative and may arrive just after the browser redirect.
-      setTimeout(() => void refresh(), 1200);
+      const sessionId = new URL(url).searchParams.get('session_id') ?? checkoutSessionId;
+      setNotice('Payment received. Confirming your membership…');
+      if (sessionId) {
+        setCheckoutSessionId(sessionId);
+        void confirmCheckout(sessionId);
+      }
     } else {
       setNotice('Checkout was cancelled. No payment was made.');
     }
@@ -108,8 +147,23 @@ export default function Subscribe() {
     return (
       <View style={{ flex: 1, backgroundColor: '#fff', paddingTop: insets.top }}>
         <View style={styles.checkoutHeader}>
-          <BackArrow onPress={() => setCheckoutUrl(null)} color={colors.orange} />
+          <BackArrow
+            onPress={() => {
+              setCheckoutUrl(null);
+              if (checkoutSessionId) void confirmCheckout(checkoutSessionId);
+            }}
+            color={colors.orange}
+          />
           <Text style={styles.checkoutTitle}>Secure Stripe Checkout</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Check payment status"
+            disabled={!checkoutSessionId || busy}
+            onPress={() => checkoutSessionId && void confirmCheckout(checkoutSessionId)}
+            style={styles.statusButton}
+          >
+            <Text style={styles.statusButtonText}>{busy ? 'Checking…' : 'Check status'}</Text>
+          </Pressable>
         </View>
         <WebView
           source={{ uri: checkoutUrl }}
@@ -171,5 +225,7 @@ const styles = StyleSheet.create({
   buttonText: { color: '#1d1d1d', fontSize: 17, fontWeight: '700', textAlign: 'center' },
   finePrint: { color: '#b8b8b8', fontSize: 13, lineHeight: 19, marginTop: 14, textAlign: 'center' },
   checkoutHeader: { alignItems: 'center', flexDirection: 'row', paddingHorizontal: 18, paddingVertical: 12 },
-  checkoutTitle: { color: '#222', flex: 1, fontSize: 17, fontWeight: '600', textAlign: 'center', marginRight: 36 },
+  checkoutTitle: { color: '#222', flex: 1, fontSize: 17, fontWeight: '600', textAlign: 'center' },
+  statusButton: { marginLeft: 10, minWidth: 80 },
+  statusButtonText: { color: colors.orange, fontSize: 12, fontWeight: '700', textAlign: 'right' },
 });
