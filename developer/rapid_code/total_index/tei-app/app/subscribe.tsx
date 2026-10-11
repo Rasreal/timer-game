@@ -31,6 +31,13 @@ function selectedTier(value: string | string[] | undefined): PaidTier {
   return value === 'premium' ? 'premium' : 'basic';
 }
 
+function periodEndLabel(value: string | null): string {
+  if (!value || Number.isNaN(new Date(value).getTime())) return 'the end of the current billing period';
+  return new Intl.DateTimeFormat('en', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  }).format(new Date(value));
+}
+
 export default function Subscribe() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -137,8 +144,14 @@ export default function Subscribe() {
         setCheckoutSessionId(sessionId);
         void confirmCheckout(sessionId);
       }
-    } else {
+    } else if (url.includes('stripe_checkout=cancel')) {
       setNotice('Checkout was cancelled. No payment was made.');
+    } else {
+      // The Stripe Billing Portal returns to the same deep link without a
+      // Checkout marker. Refresh so cancellation-at-period-end and other
+      // billing changes are visible as soon as the portal closes.
+      setNotice('Billing settings updated. Refreshing your membership…');
+      void refresh();
     }
     return true;
   }
@@ -179,6 +192,9 @@ export default function Subscribe() {
   const hasSubscription = subscription && ['active', 'trialing', 'past_due'].includes(subscription.status);
   const tierName = tier === 'basic' ? 'Basic' : 'Premium';
   const price = tier === 'basic' ? '$5 / month' : '$11 / month';
+  const cancellationEnd = subscription?.cancel_at_period_end
+    ? periodEndLabel(subscription.current_period_end)
+    : null;
 
   return (
     <View style={[styles.page, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 24 }]}>
@@ -190,7 +206,7 @@ export default function Subscribe() {
           {hasSubscription ? (
             <Text style={styles.copy}>
               Your TEI {subscription.tier === 'basic' ? 'Basic' : 'Premium'} subscription is {subscription.status.replace('_', ' ')}.
-              {subscription.cancel_at_period_end ? ' It will end at the close of the current period.' : ''}
+              {cancellationEnd ? ` It will end on ${cancellationEnd}.` : ''}
             </Text>
           ) : (
             <Text style={styles.copy}>

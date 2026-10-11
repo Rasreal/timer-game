@@ -105,6 +105,12 @@ webhooks. [Stripe Customer Portal setup](https://docs.stripe.com/customer-manage
    until expiry; simulate/deal with a failed renewal and confirm the webhook
    revokes access once status is no longer active/trialing.
 
+Stripe's default cancellation behavior is **at the end of the paid period**.
+In that case TEI stays paid and the app shows the planned end date. To revoke
+access immediately, select an immediate cancellation in the Stripe Dashboard
+or configure that behavior in the Customer Portal; the subsequent webhook will
+change the TEI account back to Elemental.
+
 For production, create live prices, replace the two test Price IDs in the
 Supabase function secret store, create the live webhook endpoint, complete
 Stripe business/branding/tax configuration, and test with a live payment.

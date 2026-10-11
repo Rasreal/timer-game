@@ -68,6 +68,22 @@ describe('app/subscribe.tsx', () => {
     await waitFor(() => expect(mockCreatePortal).toHaveBeenCalledWith('tei://subscribe'));
   });
 
+  it('makes a scheduled cancellation date clear without prematurely removing access', async () => {
+    mockGetSubscription.mockResolvedValue({
+      data: {
+        subscription: {
+          tier: 'basic', status: 'active', cancel_at_period_end: true,
+          current_period_end: '2026-11-11T12:00:00.000Z',
+        },
+      },
+      error: null,
+    });
+    renderScreen(<Subscribe />);
+
+    await waitFor(() => expect(screen.getByText(/It will end on (November 11, 2026|11 November 2026)/)).toBeTruthy());
+    expect(screen.getByText('Manage Billing')).toBeTruthy();
+  });
+
   it('keeps the user in the app when navigating back from Checkout', async () => {
     renderScreen(<Subscribe />);
     await waitFor(() => expect(screen.getByLabelText('Subscribe to TEI Premium')).toBeTruthy());
