@@ -13,6 +13,7 @@
       "bundleIdentifier": "com.rhinoathletics.tei",
       "buildNumber": "3",
       "appleTeamId": "UDD38L4JNJ",
+      "associatedDomains": ["applinks:tei-app-blue.vercel.app"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

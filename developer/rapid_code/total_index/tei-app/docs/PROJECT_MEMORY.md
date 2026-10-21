@@ -33,9 +33,15 @@ npm run build:web
 - The profile read retries briefly because the trigger can lag a newly created
   auth user.
 - Password recovery is two-stage: `/forgot-password` sends a recovery email;
-  `/reset-password` restores the temporary Supabase session from a PKCE `code`
-  or implicit-flow hash tokens, changes the password, then signs that temporary
-  session out. The parser is deliberately manual because the shared client has
+  `/reset-password` restores the temporary Supabase session from the TEI email
+  template's `token_hash` (`verifyOtp`), a PKCE `code`, or implicit-flow hash
+  tokens, changes the password, then signs that temporary session out.
+- The recovery email links straight to
+  `https://tei-app-blue.vercel.app/reset-password?token_hash=…&type=recovery`.
+  On iOS that path is a Universal Link (`ios.associatedDomains` in app.json +
+  `public/.well-known/apple-app-site-association`), so it opens the installed
+  app. In a phone browser the page offers "Open in the TEI app" before
+  verifying, because verifying spends the one-time token. The parser is deliberately manual because the shared client has
   `detectSessionInUrl: false` for native compatibility.
 - `app.json` registers the `tei://` scheme. Details of the required dashboard
   allowlist and email setup are in [SUPABASE_SETUP.md](SUPABASE_SETUP.md).

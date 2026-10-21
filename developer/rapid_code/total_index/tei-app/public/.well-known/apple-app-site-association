@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["UDD38L4JNJ.com.rhinoathletics.tei"],
+        "components": [
+          { "/": "/reset-password", "comment": "Password-recovery links open the installed app." }
+        ]
+      }
+    ]
+  }
+}

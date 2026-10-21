@@ -19,7 +19,12 @@ import { useAuth } from '../src/auth';
 import { supabase } from '../src/lib/supabase';
 import { colors } from '../src/theme';
 
-type RecoveryState = 'checking' | 'ready' | 'invalid';
+type RecoveryState = 'checking' | 'choose' | 'ready' | 'invalid';
+
+type RecoveryParams = ReturnType<typeof parseRecoveryParams>;
+
+/** Matches `scheme` in app.json; the reset route inside the native app. */
+const APP_RESET_URL = 'tei://reset-password';
 
 /** Completes the password-recovery session created by Supabase's email link. */
 export default function ResetPassword() {
@@ -29,6 +34,9 @@ export default function ResetPassword() {
   const { completePasswordReset } = useAuth();
   const [recoveryState, setRecoveryState] = useState<RecoveryState>('checking');
   const [linkError, setLinkError] = useState<string | null>(null);
+  // Held while a phone's browser asks whether to open the link in the app,
+  // so "Continue in browser" can verify it afterwards.
+  const [pending, setPending] = useState<{ params: RecoveryParams; appUrl: string } | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -58,7 +66,7 @@ export default function ResetPassword() {
         return;
       }
 
-      if (!params.code && !(params.accessToken && params.refreshToken)) {
+      if (!params.tokenHash && !params.code && !(params.accessToken && params.refreshToken)) {
         if (active) {
           setRecoveryState('invalid');
           setLinkError('This password-reset link is missing or has expired.');
@@ -66,22 +74,18 @@ export default function ResetPassword() {
         return;
       }
 
-      const result = params.code
-        ? await supabase.auth.exchangeCodeForSession(params.code)
-        : params.accessToken && params.refreshToken
-          ? await supabase.auth.setSession({
-              access_token: params.accessToken,
-              refresh_token: params.refreshToken,
-            })
-          : { error: { message: 'This password-reset link is missing or has expired.' } };
-
-      if (!active) return;
-      if (result.error) {
-        setRecoveryState('invalid');
-        setLinkError('This password-reset link is invalid or has expired. Request a new link.');
+      // On a phone the user may have the app installed. Verifying here would
+      // spend the one-time link, so ask first and leave it untouched.
+      if (Platform.OS === 'web' && isMobileBrowser()) {
+        if (active) {
+          setPending({ params, appUrl: toAppResetUrl(recoveryUrl) });
+          setRecoveryState('choose');
+        }
         return;
       }
-      setRecoveryState('ready');
+
+      const ok = await startRecoverySession(params);
+      if (active) applyResult(ok);
     }
 
     void restoreRecoverySession();
@@ -89,6 +93,21 @@ export default function ResetPassword() {
       active = false;
     };
   }, [url]);
+
+  function applyResult(ok: boolean) {
+    if (!ok) {
+      setRecoveryState('invalid');
+      setLinkError('This password-reset link is invalid or has expired. Request a new link.');
+      return;
+    }
+    setRecoveryState('ready');
+  }
+
+  async function continueInBrowser() {
+    if (!pending) return;
+    setRecoveryState('checking');
+    applyResult(await startRecoverySession(pending.params));
+  }
 
   const rules = {
     length: password.length >= 8,
@@ -137,6 +156,25 @@ export default function ResetPassword() {
               <ActivityIndicator color={colors.orange} />
               <Text style={styles.description}>Checking your reset link…</Text>
             </View>
+          )}
+
+          {recoveryState === 'choose' && pending && (
+            <>
+              <Text style={styles.description}>
+                Have the TEI app on this phone? Open the link there, or reset your
+                password here in the browser.
+              </Text>
+              <OutlineButton
+                title="OPEN IN THE TEI APP"
+                onPress={() => void Linking.openURL(pending.appUrl)}
+                style={styles.cta}
+              />
+              <OutlineButton
+                title="CONTINUE IN BROWSER"
+                onPress={() => void continueInBrowser()}
+                style={styles.secondaryCta}
+              />
+            </>
           )}
 
           {recoveryState === 'invalid' && (
@@ -251,8 +289,44 @@ function Rule({ ok, children }: { ok: boolean; children: string }) {
   return <Text style={[styles.rule, { color: ok ? colors.success : '#A8A8A8' }]}>○ {children}</Text>;
 }
 
-/** Reads either Supabase's PKCE query parameter or implicit-flow hash tokens. */
+/**
+ * Signs in with whichever credential the link carries: a `token_hash` from
+ * the TEI email template, a PKCE `code`, or implicit-flow hash tokens.
+ */
+async function startRecoverySession(params: RecoveryParams): Promise<boolean> {
+  const result = params.tokenHash
+    ? await supabase.auth.verifyOtp({ token_hash: params.tokenHash, type: 'recovery' })
+    : params.code
+      ? await supabase.auth.exchangeCodeForSession(params.code)
+      : params.accessToken && params.refreshToken
+        ? await supabase.auth.setSession({
+            access_token: params.accessToken,
+            refresh_token: params.refreshToken,
+          })
+        : { error: { message: 'missing credentials' } };
+  return !result.error;
+}
+
+/** iPhone, iPad (including iPadOS's desktop user agent) or Android browser. */
+function isMobileBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
+
+/** The same link, re-pointed at the app: query and fragment carried over. */
+export function toAppResetUrl(url: string): string {
+  return APP_RESET_URL + url.replace(/^[^?#]*/, '');
+}
+
+/**
+ * Reads the TEI template's `token_hash`, Supabase's PKCE query parameter, or
+ * implicit-flow hash tokens.
+ */
 export function parseRecoveryParams(url: string): {
+  tokenHash: string | null;
   code: string | null;
   accessToken: string | null;
   refreshToken: string | null;
@@ -264,6 +338,7 @@ export function parseRecoveryParams(url: string): {
   const error = params.get('error_description') ?? params.get('error');
 
   return {
+    tokenHash: params.get('type') === 'recovery' ? params.get('token_hash') : null,
     code: params.get('code'),
     accessToken: params.get('access_token'),
     refreshToken: params.get('refresh_token'),
@@ -299,6 +374,7 @@ const styles = StyleSheet.create({
   rules: { marginTop: 12 },
   rule: { fontSize: 14, marginBottom: 3 },
   cta: { alignSelf: 'flex-start', marginTop: 22, paddingHorizontal: 18 },
+  secondaryCta: { alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 18 },
   success: { color: colors.success, fontSize: 16, lineHeight: 23, marginTop: 20 },
   error: { color: colors.red, fontSize: 14, lineHeight: 20, marginTop: 18 },
 });
