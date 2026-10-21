@@ -83,6 +83,16 @@ export function CalcShell({
     if (profile && profile.tier !== 'premium') router.replace('/home');
   }, [profile, router]);
 
+  // `tei` is a snapshot from the last Calculate, while SAVE writes the live
+  // `saveFields`. Editing a ring afterwards would otherwise persist the old
+  // score beside the new inputs, so any change clears the score — the user
+  // re-calculates, and the new inputs may be saved as their own session.
+  const fieldsKey = JSON.stringify(saveFields);
+  useEffect(() => {
+    setTei(null);
+    setSaved(false);
+  }, [fieldsKey]);
+
   const score = tei === null ? 0 : displayTei(tei);
   const over = tei !== null && tei > LIMITS.tei.overAt;
   // Measure against the timeframe the user chose on Effective Ranges. Its max

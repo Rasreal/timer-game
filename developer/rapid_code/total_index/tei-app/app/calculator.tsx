@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,6 +43,9 @@ export default function Calculator() {
 
   // Elemental is calculate-only by design; paid tiers persist history.
   const canSaveHistory = profile != null && profile.tier !== 'elemental';
+  // Planner mode always offers SAVE so a non-Premium user hears why it
+  // cannot plan rather than finding no button at all.
+  const showSave = canSaveHistory || Boolean(planDay);
 
   const complete =
     session.sets !== null &&
@@ -63,6 +66,20 @@ export default function Calculator() {
 
   const showResult = calculated && complete;
 
+  // Editing any variable after a calculation makes that score stale: clear it
+  // so the user re-calculates before SAVE, and let the new inputs be saved as
+  // their own session.
+  useEffect(() => {
+    setCalculated(false);
+    setSaved(false);
+    setSaveError(null);
+  }, [
+    session.sets,
+    session.restSeconds,
+    session.exertionPercent,
+    session.cardioMinutes,
+  ]);
+
   // Client's tiered intent: on Basic and above, tapping a timeframe on the
   // Effective Ranges screen makes it the denominator of "% of Target".
   // Elemental has no bar — that screen is informational only for them.
@@ -77,35 +94,57 @@ export default function Calculator() {
     ? Math.max(0, Math.min(1, result.tei / targetMax))
     : 0;
 
-  async function calculate() {
-    if (!complete || saving) return;
-    setCalculated(true);
-    setSaveError(null);
-
-    // The rings pass min/max to the arc geometry only, so an impossible value
-    // typed straight into a circle used to be scored as if it were legal.
-    const outOfRange = validateSessionInputs('standard', {
+  /**
+   * The rings pass min/max to the arc geometry only, so an impossible value
+   * typed straight into a circle used to be scored as if it were legal. Both
+   * CTAs run the same bounds check first; the message stays on screen next to
+   * the CTA rather than in a transient toast.
+   */
+  function checkRange(): string | null {
+    const problem = validateSessionInputs('standard', {
       sets: session.sets,
       restSeconds: session.restSeconds,
       exertionPercent: session.exertionPercent,
       cardioMinutes: session.cardioMinutes,
     });
-    setRangeError(outOfRange);
-    if (outOfRange) {
-      // Nothing is calculated or saved from impossible inputs; the message
-      // stays on screen next to the CTA rather than in a transient toast.
+    setRangeError(problem);
+    return problem;
+  }
+
+  // The client considers a TEI above 33 practically unsurvivable, so this
+  // almost always means the inputs were misunderstood. `showToast` keeps only
+  // the newest message, so the warning is folded into whichever toast each
+  // path actually shows rather than fired as a second, doomed one.
+  const warning =
+    result.tei > LIMITS.tei.implausibleAbove
+      ? `TEI ${result.tei.toFixed(0)} is beyond a survivable workload — you may need to review how you are defining your data.`
+      : null;
+
+  /** Scores and shows the TEI only — persisting is SAVE's job. */
+  function calculate() {
+    if (!complete) return;
+    setSaveError(null);
+    if (checkRange()) {
       setCalculated(false);
       return;
     }
+    setCalculated(true);
 
-    // The client considers a TEI above 33 practically unsurvivable, so this
-    // almost always means the inputs were misunderstood. `showToast` keeps
-    // only the newest message, so the warning is folded into whichever toast
-    // each path actually shows rather than fired as a second, doomed one.
-    const warning =
-      result.tei > LIMITS.tei.implausibleAbove
-        ? `TEI ${result.tei.toFixed(0)} is beyond a survivable workload — you may need to review how you are defining your data.`
-        : null;
+    if (warning) {
+      showToast(warning);
+    } else if (!showSave) {
+      showToast(`TEI ${result.tei.toFixed(2)} for this session`);
+    }
+  }
+
+  async function persist() {
+    if (saving) return;
+    if (!calculated) {
+      showToast('Calculate the TEI before saving.');
+      return;
+    }
+    if (checkRange()) return;
+    setSaveError(null);
 
     if (planDay) {
       if (!profile || profile.tier !== 'premium') {
@@ -136,7 +175,7 @@ export default function Calculator() {
     }
 
     if (!canSaveHistory || !profile) {
-      showToast(warning ?? `TEI ${result.tei.toFixed(2)} for this session`);
+      showToast('Saving sessions needs TEI Basic or Premium.');
       return;
     }
 
@@ -313,14 +352,26 @@ export default function Calculator() {
 
       <View style={{ flex: 1, minHeight: 8 }} />
 
-      <View style={{ flexDirection: 'row', gap: 12 }}>
+      <View style={{ flexDirection: 'row', gap: showSave ? 10 : 12 }}>
         <OutlineButton
-          title={saving ? 'Saving…' : 'Calculate TEI'}
-          disabled={!complete || saving}
+          title="Calculate TEI"
+          disabled={!complete}
           onPress={calculate}
           style={{ flex: 1 }}
         />
-        <OutlineButton title="Ranges" onPress={() => router.push('/ranges')} />
+        {showSave && (
+          <OutlineButton
+            title={saving ? 'Saving…' : 'SAVE'}
+            disabled={saving}
+            onPress={persist}
+            style={styles.sideBtn}
+          />
+        )}
+        <OutlineButton
+          title="Ranges"
+          onPress={() => router.push('/ranges')}
+          style={showSave && styles.sideBtn}
+        />
       </View>
 
       {rangeError && <Text style={styles.saveError}>{rangeError}</Text>}
@@ -455,6 +506,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
   },
+  // Three CTAs share the row on saving tiers; trimming the side buttons'
+  // padding keeps "Calculate TEI" on one line on a 375pt-wide phone.
+  sideBtn: { paddingHorizontal: 14 },
   saveError: {
     color: '#FF6B6B',
     fontSize: 13,

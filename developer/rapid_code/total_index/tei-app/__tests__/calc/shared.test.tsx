@@ -16,6 +16,7 @@ import {
   displayTei,
 } from '../../src/lib/tei';
 import { colors } from '../../src/theme';
+import { useStore } from '../../src/store';
 import { makeAuth, renderCalc } from '../helpers/calcRender';
 
 jest.mock('../../src/lib/supabase', () => ({ supabase: {} }));
@@ -405,6 +406,43 @@ describe('CalcShell — save', () => {
       expect(store.toast()).toBe('This session is already saved.'),
     );
     expect(saveSession).toHaveBeenCalledTimes(1);
+  });
+
+  // `tei` is a snapshot from Calculate while SAVE writes the live fields, so an
+  // edit in between must clear the score rather than pair it with new inputs.
+  it('clears the score when an input changes, so SAVE cannot pair it with new inputs', async () => {
+    function LiveShell() {
+      const { session } = useStore();
+      return (
+        <CalcShell
+          calculator="cardio"
+          sessionLabel="CARDIO Training"
+          complete
+          compute={() => (session.cardioMinutes ?? 0) / 4}
+          saveFields={{ cardioMinutes: session.cardioMinutes ?? 0 }}
+        >
+          <Text>ring slot</Text>
+        </CalcShell>
+      );
+    }
+    const { store } = renderCalc(<LiveShell />, { seed: { cardioMinutes: 40 } });
+
+    pressCalculate();
+    expect(screen.getByText(String(displayTei(10)))).toBeTruthy();
+
+    store.set('cardioMinutes', 60);
+    expect(screen.getByText('0')).toBeTruthy();
+    pressSave();
+    expect(store.toast()).toBe('Calculate the TEI before saving.');
+    expect(saveSession).not.toHaveBeenCalled();
+
+    pressCalculate();
+    pressSave();
+    await waitFor(() =>
+      expect(saveSession).toHaveBeenCalledWith(
+        expect.objectContaining({ cardioMinutes: 60, tei: 15 }),
+      ),
+    );
   });
 
   // A failed write leaves the session unsaved, so SAVE must stay usable.

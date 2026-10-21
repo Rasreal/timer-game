@@ -57,6 +57,10 @@ function pressCalculate() {
   fireEvent.press(screen.getByText('Calculate TEI'));
 }
 
+function pressSave() {
+  fireEvent.press(screen.getByText('SAVE'));
+}
+
 describe('calculator — rendering', () => {
   it('renders the TEI lockup, session block and the four variable rings', () => {
     renderCalc(<Calculator />);
@@ -163,7 +167,11 @@ describe('calculator — TEI agrees with the tei.ts engine', () => {
 
     const next = { ...REFERENCE, sets: 22 };
     store.set('sets', 22);
-    // `showResult` stays true, so the score follows the store immediately.
+    // Editing a variable makes the old score stale, so it is cleared until the
+    // user calculates again.
+    expect(screen.getByText('0')).toBeTruthy();
+
+    pressCalculate();
     expect(screen.getByText(String(displayTei(calculateTei(next).tei)))).toBeTruthy();
   });
 
@@ -341,6 +349,8 @@ describe('calculator — implausible TEI prompt', () => {
 
     const { store } = renderCalc(<Calculator />, { seed: HEAVY });
     pressCalculate();
+    expect(store.toast()).toBe(warning(tei));
+    pressSave();
 
     // The session still saves, but the warning — not "Saved — TEI x" — is the
     // message left on screen.
@@ -530,12 +540,48 @@ describe('calculator — tier behaviour', () => {
     expect(saveSession).not.toHaveBeenCalled();
   });
 
-  it('persists the session on Basic with the engine score', async () => {
+  it('offers SAVE only on tiers that keep history', () => {
+    auth('elemental');
+    renderCalc(<Calculator />, { seed: REFERENCE });
+    expect(screen.queryByText('SAVE')).toBeNull();
+
+    screen.unmount();
+    auth('basic');
+    renderCalc(<Calculator />, { seed: REFERENCE });
+    expect(screen.getByText('SAVE')).toBeTruthy();
+  });
+
+  it('Calculate TEI only shows the score — it never saves on its own', async () => {
+    auth('basic');
+    renderCalc(<Calculator />, { seed: REFERENCE });
+
+    pressCalculate();
+
+    expect(
+      screen.getByText(String(displayTei(calculateTei(REFERENCE).tei))),
+    ).toBeTruthy();
+    // Give any stray async save a chance to fire before asserting it did not.
+    await Promise.resolve();
+    expect(saveSession).not.toHaveBeenCalled();
+  });
+
+  it('asks for a calculation before SAVE does anything', async () => {
+    auth('basic');
+    const { store } = renderCalc(<Calculator />, { seed: REFERENCE });
+
+    pressSave();
+
+    expect(store.toast()).toBe('Calculate the TEI before saving.');
+    expect(saveSession).not.toHaveBeenCalled();
+  });
+
+  it('persists the session on Basic with the engine score when SAVE is pressed', async () => {
     auth('basic');
     const { store } = renderCalc(<Calculator />, { seed: REFERENCE });
     const beforeSave = Date.now();
 
     pressCalculate();
+    pressSave();
 
     await waitFor(() => expect(saveSession).toHaveBeenCalled());
     expect(saveSession).toHaveBeenCalledWith(
@@ -560,6 +606,7 @@ describe('calculator — tier behaviour', () => {
     renderCalc(<Calculator />, { seed: REFERENCE });
 
     pressCalculate();
+    pressSave();
 
     await waitFor(() =>
       expect(
@@ -573,13 +620,37 @@ describe('calculator — tier behaviour', () => {
     const { store } = renderCalc(<Calculator />, { seed: REFERENCE });
 
     pressCalculate();
+    pressSave();
     await waitFor(() => expect(saveSession).toHaveBeenCalledTimes(1));
 
-    pressCalculate();
+    pressSave();
     await waitFor(() =>
       expect(store.toast()).toBe('This session is already saved.'),
     );
     expect(saveSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets edited inputs be re-calculated and saved as a new session', async () => {
+    auth('basic');
+    const { store } = renderCalc(<Calculator />, { seed: REFERENCE });
+
+    pressCalculate();
+    pressSave();
+    await waitFor(() => expect(saveSession).toHaveBeenCalledTimes(1));
+
+    store.set('sets', 22);
+    pressSave();
+    expect(store.toast()).toBe('Calculate the TEI before saving.');
+
+    pressCalculate();
+    pressSave();
+    await waitFor(() => expect(saveSession).toHaveBeenCalledTimes(2));
+    expect(saveSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sets: 22,
+        tei: Number(calculateTei({ ...REFERENCE, sets: 22 }).tei.toFixed(2)),
+      }),
+    );
   });
 });
 
@@ -590,6 +661,8 @@ describe('calculator — planner mode', () => {
     renderCalc(<Calculator />, { seed: REFERENCE });
 
     pressCalculate();
+    expect(savePlan).not.toHaveBeenCalled();
+    pressSave();
 
     await waitFor(() => expect(savePlan).toHaveBeenCalled());
     expect(savePlan).toHaveBeenCalledWith(
@@ -608,6 +681,7 @@ describe('calculator — planner mode', () => {
     const { store } = renderCalc(<Calculator />, { seed: REFERENCE });
 
     pressCalculate();
+    pressSave();
 
     await waitFor(() =>
       expect(store.toast()).toBe('Planning needs TEI Premium.'),
@@ -634,6 +708,7 @@ describe('calculator — planner mode', () => {
 
     const { store } = renderCalc(<Calculator />, { seed: heavy });
     pressCalculate();
+    pressSave();
 
     await waitFor(() => expect(savePlan).toHaveBeenCalled());
     expect(store.toast()).toBe(
