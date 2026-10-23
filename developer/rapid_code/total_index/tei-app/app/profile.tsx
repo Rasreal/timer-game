@@ -307,16 +307,17 @@ export default function Profile() {
           </Text>
         </Pressable>
 
-        {/* Premium is the top tier, so its mock-up has no Upgrade button. */}
-        {!isPremium && (
-          <Pressable
-            onPress={() => router.push('/account-type')}
-            accessibilityRole="button"
-            style={styles.upgradeBtn}
-          >
-            <Text style={{ color: colors.orange, fontSize: 23 }}>Upgrade</Text>
-          </Pressable>
-        )}
+        {/* Elemental can only go up, so it keeps the mock-up's "Upgrade".
+            Paid tiers can also step down, which "Upgrade" hid. */}
+        <Pressable
+          onPress={() => router.push('/account-type')}
+          accessibilityRole="button"
+          style={styles.upgradeBtn}
+        >
+          <Text style={{ color: colors.orange, fontSize: 23 }}>
+            {tier === 'elemental' || !tier ? 'Upgrade' : 'Change Subscription'}
+          </Text>
+        </Pressable>
 
         <Pressable
           onPress={handleSignOut}

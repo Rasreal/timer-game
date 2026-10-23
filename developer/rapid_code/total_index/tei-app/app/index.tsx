@@ -118,11 +118,15 @@ function WhatIsTei({ onClose, onGo }: { onClose: () => void; onGo: () => void })
           </Pressable>
 
           <Text style={styles.sheetTitle}>What is TEI?</Text>
-          <Text style={styles.sheetSub}>Turn every workout into a score.</Text>
+          <Text style={styles.sheetSub}>
+            Know the work. Understand the impact.
+          </Text>
           <Text style={styles.sheetBody}>
-            TEI (Total Effect Index) gives each workout a numerical value so you
-            can measure effectiveness, avoid overtraining, and improve
-            consistently.
+            <Text style={{ fontWeight: '700' }}>TEI</Text> (Total Effect Index)
+            brings Workload Intelligence to your training. By measuring
+            individual workouts and cumulative training load, TEI helps you
+            manage volume and intensity, recognize potentially excessive
+            workloads, and make informed decisions about your training.
           </Text>
 
           <Text style={[styles.howItWorks, { color: accent }]}>How it Works...</Text>
@@ -130,21 +134,21 @@ function WhatIsTei({ onClose, onGo }: { onClose: () => void; onGo: () => void })
           <Step
             n="1."
             title="Score Your Workout"
-            body="Sets, rest, and cardio are combined into one daily value"
+            body="Sets, rest, and cardio contribute to one daily value."
           />
           <Step
             n="2."
-            title="Track Your Week, Month, Year, etc..."
-            body="Daily scores build your total training load"
+            title="Track Your Training Load"
+            body="See how your workload accumulates over days, weeks, and months."
           />
           <Step
             n="3."
-            title="Adjust & Improve"
-            body="Know when to push, recover, and get better results"
+            title="Understand & Adjust"
+            body="Compare workloads, recognize trends, and make informed training decisions."
           />
 
-          <Text style={styles.stopGuessing}>
-            Stop guessing. Start training with data.
+          <Text style={styles.tagline}>
+            Train with Intention.{'\n'}Progress with Intelligence.
           </Text>
 
           <Pressable
@@ -261,11 +265,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
   },
-  stopGuessing: {
+  tagline: {
     color: colors.text,
-    fontSize: 19,
-    fontWeight: '500',
-    textAlign: 'center',
+    fontSize: 21,
+    fontWeight: '600',
+    lineHeight: 27,
     marginTop: 26,
     marginBottom: 22,
   },

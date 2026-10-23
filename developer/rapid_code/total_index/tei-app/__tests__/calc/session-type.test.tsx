@@ -14,10 +14,17 @@ import {
   CALCULATOR_ROUTES,
   STRENGTH_OPTIONS,
   resolveCalculator,
+  sessionDay,
+  sessionMonthYear,
+  sessionTime,
   type StrengthOption,
 } from '../../src/lib/selector';
 import { colors } from '../../src/theme';
 import { renderCalc } from '../helpers/calcRender';
+import {
+  pickFifteenthOfLastMonth,
+  todayAndTomorrowCells,
+} from '../helpers/datePicker';
 
 jest.mock('../../src/lib/supabase', () => ({ supabase: {} }));
 jest.mock('../../src/auth', () => ({
@@ -322,15 +329,32 @@ describe('session-type — navigation and stubs', () => {
     expect(router.back).toHaveBeenCalled();
   });
 
-  // NOT PORTED: the date/time discs are acknowledged stubs.
-  it('the date and time discs only toast that picking is unimplemented', () => {
+  it.each([/^Session date, /, /^Session time, /])(
+    'the %s disc opens a date-and-time picker with no future days',
+    (disc) => {
+      const { store } = renderCalc(<SessionType />);
+      fireEvent.press(screen.getByLabelText(disc));
+
+      const { today, tomorrow } = todayAndTomorrowCells();
+      expect(today.props.accessibilityState?.disabled).toBe(false);
+      if (tomorrow) expect(tomorrow.props.accessibilityState?.disabled).toBe(true);
+      expect(screen.getByLabelText(/^Time, /)).toBeTruthy();
+      expect(store.toast()).toBeNull();
+    },
+  );
+
+  it('a picked date becomes the draft date shown on the discs', () => {
     const { store } = renderCalc(<SessionType />);
-
     fireEvent.press(screen.getByLabelText(/^Session date, /));
-    expect(store.toast()).toBe('Date picking is not wired up in the prototype.');
+    const picked = pickFifteenthOfLastMonth(new Date(store.current().date));
 
-    fireEvent.press(screen.getByLabelText(/^Session time, /));
-    expect(store.toast()).toBe('Date picking is not wired up in the prototype.');
+    const iso = picked.toISOString();
+    expect(store.current().date).toBe(iso);
+    expect(store.current().dateChosen).toBe(true);
+    expect(
+      screen.getByLabelText(`Session date, ${sessionMonthYear(iso)} ${sessionDay(iso)}`),
+    ).toBeTruthy();
+    expect(screen.getByLabelText(`Session time, ${sessionTime(iso)}`)).toBeTruthy();
   });
 
   it('deep-link back falls back to Home when there is no navigation history', () => {

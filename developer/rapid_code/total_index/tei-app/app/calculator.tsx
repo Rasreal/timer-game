@@ -9,6 +9,7 @@ import {
   OutlineButton,
   TeiLockup,
 } from '../src/components/Chrome';
+import { DatePicker } from '../src/components/DatePicker';
 import { Ring } from '../src/components/Ring';
 import { useAuth } from '../src/auth';
 import { formatSessionDate, useStore } from '../src/store';
@@ -31,7 +32,8 @@ export default function Calculator() {
   // day rather than logging a session that already happened.
   const { plan: planDay } = useLocalSearchParams<{ plan?: string }>();
   const insets = useSafeAreaInsets();
-  const { session, setSessionField, showToast, targetRange } = useStore();
+  const { session, setSessionField, setSessionDate, showToast, targetRange } =
+    useStore();
   const { profile } = useAuth();
   const [calculated, setCalculated] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -40,6 +42,7 @@ export default function Calculator() {
   // A value typed straight into a ring that falls outside LIMITS. Shown next
   // to the CTA in the same style as a save failure.
   const [rangeError, setRangeError] = useState<string | null>(null);
+  const [pickingDate, setPickingDate] = useState(false);
 
   // Elemental is calculate-only by design; paid tiers persist history.
   const canSaveHistory = profile != null && profile.tier !== 'elemental';
@@ -187,9 +190,10 @@ export default function Calculator() {
     setSaving(true);
     const { error } = await saveSession({
       userId: profile.id,
-      // Stamp at save time. `session.date` is set when the draft is created,
-      // which for a long-lived app session is not when training happened.
-      performedAt: new Date().toISOString(),
+      // A date the user picked is when the training happened. Otherwise stamp
+      // at save time: `session.date` is only when the draft was created, which
+      // for a long-lived app session is not when training happened.
+      performedAt: session.dateChosen ? session.date : new Date().toISOString(),
       sets: session.sets ?? 0,
       restSeconds: session.restSeconds ?? 0,
       exertionPercent: session.exertionPercent ?? 0,
@@ -275,7 +279,7 @@ export default function Calculator() {
           <CalendarGlyph />
           <Text style={styles.sessionLabel}>This Session</Text>
           <Ellipsis
-            onPress={() => showToast('Date picking arrives with the Basic tier.')}
+            onPress={() => setPickingDate(true)}
             color="#8A8A8A"
             size={20}
             label="Change session date"
@@ -283,6 +287,20 @@ export default function Calculator() {
         </View>
         <Text style={styles.sessionDate}>{formatSessionDate(session.date)}</Text>
       </View>
+
+      <DatePicker
+        visible={pickingDate}
+        title="This Session"
+        value={new Date(session.date)}
+        // A session is logged after the fact, so it can never be in the future.
+        maxDate={new Date()}
+        withTime
+        onCancel={() => setPickingDate(false)}
+        onConfirm={(d) => {
+          setPickingDate(false);
+          setSessionDate(d.toISOString());
+        }}
+      />
 
       {/* Four variable rings */}
       <View style={styles.ringGrid}>

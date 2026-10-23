@@ -13,7 +13,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 const renderStore = () => renderHook(() => useStore(), { wrapper });
 
-const NUMERIC_FIELDS: (keyof Omit<SessionDraft, 'date'>)[] = [
+const NUMERIC_FIELDS: (keyof Omit<SessionDraft, 'date' | 'dateChosen'>)[] = [
   'sets',
   'restSeconds',
   'exertionPercent',
@@ -167,6 +167,13 @@ describe('setSessionDate', () => {
     expect(result.current.session.date).toBe('2026-04-27T14:33:00.000Z');
   });
 
+  it('marks the date as chosen by the user', () => {
+    const { result } = renderStore();
+    expect(result.current.session.dateChosen).toBeFalsy();
+    act(() => result.current.setSessionDate('2026-04-27T14:33:00.000Z'));
+    expect(result.current.session.dateChosen).toBe(true);
+  });
+
   it('preserves the numeric fields', () => {
     const { result } = renderStore();
     act(() => result.current.setSessionField('sets', 3));
@@ -201,6 +208,13 @@ describe('resetSession', () => {
     for (const field of NUMERIC_FIELDS) {
       expect(result.current.session[field]).toBeNull();
     }
+  });
+
+  it('forgets that the date was chosen', () => {
+    const { result } = renderStore();
+    act(() => result.current.setSessionDate('2000-01-01T00:00:00.000Z'));
+    act(() => result.current.resetSession());
+    expect(result.current.session.dateChosen).toBeFalsy();
   });
 
   it('resets the date back to now', () => {

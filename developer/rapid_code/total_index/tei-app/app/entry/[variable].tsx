@@ -31,7 +31,7 @@ type VariableKey =
   | 'yoga';
 
 interface VariableConfig {
-  field: keyof Omit<SessionDraft, 'date'>;
+  field: keyof Omit<SessionDraft, 'date' | 'dateChosen'>;
   heading: string;
   ringLabel: string;
   description: string;

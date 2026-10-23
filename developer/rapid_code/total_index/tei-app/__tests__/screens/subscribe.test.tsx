@@ -7,6 +7,9 @@ const mockGetSubscription = jest.fn();
 const mockCreateCheckout = jest.fn();
 const mockCreatePortal = jest.fn();
 const mockConfirmCheckout = jest.fn();
+const mockChangeSubscription = jest.fn();
+const mockJoin = jest.fn();
+const mockAuth: { profile: { tier: string } | null } = { profile: null };
 
 jest.mock('expo-linking', () => ({ createURL: jest.fn(() => 'tei://subscribe') }));
 jest.mock('react-native-webview', () => {
@@ -16,14 +19,20 @@ jest.mock('react-native-webview', () => {
   );
 });
 jest.mock('../../src/auth', () => ({
-  useAuth: () => ({ reloadProfile: mockReloadProfile }),
+  useAuth: () => ({ reloadProfile: mockReloadProfile, profile: mockAuth.profile }),
+}));
+jest.mock('../../src/lib/waitlist', () => ({
+  ...jest.requireActual('../../src/lib/waitlist'),
+  joinPremiumWaitlist: (...args: unknown[]) => mockJoin(...args),
 }));
 jest.mock('../../src/lib/billing', () => ({
   getSubscription: (...args: unknown[]) => mockGetSubscription(...args),
   createCheckoutSession: (...args: unknown[]) => mockCreateCheckout(...args),
   createBillingPortal: (...args: unknown[]) => mockCreatePortal(...args),
   confirmCheckoutSession: (...args: unknown[]) => mockConfirmCheckout(...args),
+  changeSubscription: (...args: unknown[]) => mockChangeSubscription(...args),
 }));
+jest.mock('../../src/lib/supabase', () => ({ supabase: {} }));
 
 import Subscribe from '../../app/subscribe';
 
@@ -38,18 +47,21 @@ beforeEach(() => {
   });
   mockCreatePortal.mockReset();
   mockConfirmCheckout.mockReset().mockResolvedValue({ data: { confirmed: false, subscription: null }, error: null });
-  searchParams.mockReturnValue({ tier: 'premium' } as never);
+  mockChangeSubscription.mockReset();
+  mockJoin.mockReset().mockResolvedValue({ error: null });
+  mockAuth.profile = null;
+  searchParams.mockReturnValue({ tier: 'basic' } as never);
 });
 
 describe('app/subscribe.tsx', () => {
   it('requests a hosted Stripe Checkout URL without collecting card data in-app', async () => {
     renderScreen(<Subscribe />);
-    await waitFor(() => expect(screen.getByText('TEI Premium')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('TEI Basic')).toBeTruthy());
 
-    fireEvent.press(screen.getByLabelText('Subscribe to TEI Premium'));
+    fireEvent.press(screen.getByLabelText('Subscribe to TEI Basic'));
 
     await waitFor(() => expect(mockCreateCheckout).toHaveBeenCalledWith(
-      'premium', 'tei://subscribe', 'tei://subscribe',
+      'basic', 'tei://subscribe', 'tei://subscribe',
     ));
   });
 
@@ -86,7 +98,7 @@ describe('app/subscribe.tsx', () => {
 
   it('keeps the user in the app when navigating back from Checkout', async () => {
     renderScreen(<Subscribe />);
-    await waitFor(() => expect(screen.getByLabelText('Subscribe to TEI Premium')).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText('Subscribe to TEI Basic')).toBeTruthy());
 
     fireEvent.press(screen.getByLabelText('Back'));
     expect(router.back).toHaveBeenCalled();
@@ -110,5 +122,101 @@ describe('app/subscribe.tsx', () => {
     await waitFor(() => expect(mockConfirmCheckout).toHaveBeenCalledWith('cs_test_complete_123'));
     await waitFor(() => expect(screen.getByText('Manage Billing')).toBeTruthy());
     expect(mockReloadProfile).toHaveBeenCalled();
+  });
+});
+
+describe('app/subscribe.tsx — Premium is in development', () => {
+  beforeEach(() => {
+    searchParams.mockReturnValue({ tier: 'premium' } as never);
+  });
+
+  it('offers the waitlist instead of Stripe Checkout', () => {
+    renderScreen(<Subscribe />);
+
+    expect(screen.getByText(/TEI Premium is in development/)).toBeTruthy();
+    expect(screen.queryByLabelText('Subscribe to TEI Premium')).toBeNull();
+    expect(mockCreateCheckout).not.toHaveBeenCalled();
+  });
+
+  it('joining the waitlist sends the user back to pick a TEI', async () => {
+    renderScreen(<Subscribe />);
+
+    fireEvent.press(screen.getByText('Join the WAITLIST'));
+    fireEvent.changeText(screen.getByLabelText('Email'), 'ken@example.com');
+    fireEvent.press(screen.getByLabelText('Send'));
+
+    await waitFor(() => expect(mockJoin).toHaveBeenCalledWith('ken@example.com', ''));
+    fireEvent.press(await screen.findByText('Pick a TEI for now'));
+    expect(router.replace).toHaveBeenCalledWith('/account-type');
+  });
+});
+
+describe('app/subscribe.tsx — switch to Elemental', () => {
+  const activeBasic = {
+    tier: 'basic', status: 'active', cancel_at_period_end: false,
+    current_period_end: '2026-11-11T12:00:00.000Z',
+  };
+
+  beforeEach(() => {
+    searchParams.mockReturnValue({ change: 'elemental' } as never);
+    mockAuth.profile = { tier: 'basic' };
+  });
+
+  it('explains that Basic lasts until the paid period ends', async () => {
+    mockGetSubscription.mockResolvedValue({ data: { subscription: activeBasic }, error: null });
+    renderScreen(<Subscribe />);
+
+    expect(await screen.findByText(/you keep Basic until (November 11, 2026|11 November 2026)/)).toBeTruthy();
+    expect(screen.getByText('Switch to TEI Elemental')).toBeTruthy();
+  });
+
+  it('cancels at period end and lets the user change their mind', async () => {
+    mockGetSubscription.mockResolvedValue({ data: { subscription: activeBasic }, error: null });
+    mockChangeSubscription.mockResolvedValue({
+      data: { subscription: { ...activeBasic, cancel_at_period_end: true }, tier: 'basic' },
+      error: null,
+    });
+    renderScreen(<Subscribe />);
+
+    fireEvent.press(await screen.findByText('Switch to Elemental'));
+
+    await waitFor(() => expect(mockChangeSubscription).toHaveBeenCalledWith('cancel'));
+    expect(await screen.findByText(/Done\. TEI Basic stays active until/)).toBeTruthy();
+    expect(mockReloadProfile).toHaveBeenCalled();
+    expect(screen.getByText('Keep TEI Basic')).toBeTruthy();
+  });
+
+  it('a scheduled switch offers Keep TEI Basic', async () => {
+    mockGetSubscription.mockResolvedValue({
+      data: { subscription: { ...activeBasic, cancel_at_period_end: true } }, error: null,
+    });
+    mockChangeSubscription.mockResolvedValue({ data: { subscription: activeBasic, tier: 'basic' }, error: null });
+    renderScreen(<Subscribe />);
+
+    fireEvent.press(await screen.findByText('Keep TEI Basic'));
+
+    await waitFor(() => expect(mockChangeSubscription).toHaveBeenCalledWith('resume'));
+    expect(await screen.findByText('You’re staying on TEI Basic.')).toBeTruthy();
+  });
+
+  it('a paid tier without a Stripe subscription switches straight away', async () => {
+    mockChangeSubscription.mockResolvedValue({ data: { subscription: null, tier: 'elemental' }, error: null });
+    renderScreen(<Subscribe />);
+
+    expect(await screen.findByText(/Switching takes effect straight away/)).toBeTruthy();
+    fireEvent.press(screen.getByText('Switch to Elemental'));
+
+    expect(await screen.findByText('Done. You’re now on TEI Elemental.')).toBeTruthy();
+  });
+
+  it('shows the server error and keeps the button', async () => {
+    mockGetSubscription.mockResolvedValue({ data: { subscription: activeBasic }, error: null });
+    mockChangeSubscription.mockResolvedValue({ data: null, error: 'Stripe is not configured.' });
+    renderScreen(<Subscribe />);
+
+    fireEvent.press(await screen.findByText('Switch to Elemental'));
+
+    expect(await screen.findByText('Stripe is not configured.')).toBeTruthy();
+    expect(screen.getByText('Switch to Elemental')).toBeTruthy();
   });
 });

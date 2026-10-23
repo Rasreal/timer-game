@@ -259,9 +259,11 @@ describe('Profile', () => {
         expect(screen.queryByLabelText('Light Mode')).toBeNull();
       });
 
-      it('still offers Upgrade', () => {
+      it('offers Change Subscription instead of Upgrade, so stepping down is findable', () => {
         renderMain(<Profile />);
-        expect(screen.getByText('Upgrade')).toBeTruthy();
+        expect(screen.queryByText('Upgrade')).toBeNull();
+        fireEvent.press(screen.getByText('Change Subscription'));
+        expect(router.push).toHaveBeenCalledWith('/account-type');
       });
     });
 
@@ -285,9 +287,10 @@ describe('Profile', () => {
         expect(screen.getByLabelText('Light Mode')).not.toBeSelected();
       });
 
-      it('has NO Upgrade button — it is already the top tier', () => {
+      it('has no Upgrade button but can still change subscription', () => {
         renderMain(<Profile />);
         expect(screen.queryByText('Upgrade')).toBeNull();
+        expect(screen.getByText('Change Subscription')).toBeTruthy();
       });
     });
 

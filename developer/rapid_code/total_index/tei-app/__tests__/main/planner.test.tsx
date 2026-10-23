@@ -4,6 +4,7 @@ import Planner from '../../app/planner';
 import { useAuth } from '../../src/auth';
 import * as plans from '../../src/lib/plans';
 import { dayKey, makeAuth, makeProfile, makePlan, renderMain } from '../helpers/mainRender';
+import { dayLabel } from '../../src/components/DatePicker';
 
 jest.mock('../../src/lib/supabase');
 jest.mock('../../src/lib/sessions');
@@ -373,17 +374,57 @@ describe('Planner (7-day)', () => {
     });
   });
 
-  // SUSPECTED BUG: the start-date row looks tappable (Pressable, its own
-  // accessibility label, press opacity) but only toasts — the date picker was
-  // never wired up, so the start date can only be changed by re-navigating.
-  it('SUSPECTED BUG: the Start Date row is a dead button that only toasts', async () => {
+  it('the Start Date row opens a date-only picker with no past days', async () => {
     await renderPlanner();
     fireEvent.press(screen.getByLabelText('Start date, May 4, 2026'));
 
-    expect(screen.getByTestId('toast')).toHaveTextContent(
-      'Date picking is not wired up in the prototype.',
+    const today = new Date();
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    expect(
+      screen.getByLabelText(dayLabel(today)).props.accessibilityState?.disabled,
+    ).toBe(false);
+    if (yesterday.getMonth() === today.getMonth()) {
+      expect(
+        screen.getByLabelText(dayLabel(yesterday)).props.accessibilityState?.disabled,
+      ).toBe(true);
+    }
+    expect(
+      screen.getByLabelText('Previous month').props.accessibilityState?.disabled,
+    ).toBe(true);
+    // Plans are per day, so no time controls.
+    expect(screen.queryByLabelText(/^Time, /)).toBeNull();
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('a picked start date moves the week and reloads its plans', async () => {
+    await renderPlanner();
+    const now = new Date();
+    const picked = new Date(now.getFullYear(), now.getMonth() + 1, 10);
+    listPlans.mockClear();
+
+    fireEvent.press(screen.getByLabelText('Start date, May 4, 2026'));
+    fireEvent.press(screen.getByLabelText('Next month'));
+    fireEvent.press(screen.getByLabelText(dayLabel(picked)));
+    fireEvent.press(screen.getByText('Done'));
+
+    await waitFor(() =>
+      expect(listPlans).toHaveBeenCalledWith(
+        dayKey(picked),
+        dayKey(new Date(picked.getFullYear(), picked.getMonth(), picked.getDate() + 7)),
+      ),
     );
+    expect(screen.getByText(dayLabel(picked))).toBeTruthy();
+    expect(screen.getByLabelText(`Start date, ${dayLabel(picked)}`)).toBeTruthy();
+  });
+
+  it('cancelling the start-date picker keeps the week', async () => {
+    await renderPlanner();
+    listPlans.mockClear();
+    fireEvent.press(screen.getByLabelText('Start date, May 4, 2026'));
+    fireEvent.press(screen.getByText('Cancel'));
+    await act(async () => {});
     expect(screen.getByText('May 4, 2026')).toBeTruthy();
+    expect(listPlans).not.toHaveBeenCalled();
   });
 
   it('surfaces a load error', async () => {

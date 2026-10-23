@@ -22,7 +22,7 @@ const INITIAL_METRICS = {
  * jest.mock()'d by the individual test file so nothing touches the network.
  */
 
-export type SessionSeed = Partial<Omit<SessionDraft, 'date'>>;
+export type SessionSeed = Partial<Omit<SessionDraft, 'date' | 'dateChosen'>>;
 
 export interface StoreHandle {
   /** Write one variable into the session draft. */

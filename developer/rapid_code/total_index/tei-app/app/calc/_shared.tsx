@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, Ellipsis, OutlineButton } from '../../src/components/Chrome';
+import { DatePicker } from '../../src/components/DatePicker';
 import { useAuth } from '../../src/auth';
 import { formatSessionDate, useStore } from '../../src/store';
 import { saveSession } from '../../src/lib/sessions';
@@ -67,7 +68,7 @@ export function CalcShell({
   // instead of logging a session that already happened.
   const { plan: planDay } = useLocalSearchParams<{ plan?: string }>();
   const insets = useSafeAreaInsets();
-  const { session, showToast, targetRange } = useStore();
+  const { session, setSessionDate, showToast, targetRange } = useStore();
   const { profile } = useAuth();
   const [tei, setTei] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -75,6 +76,7 @@ export function CalcShell({
   // second press must not write a duplicate row.
   const [saved, setSaved] = useState(false);
   const [rangeError, setRangeError] = useState<string | null>(null);
+  const [pickingDate, setPickingDate] = useState(false);
   const accent = useAccent();
 
   // These four calculators ship with TEI Premium only. `profile` is null while
@@ -187,9 +189,10 @@ export function CalcShell({
 
     const { error } = await saveSession({
       userId: profile.id,
-      // Stamp at save time: `session.date` is set when the draft is created,
-      // which is not necessarily when the training happened.
-      performedAt: new Date().toISOString(),
+      // A date the user picked is when the training happened. Otherwise stamp
+      // at save time: `session.date` is set when the draft is created, which
+      // is not necessarily when the training happened.
+      performedAt: session.dateChosen ? session.date : new Date().toISOString(),
       cardioMinutes: saveFields.cardioMinutes,
       sets: saveFields.sets ?? null,
       restSeconds: saveFields.restSeconds ?? null,
@@ -271,7 +274,7 @@ export function CalcShell({
           <CalendarGlyph />
           <Text style={styles.sessionLabelText}>This Session</Text>
           <Ellipsis
-            onPress={() => showToast('Date picking is not wired up on this calculator yet.')}
+            onPress={() => setPickingDate(true)}
             color="#8A8A8A"
             size={20}
             label="Change session date"
@@ -279,6 +282,20 @@ export function CalcShell({
         </View>
         <Text style={styles.sessionDate}>{formatSessionDate(session.date)}</Text>
       </View>
+
+      <DatePicker
+        visible={pickingDate}
+        title="This Session"
+        value={new Date(session.date)}
+        // A session is logged after the fact, so it can never be in the future.
+        maxDate={new Date()}
+        withTime
+        onCancel={() => setPickingDate(false)}
+        onConfirm={(d) => {
+          setPickingDate(false);
+          setSessionDate(d.toISOString());
+        }}
+      />
 
       <View style={[styles.rings, tightRings && styles.ringsTight]}>{children}</View>
 

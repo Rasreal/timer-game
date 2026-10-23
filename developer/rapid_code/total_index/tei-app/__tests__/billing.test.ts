@@ -4,6 +4,7 @@ jest.mock('../src/lib/supabase', () => ({
 
 import { supabase } from '../src/lib/supabase';
 import {
+  changeSubscription,
   createBillingPortal,
   createCheckoutSession,
   getSubscription,
@@ -57,5 +58,15 @@ describe('Stripe billing function client', () => {
       body: { returnUrl: 'tei://subscribe' },
     });
     expect(mockInvoke).toHaveBeenNthCalledWith(2, 'get-subscription', { body: undefined });
+  });
+
+  it('asks the server to schedule or undo the switch to Elemental', async () => {
+    mockInvoke.mockResolvedValue({ data: { subscription: null, tier: 'elemental' }, error: null });
+
+    await expect(changeSubscription('cancel')).resolves.toEqual({
+      data: { subscription: null, tier: 'elemental' },
+      error: null,
+    });
+    expect(mockInvoke).toHaveBeenCalledWith('change-subscription', { body: { action: 'cancel' } });
   });
 });

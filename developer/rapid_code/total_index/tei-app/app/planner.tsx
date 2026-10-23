@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, DarkButton, Divider } from '../src/components/Chrome';
+import { DatePicker } from '../src/components/DatePicker';
 import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
 import {
@@ -52,6 +53,7 @@ export default function Planner() {
   const [saving, setSaving] = useState(false);
   const [clearing, setClearing] = useState<string | null>(null);
   const [askAnotherWeek, setAskAnotherWeek] = useState(false);
+  const [pickingStart, setPickingStart] = useState(false);
 
   // Planning is Premium-only. `profile` is null while it loads, so gate only
   // once it has arrived — otherwise a deep link bounces before the tier is known.
@@ -112,7 +114,7 @@ export default function Planner() {
   const plannedCount = days.filter((d) => plans[planDayKey(d)]).length;
 
   function pickDate() {
-    showToast('Date picking is not wired up in the prototype.');
+    setPickingStart(true);
   }
 
   function openDay(day: Date) {
@@ -268,6 +270,20 @@ export default function Planner() {
           </>
         )}
       </ScrollView>
+
+      <DatePicker
+        visible={pickingStart}
+        title="Start Date"
+        value={start}
+        // The plans table rejects past days, so a week can only start today
+        // or later.
+        minDate={new Date()}
+        onCancel={() => setPickingStart(false)}
+        onConfirm={(d) => {
+          setPickingStart(false);
+          setStart(d);
+        }}
+      />
 
       <Modal
         visible={askAnotherWeek}

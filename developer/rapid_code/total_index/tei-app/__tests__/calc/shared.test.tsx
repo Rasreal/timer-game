@@ -16,8 +16,12 @@ import {
   displayTei,
 } from '../../src/lib/tei';
 import { colors } from '../../src/theme';
-import { useStore } from '../../src/store';
+import { formatSessionDate, useStore } from '../../src/store';
 import { makeAuth, renderCalc } from '../helpers/calcRender';
+import {
+  pickFifteenthOfLastMonth,
+  todayAndTomorrowCells,
+} from '../helpers/datePicker';
 
 jest.mock('../../src/lib/supabase', () => ({ supabase: {} }));
 jest.mock('../../src/auth', () => ({ useAuth: jest.fn() }));
@@ -566,12 +570,48 @@ describe('CalcShell — navigation and stubs', () => {
     expect(router.replace).not.toHaveBeenCalledWith('/home');
   });
 
-  // NOT PORTED: the session-date ellipsis is an acknowledged stub.
-  it('the session-date ellipsis only toasts that it is unimplemented', () => {
+});
+
+describe('CalcShell — session date', () => {
+  it('the session-date ellipsis opens a picker that allows no future days', () => {
     const { store } = renderShell();
     fireEvent.press(screen.getByLabelText('Change session date'));
-    expect(store.toast()).toBe(
-      'Date picking is not wired up on this calculator yet.',
-    );
+
+    const { today, tomorrow } = todayAndTomorrowCells();
+    expect(today.props.accessibilityState?.disabled).toBe(false);
+    if (tomorrow) expect(tomorrow.props.accessibilityState?.disabled).toBe(true);
+    expect(
+      screen.getByLabelText('Next month').props.accessibilityState?.disabled,
+    ).toBe(true);
+    expect(store.toast()).toBeNull();
+  });
+
+  it('a picked date replaces the shown date and is what SAVE stamps', async () => {
+    const { store } = renderShell({ tei: 16.5 });
+    expect(store.current().dateChosen).toBeFalsy();
+
+    fireEvent.press(screen.getByLabelText('Change session date'));
+    const picked = pickFifteenthOfLastMonth(new Date(store.current().date));
+
+    expect(store.current().date).toBe(picked.toISOString());
+    expect(store.current().dateChosen).toBe(true);
+    expect(screen.getByText(formatSessionDate(picked.toISOString()))).toBeTruthy();
+
+    pressCalculate();
+    pressSave();
+    await waitFor(() => expect(saveSession).toHaveBeenCalled());
+    expect(
+      (saveSession as jest.Mock).mock.calls[0][0].performedAt,
+    ).toBe(picked.toISOString());
+  });
+
+  it('cancelling the picker leaves the date alone', () => {
+    const { store } = renderShell();
+    const before = store.current().date;
+    fireEvent.press(screen.getByLabelText('Change session date'));
+    fireEvent.press(screen.getByLabelText('Previous month'));
+    fireEvent.press(screen.getByText('Cancel'));
+    expect(store.current().date).toBe(before);
+    expect(store.current().dateChosen).toBeFalsy();
   });
 });

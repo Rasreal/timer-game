@@ -15,6 +15,11 @@ import {
   Ellipsis,
   OutlineButton,
 } from '../src/components/Chrome';
+import {
+  InDevelopmentBadge,
+  PremiumWaitlistForm,
+  WAITLIST_YELLOW,
+} from '../src/components/PremiumWaitlist';
 import { useAuth } from '../src/auth';
 import { useStore, type Tier } from '../src/store';
 import { colors, useAccent } from '../src/theme';
@@ -30,12 +35,26 @@ export default function AccountType() {
   const { setPendingTier, showToast } = useStore();
   const { session, profile } = useAuth();
   const [showFeatures, setShowFeatures] = useState(false);
+  // Premium is in development, so choosing it opens the WAITLIST form over
+  // whichever surface offered it (this screen or "The 3 TEI" sheet).
+  const [waitlistOver, setWaitlistOver] = useState<'screen' | 'sheet' | null>(null);
   const accent = useAccent();
 
   // Two modes: picking a tier during sign-up, or switching tier afterwards.
   const signedIn = session != null;
+  const currentTier = signedIn ? profile?.tier : undefined;
+
+  function waitlistSent() {
+    setWaitlistOver(null);
+    showToast('You’re on the TEI Premium waitlist. Pick a TEI for now.');
+  }
 
   async function choose(tier: Tier) {
+    if (tier === 'premium' && currentTier !== 'premium') {
+      setWaitlistOver(showFeatures ? 'sheet' : 'screen');
+      return;
+    }
+
     setShowFeatures(false);
 
     if (!signedIn) {
@@ -50,7 +69,7 @@ export default function AccountType() {
     }
 
     if (tier === 'elemental') {
-      router.push('/subscribe?manage=1' as never);
+      router.push('/subscribe?change=elemental' as never);
       return;
     }
     router.push(`/subscribe?tier=${tier}` as never);
@@ -79,7 +98,11 @@ export default function AccountType() {
           provide?
         </Text>
 
-        {signedIn && <Text style={[styles.switchNote, { color: accent }]}>Secure payment and billing are managed by Stripe.</Text>}
+        {signedIn && currentTier && (
+          <Text style={[styles.switchNote, { color: accent }]}>
+            You’re on TEI {label(currentTier)}. Tap another plan to switch.
+          </Text>
+        )}
 
         <TierRow
           label="Helpful"
@@ -101,16 +124,34 @@ export default function AccountType() {
           onEllipsis={() => setShowFeatures(true)}
         />
         <Divider style={{ marginVertical: 24, marginHorizontal: 34 }} />
+        {/* Premium is in development: the yellow row offers the WAITLIST.
+            Accounts already on Premium keep seeing it as their plan. */}
         <TierRow
           label="Transformative"
-          current={profile?.tier === 'premium'}
+          current={currentTier === 'premium'}
           busy={false}
           subPrefix="TEI"
-          subText=" Premium - $11 per month"
+          subText=" Premium - "
+          subEmphasis="WAITLIST"
+          highlight={currentTier === 'premium' ? undefined : WAITLIST_YELLOW}
           onSelect={() => choose('premium')}
           onEllipsis={() => setShowFeatures(true)}
         />
       </ScrollView>
+
+      {waitlistOver === 'screen' && (
+        <Modal
+          visible
+          animationType="slide"
+          transparent
+          onRequestClose={() => setWaitlistOver(null)}
+        >
+          <PremiumWaitlistForm
+            onClose={() => setWaitlistOver(null)}
+            onSent={waitlistSent}
+          />
+        </Modal>
+      )}
 
       <Modal
         visible={showFeatures}
@@ -119,6 +160,14 @@ export default function AccountType() {
         onRequestClose={() => setShowFeatures(false)}
       >
         <TheThreeTei onClose={() => setShowFeatures(false)} onChoose={choose} />
+        {/* Drawn inside the sheet's Modal rather than as a second Modal, so
+            sending returns the user to the sheet underneath. */}
+        {waitlistOver === 'sheet' && (
+          <PremiumWaitlistForm
+            onClose={() => setWaitlistOver(null)}
+            onSent={waitlistSent}
+          />
+        )}
       </Modal>
     </View>
   );
@@ -128,6 +177,8 @@ function TierRow({
   label,
   subPrefix,
   subText,
+  subEmphasis,
+  highlight,
   onSelect,
   onEllipsis,
   current = false,
@@ -136,6 +187,10 @@ function TierRow({
   label: string;
   subPrefix: string;
   subText: string;
+  /** Bold tail of the subline, e.g. "WAITLIST". */
+  subEmphasis?: string;
+  /** Outline and subline colour that sets this row apart (Premium's yellow). */
+  highlight?: string;
   onSelect: () => void;
   onEllipsis: () => void;
   /** True when this is the signed-in user's active plan. */
@@ -158,6 +213,7 @@ function TierRow({
           style={({ pressed }) => [
             styles.pill,
             { backgroundColor: pressed ? '#4a4a4a' : '#3A3A3A' },
+            highlight != null && { borderColor: highlight },
             current && [styles.pillCurrent, { borderColor: accent }],
           ]}
         >
@@ -166,9 +222,12 @@ function TierRow({
             {current && !busy && <Text style={[styles.pillCurrentTag, { color: accent }]}>  ✓</Text>}
           </Text>
         </Pressable>
-        <Text style={styles.pillSub}>
+        <Text style={[styles.pillSub, highlight != null && { color: highlight }]}>
           <Text style={{ fontWeight: '700' }}>{subPrefix}</Text>
           {subText}
+          {subEmphasis && (
+            <Text style={{ fontWeight: '800', letterSpacing: 0.6 }}>{subEmphasis}</Text>
+          )}
         </Text>
       </View>
     </View>
@@ -184,10 +243,6 @@ function TheThreeTei({
   onChoose: (t: Tier) => void;
 }) {
   const insets = useSafeAreaInsets();
-  // The per-plan SELECT pills commit immediately; the primary CTA at the foot
-  // commits whichever plan is currently highlighted, so it needs its own
-  // selection state. Nothing is preselected — the sheet is an explainer first.
-  const [picked, setPicked] = useState<Tier | null>(null);
   return (
     <View style={{ flex: 1, justifyContent: 'flex-end' }}>
       <View style={styles.sheet}>
@@ -218,65 +273,47 @@ function TheThreeTei({
             name="TEI Elemental"
             price="$0 per month"
             onSelect={() => onChoose('elemental')}
-            onHighlight={() => setPicked('elemental')}
-            picked={picked === 'elemental'}
-            features={[
-              {
-                title: 'Standard TEI Calculator',
-                body: 'Calculate the Total Effect Index value for each of your training sessions.',
-              },
-            ]}
+            tagline="Calculate Your Workload"
+            intro="Use the Standard TEI Calculator to give each strength training session a numerical workload value."
           />
           <PlanBlock
             name="TEI Basic"
             price="$5 per month"
             onSelect={() => onChoose('basic')}
-            onHighlight={() => setPicked('basic')}
-            picked={picked === 'basic'}
+            tagline="Calculate. Save. Review."
+            intro="Everything in Elemental, plus:"
             features={[
-              {
-                title: 'Standard TEI Calculator',
-                body: 'Calculate the Total Effect Index value for each of your training sessions.',
-              },
-              {
-                title: 'Save All Session TEI Values',
-                body: 'Review previous training session values to manage your conditioning workload and avoid injury.',
-              },
+              'Save Your Sessions - Build a history of your TEI values.',
+              'Review Your Workload - Compare past sessions to better understand your training efforts.',
             ]}
           />
           <PlanBlock
             name="TEI Premium"
             price="$11 per month"
             onSelect={() => onChoose('premium')}
-            onHighlight={() => setPicked('premium')}
-            picked={picked === 'premium'}
+            waitlist
+            tagline="Measure. Understand. Plan."
+            intro="Everything in Basic, plus:"
             features={[
-              {
-                title: 'Choose from 5 Different Training Formats',
-                body: 'Choose from 5 Different Training Session Formats and Calculate the Total Effect Index value for each of your unique training sessions.',
-              },
-              {
-                title: 'Progress Bars and Quick References',
-                body: 'Many points throughout the App have visual references that will help you make quick decisions about YOUR training session needs.',
-              },
-              {
-                title: 'Save & Track Your Week, Month, Year, etc...',
-                body: 'Review & manage your total training load period to period, to know when to adjust or modify your plan - know when to push and when to recover to BE Your Best.',
-              },
-              {
-                title: 'Workload Designer & Planner',
-                body: 'Design and Plan your training workloads and plug it into your calendar to help you know when and how to do what it takes to maximize your fitness and conditioning results.',
-              },
+              '5 Training Formats - Measure workload across different types of training.',
+              'Progress Bars & Quick References - Visual guidance to help interpret your training.',
+              'Track Your Workload - Review accumulated training load and recognize patterns over time.',
+              'Workload Designer & Planner - Plan future training workloads and compare your intentions with your efforts.',
+              'Personalize Your TEI \u2014 Choose from 11 accent colors to make the experience your own.',
             ]}
           />
 
+          <Text style={styles.sheetSlogan}>
+            Your Training. Your Workload. Your Intelligence.
+          </Text>
+
+          {/* Returns to the Account Type Selection screen, where the user
+              picks a tier from the three pills. */}
           <OutlineButton
             title="Select Your TEI"
-            // Commits the highlighted plan. With nothing highlighted there is
-            // no plan to commit, so it just dismisses — never a stray choice.
-            onPress={() => (picked ? onChoose(picked) : onClose())}
+            onPress={onClose}
             fontSize={23}
-            style={{ marginTop: 22 }}
+            style={{ marginTop: 18, alignSelf: 'center', paddingHorizontal: 44 }}
           />
         </ScrollView>
       </View>
@@ -287,54 +324,68 @@ function TheThreeTei({
 function PlanBlock({
   name,
   price,
-  features,
+  tagline,
+  intro,
+  features = [],
   onSelect,
-  onHighlight,
-  picked = false,
+  waitlist = false,
 }: {
   name: string;
   price: string;
-  features: { title: string; body: string }[];
+  tagline: string;
+  intro: string;
+  features?: string[];
   onSelect: () => void;
-  /** Highlights this plan for the sheet's primary "Select Your TEI" button. */
-  onHighlight: () => void;
-  picked?: boolean;
+  /** In development: dimmed price, IN DEVELOPMENT badge, WAITLIST pill. */
+  waitlist?: boolean;
 }) {
   const accent = useAccent();
+  const pillColor = waitlist ? WAITLIST_YELLOW : accent;
 
   return (
     <View style={{ marginTop: 22 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Pressable
-          onPress={onHighlight}
-          accessibilityRole="button"
-          accessibilityLabel={`Highlight ${name}`}
-          accessibilityState={{ selected: picked }}
-          style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+        <Text style={[styles.planName, { color: accent }]}>{name}</Text>
+        <Text
+          style={[
+            styles.planPrice,
+            { color: waitlist ? '#8A8A8A' : accent },
+          ]}
         >
-          <Text
-            style={[
-              styles.planName,
-              { color: accent },
-              picked && styles.planNamePicked,
-            ]}
+          {price}
+        </Text>
+        {!waitlist && (
+          <Pressable
+            onPress={onSelect}
+            accessibilityRole="button"
+            accessibilityLabel={`Select ${name}`}
+            style={[styles.selectBtn, { borderColor: pillColor }]}
           >
-            {name}
-          </Text>
-          <Text style={[styles.planPrice, { color: accent }]}>{price}</Text>
-        </Pressable>
-        <Pressable
-          onPress={onSelect}
-          accessibilityRole="button"
-          style={[styles.selectBtn, { borderColor: accent }]}
-        >
-          <Text style={[styles.selectText, { color: accent }]}>SELECT</Text>
-        </Pressable>
+            <Text style={[styles.selectText, { color: pillColor }]}>SELECT</Text>
+          </Pressable>
+        )}
       </View>
+      {waitlist && (
+        <View style={styles.waitlistRow}>
+          <InDevelopmentBadge />
+          <Pressable
+            onPress={onSelect}
+            accessibilityRole="button"
+            accessibilityLabel={`Join the ${name} waitlist`}
+            style={[styles.selectBtn, { borderColor: pillColor }]}
+          >
+            <Text style={[styles.selectText, styles.waitlistText, { color: pillColor }]}>
+              WAITLIST
+            </Text>
+          </Pressable>
+        </View>
+      )}
+      <Text style={styles.planTagline}>{tagline}</Text>
+      <Text style={styles.featBody}>{intro}</Text>
       {features.map((f) => (
-        <View key={f.title} style={{ marginTop: 12 }}>
-          <Text style={styles.featTitle}>• {f.title}</Text>
-          <Text style={styles.featBody}>{f.body}</Text>
+        <View key={f} style={styles.bulletRow}>
+          <Text style={styles.featBody}>•</Text>
+          <Text style={[styles.featBody, { flex: 1 }]}>{f}</Text>
         </View>
       ))}
     </View>
@@ -408,7 +459,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: -0.5,
   },
-  planNamePicked: { color: colors.text, fontWeight: '700' },
   planPrice: {
     fontSize: 14,
     fontStyle: 'italic',
@@ -421,6 +471,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   selectText: { fontSize: 12, letterSpacing: 0.4 },
-  featTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
+  waitlistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  waitlistText: { fontWeight: '800', letterSpacing: 1 },
+  planTagline: { color: colors.text, fontSize: 17, fontWeight: '700', marginTop: 6 },
   featBody: { color: '#D2D2D2', fontSize: 15.5, lineHeight: 21 },
+  bulletRow: { flexDirection: 'row', gap: 8, paddingLeft: 8, marginTop: 3 },
+  sheetSlogan: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 26,
+  },
 });

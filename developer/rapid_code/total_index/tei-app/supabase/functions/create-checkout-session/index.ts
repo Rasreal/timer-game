@@ -16,6 +16,11 @@ Deno.serve(async (req) => {
   try {
     const { tier, successUrl, cancelUrl } = await req.json();
     if (!isPaidTier(tier)) return json({ error: 'Choose TEI Basic or Premium.' }, 400);
+    // Premium is in development and offered as a waitlist. Set the secret
+    // PREMIUM_CHECKOUT_ENABLED=true to start selling it again.
+    if (tier === 'premium' && Deno.env.get('PREMIUM_CHECKOUT_ENABLED') !== 'true') {
+      return json({ error: 'TEI Premium is in development. Join the waitlist to hear when it opens.' }, 409);
+    }
     if (!validReturnUrl(successUrl) || !validReturnUrl(cancelUrl)) {
       return json({ error: 'Invalid checkout return URL.' }, 400);
     }

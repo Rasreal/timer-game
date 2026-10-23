@@ -48,29 +48,33 @@ describe('app/index.tsx — Onboarding Launch Screen', () => {
     renderScreen(<Launch />);
     fireEvent.press(screen.getByText(/What is/));
 
-    expect(screen.getByText('Turn every workout into a score.')).toBeTruthy();
+    expect(
+      screen.getByText('Know the work. Understand the impact.'),
+    ).toBeTruthy();
     expect(
       screen.getByText(
-        'TEI (Total Effect Index) gives each workout a numerical value so you can measure effectiveness, avoid overtraining, and improve consistently.',
+        /brings Workload Intelligence to your training\. By measuring individual workouts and cumulative training load/,
       ),
     ).toBeTruthy();
     expect(screen.getByText('How it Works...')).toBeTruthy();
     expect(screen.getByText('1. Score Your Workout')).toBeTruthy();
     expect(
-      screen.getByText('Sets, rest, and cardio are combined into one daily value'),
+      screen.getByText('Sets, rest, and cardio contribute to one daily value.'),
+    ).toBeTruthy();
+    expect(screen.getByText('2. Track Your Training Load')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'See how your workload accumulates over days, weeks, and months.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText('3. Understand & Adjust')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Compare workloads, recognize trends, and make informed training decisions.',
+      ),
     ).toBeTruthy();
     expect(
-      screen.getByText('2. Track Your Week, Month, Year, etc...'),
-    ).toBeTruthy();
-    expect(
-      screen.getByText('Daily scores build your total training load'),
-    ).toBeTruthy();
-    expect(screen.getByText('3. Adjust & Improve')).toBeTruthy();
-    expect(
-      screen.getByText('Know when to push, recover, and get better results'),
-    ).toBeTruthy();
-    expect(
-      screen.getByText('Stop guessing. Start training with data.'),
+      screen.getByText('Train with Intention.\nProgress with Intelligence.'),
     ).toBeTruthy();
     expect(screen.getByText('See My TEI')).toBeTruthy();
   });

@@ -13,6 +13,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow } from '../src/components/Chrome';
 import { useAuth } from '../src/auth';
 import {
+  PremiumWaitlistForm,
+  WAITLIST_YELLOW,
+} from '../src/components/PremiumWaitlist';
+import {
+  changeSubscription,
   confirmCheckoutSession,
   createBillingPortal,
   createCheckoutSession,
@@ -39,6 +44,140 @@ function periodEndLabel(value: string | null): string {
 }
 
 export default function Subscribe() {
+  const params = useLocalSearchParams<{ tier?: string; change?: string; stripe_checkout?: string }>();
+  if (params.change === 'elemental') return <SwitchToElemental />;
+  // A Checkout started before Premium was paused may still return here, and
+  // must still be confirmed.
+  if (params.tier === 'premium' && !params.stripe_checkout) return <PremiumInDevelopment />;
+  return <Checkout />;
+}
+
+/**
+ * Downgrade to the free tier. Cancelling keeps the paid tier until the end of
+ * the period already paid for; the Stripe webhook then moves the account to
+ * Elemental. Until then the user can change their mind.
+ */
+function SwitchToElemental() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { profile, reloadProfile } = useAuth();
+  const [subscription, setSubscription] = useState<SubscriptionSnapshot | null>(null);
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void getSubscription().then((result) => {
+      if (!live) return;
+      setBusy(false);
+      if (result.error) setError(result.error);
+      else setSubscription(result.data?.subscription ?? null);
+    });
+    return () => { live = false; };
+  }, []);
+
+  const live = subscription && ['active', 'trialing', 'past_due'].includes(subscription.status);
+  const paidName = (live ? subscription.tier : profile?.tier) === 'premium' ? 'Premium' : 'Basic';
+  const endsOn = periodEndLabel(subscription?.current_period_end ?? null);
+  const scheduled = Boolean(live && subscription.cancel_at_period_end);
+  const onElemental = profile?.tier === 'elemental' && !live;
+
+  async function change(action: 'cancel' | 'resume') {
+    setBusy(true);
+    setError(null);
+    const result = await changeSubscription(action);
+    setBusy(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    setSubscription(result.data?.subscription ?? null);
+    reloadProfile();
+    if (action === 'resume') setNotice(`You’re staying on TEI ${paidName}.`);
+    else if (result.data?.subscription) {
+      setNotice(`Done. TEI ${paidName} stays active until ${endsOn}, then your account moves to TEI Elemental.`);
+    } else setNotice('Done. You’re now on TEI Elemental.');
+  }
+
+  let copy: string;
+  if (onElemental) copy = 'You’re on TEI Elemental, the free TEI.';
+  else if (scheduled) {
+    copy = `Your switch to TEI Elemental is scheduled. TEI ${paidName} stays active until ${endsOn}, and you won’t be charged again.`;
+  } else if (live) {
+    copy = `TEI Elemental is free. Switching cancels your TEI ${paidName} subscription: you keep ${paidName} until ${endsOn}, then your account moves to Elemental and you won’t be charged again. Your saved sessions stay in your account.`;
+  } else {
+    copy = 'TEI Elemental is free. Switching takes effect straight away. Your saved sessions stay in your account.';
+  }
+
+  return (
+    <View style={[styles.page, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 24 }]}>
+      <BackArrow onPress={() => (router.canGoBack() ? router.back() : router.replace('/profile'))} color={colors.orange} />
+      <Text style={styles.kicker}>TEI MEMBERSHIP</Text>
+      <Text style={styles.title}>Switch to TEI Elemental</Text>
+      {busy && !notice ? <ActivityIndicator color={colors.orange} size="large" style={{ marginTop: 32 }} /> : (
+        <>
+          <Text style={styles.copy}>{copy}</Text>
+          {notice && <Text style={styles.notice}>{notice}</Text>}
+          {error && <Text style={styles.error}>{error}</Text>}
+          {!onElemental && (
+            <Pressable
+              accessibilityRole="button"
+              disabled={busy}
+              onPress={() => void change(scheduled ? 'resume' : 'cancel')}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>
+                {busy ? 'Working…' : scheduled ? `Keep TEI ${paidName}` : 'Switch to Elemental'}
+              </Text>
+            </Pressable>
+          )}
+          <Pressable accessibilityRole="button" onPress={() => router.replace('/home')} style={styles.secondary}>
+            <Text style={styles.secondaryText}>Back to Home</Text>
+          </Pressable>
+        </>
+      )}
+    </View>
+  );
+}
+
+/** Premium is not on sale yet; anyone who reaches its checkout gets the waitlist. */
+function PremiumInDevelopment() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [showForm, setShowForm] = useState(false);
+  const [joined, setJoined] = useState(false);
+
+  return (
+    <View style={[styles.page, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 24 }]}>
+      <BackArrow onPress={() => (router.canGoBack() ? router.back() : router.replace('/account-type'))} color={colors.orange} />
+      <Text style={styles.kicker}>TEI MEMBERSHIP</Text>
+      <Text style={styles.title}>TEI Premium</Text>
+      <Text style={styles.copy}>
+        TEI Premium is in development. Join the waitlist and we’ll let you know as soon as it’s ready.
+      </Text>
+      {joined && <Text style={styles.notice}>You’re on the TEI Premium waitlist.</Text>}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => (joined ? router.replace('/account-type') : setShowForm(true))}
+        style={[styles.button, { backgroundColor: WAITLIST_YELLOW }]}
+      >
+        <Text style={styles.buttonText}>{joined ? 'Pick a TEI for now' : 'Join the WAITLIST'}</Text>
+      </Pressable>
+      {showForm && (
+        <PremiumWaitlistForm
+          onClose={() => setShowForm(false)}
+          onSent={() => {
+            setShowForm(false);
+            setJoined(true);
+          }}
+        />
+      )}
+    </View>
+  );
+}
+
+function Checkout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ tier?: string; stripe_checkout?: string; session_id?: string }>();
@@ -239,6 +378,8 @@ const styles = StyleSheet.create({
   error: { color: '#ff9b9b', fontSize: 16, lineHeight: 23, marginTop: 18 },
   button: { backgroundColor: '#fff', marginTop: 30, paddingVertical: 17, paddingHorizontal: 18 },
   buttonText: { color: '#1d1d1d', fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  secondary: { alignSelf: 'center', marginTop: 22, padding: 6 },
+  secondaryText: { color: '#b8b8b8', fontSize: 16 },
   finePrint: { color: '#b8b8b8', fontSize: 13, lineHeight: 19, marginTop: 14, textAlign: 'center' },
   checkoutHeader: { alignItems: 'center', flexDirection: 'row', paddingHorizontal: 18, paddingVertical: 12 },
   checkoutTitle: { color: '#222', flex: 1, fontSize: 17, fontWeight: '600', textAlign: 'center' },

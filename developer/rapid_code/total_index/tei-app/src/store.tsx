@@ -25,6 +25,11 @@ export interface SessionDraft {
   yogaMinutes: number | null;
   /** ISO timestamp for the session being logged. */
   date: string;
+  /**
+   * True once the user has picked `date` themselves. Until then it is only
+   * when the draft was created, so saving stamps the save time instead.
+   */
+  dateChosen?: boolean;
 }
 
 /**
@@ -47,7 +52,7 @@ interface Store {
   setTargetRange: (label: string | null) => void;
   session: SessionDraft;
   setSessionField: (
-    field: keyof Omit<SessionDraft, 'date'>,
+    field: keyof Omit<SessionDraft, 'date' | 'dateChosen'>,
     value: number | null,
   ) => void;
   setSessionDate: (iso: string) => void;
@@ -80,14 +85,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<string | null>(null);
 
   const setSessionField = useCallback(
-    (field: keyof Omit<SessionDraft, 'date'>, value: number | null) => {
+    (field: keyof Omit<SessionDraft, 'date' | 'dateChosen'>, value: number | null) => {
       setSession((s) => ({ ...s, [field]: value }));
     },
     [],
   );
 
   const setSessionDate = useCallback((iso: string) => {
-    setSession((s) => ({ ...s, date: iso }));
+    setSession((s) => ({ ...s, date: iso, dateChosen: true }));
   }, []);
 
   const resetSession = useCallback(() => setSession(emptySession()), []);

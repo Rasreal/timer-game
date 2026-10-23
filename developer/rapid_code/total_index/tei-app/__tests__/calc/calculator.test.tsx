@@ -17,6 +17,11 @@ import {
 } from '../../src/lib/tei';
 import { colors } from '../../src/theme';
 import { makeAuth, renderCalc } from '../helpers/calcRender';
+import {
+  pickFifteenthOfLastMonth,
+  todayAndTomorrowCells,
+} from '../helpers/datePicker';
+import { formatSessionDate } from '../../src/store';
 
 jest.mock('../../src/lib/supabase', () => ({ supabase: {} }));
 jest.mock('../../src/auth', () => ({ useAuth: jest.fn() }));
@@ -727,5 +732,49 @@ describe('calculator — effective ranges data', () => {
       'SEMI-ANNUAL',
       'ANNUAL',
     ]);
+  });
+});
+
+describe('calculator — session date', () => {
+  it.each(['elemental', 'basic', 'premium'] as const)(
+    'the ellipsis opens a picker with no future days on %s',
+    (tier) => {
+      auth(tier);
+      const { store } = renderCalc(<Calculator />);
+      fireEvent.press(screen.getByLabelText('Change session date'));
+
+      const { today, tomorrow } = todayAndTomorrowCells();
+      expect(today.props.accessibilityState?.disabled).toBe(false);
+      if (tomorrow) expect(tomorrow.props.accessibilityState?.disabled).toBe(true);
+      expect(screen.getByLabelText(/^Time, /)).toBeTruthy();
+      expect(store.toast()).toBeNull();
+    },
+  );
+
+  it('shows the picked date and saves the session on it', async () => {
+    auth('basic');
+    const { store } = renderCalc(<Calculator />, { seed: REFERENCE });
+
+    fireEvent.press(screen.getByLabelText('Change session date'));
+    const picked = pickFifteenthOfLastMonth(new Date(store.current().date));
+    expect(screen.getByText(formatSessionDate(picked.toISOString()))).toBeTruthy();
+
+    pressCalculate();
+    pressSave();
+    await waitFor(() => expect(saveSession).toHaveBeenCalled());
+    expect((saveSession as jest.Mock).mock.calls[0][0].performedAt).toBe(
+      picked.toISOString(),
+    );
+  });
+
+  it('picking a date keeps a calculated score', () => {
+    renderCalc(<Calculator />, { seed: REFERENCE });
+    pressCalculate();
+    const score = String(displayTei(calculateTei(REFERENCE).tei));
+    expect(screen.getByText(score)).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Change session date'));
+    fireEvent.press(screen.getByText('Done'));
+    expect(screen.getByText(score)).toBeTruthy();
   });
 });

@@ -54,3 +54,14 @@ export function confirmCheckoutSession(sessionId: string) {
     sessionId,
   });
 }
+
+/**
+ * `cancel` moves a paid account to Elemental when its paid period ends (at
+ * once if it has no live Stripe subscription); `resume` undoes a scheduled
+ * cancellation.
+ */
+export function changeSubscription(action: 'cancel' | 'resume') {
+  return invoke<{ subscription: SubscriptionSnapshot | null; tier: TeiTier }>('change-subscription', {
+    action,
+  });
+}

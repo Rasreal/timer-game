@@ -171,7 +171,12 @@ export interface Database {
       };
     };
     Views: Record<never, never>;
-    Functions: Record<never, never>;
+    Functions: {
+      join_premium_waitlist: {
+        Args: { waitlist_email: string; waitlist_name?: string };
+        Returns: undefined;
+      };
+    };
     Enums: {
       tei_tier: TeiTier;
     };

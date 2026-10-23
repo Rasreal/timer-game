@@ -97,6 +97,22 @@ Android App Links additionally need `assetlinks.json` with the release
 signing certificate's SHA-256 fingerprint; until then Android users get the
 page's "Open in the TEI app" button.
 
+## Premium waitlist and plan changes
+
+TEI Premium is in development, so the app offers a waitlist instead of selling
+it (migration `0010_premium_waitlist.sql`).
+
+- Sign-ups land in `public.premium_waitlist` through the
+  `join_premium_waitlist(email, name)` function, which anonymous visitors may
+  call. Nobody but the service role can read the table: view it in
+  **Table Editor → premium_waitlist**.
+- `create-checkout-session` refuses Premium until the Edge Function secret
+  `PREMIUM_CHECKOUT_ENABLED` is set to `true`.
+- `change-subscription` moves a paid account to Elemental. With a live Stripe
+  subscription it sets `cancel_at_period_end` (the webhook drops the tier when
+  the period ends) and `resume` undoes it; an account with a paid tier but no
+  Stripe subscription moves to Elemental immediately.
+
 ## Password policy and testing
 
 The UI requires a password with at least 8 characters, one uppercase letter,

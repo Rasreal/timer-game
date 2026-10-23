@@ -25,6 +25,12 @@ jest.mock('../../src/auth', () => ({
   }),
 }));
 
+const mockJoin = jest.fn<Promise<{ error: string | null }>, [string, string?]>();
+jest.mock('../../src/lib/waitlist', () => ({
+  ...jest.requireActual('../../src/lib/waitlist'),
+  joinPremiumWaitlist: (email: string, name?: string) => mockJoin(email, name),
+}));
+
 import AccountType from '../../app/account-type';
 
 beforeEach(() => {
@@ -32,6 +38,8 @@ beforeEach(() => {
   mockAuth.profile = null;
   mockChangeTier.mockReset();
   mockChangeTier.mockResolvedValue(null);
+  mockJoin.mockReset();
+  mockJoin.mockResolvedValue({ error: null });
 });
 
 describe('app/account-type.tsx — Account Type Selection (signed out)', () => {
@@ -61,14 +69,14 @@ describe('app/account-type.tsx — Account Type Selection (signed out)', () => {
 
     expect(screen.getByText(/Elemental - FREE/)).toBeTruthy();
     expect(screen.getByText(/Basic - \$5 per month/)).toBeTruthy();
-    expect(screen.getByText(/Premium - \$11 per month/)).toBeTruthy();
+    // Premium is in development, so its subline offers the waitlist.
+    expect(screen.getByText(/Premium -\s*WAITLIST/)).toBeTruthy();
+    expect(screen.queryByText(/\$11 per month/)).toBeNull();
   });
 
-  it('hides the signed-in Stripe billing note when signed out', () => {
+  it('hides the signed-in current-plan note when signed out', () => {
     renderScreen(<AccountType />);
-    expect(
-      screen.queryByText('Secure payment and billing are managed by Stripe.'),
-    ).toBeNull();
+    expect(screen.queryByText(/Tap another plan to switch/)).toBeNull();
   });
 
   it('Elemental (Helpful) pushes /create-account', () => {
@@ -77,25 +85,73 @@ describe('app/account-type.tsx — Account Type Selection (signed out)', () => {
     expect(router.push).toHaveBeenCalledWith('/create-account');
   });
 
-  // Basic and Premium are "dummy" only in that the prototype ships Elemental
-  // features; the buttons themselves are NOT no-ops — signed out, they take the
-  // identical path as Elemental (setPendingTier + push('/create-account')) with
-  // no paywall or "coming soon" gate anywhere in the source.
-  it('Basic (Insightful) also pushes /create-account — no payment gate', () => {
+  it('Basic (Insightful) also pushes /create-account', () => {
     renderScreen(<AccountType />);
     fireEvent.press(screen.getByText('Insightful'));
     expect(router.push).toHaveBeenCalledWith('/create-account');
   });
 
-  it('Premium (Transformative) also pushes /create-account — no payment gate', () => {
+  it('Premium (Transformative) opens the WAITLIST form instead of sign-up', () => {
     renderScreen(<AccountType />);
     fireEvent.press(screen.getByText('Transformative'));
-    expect(router.push).toHaveBeenCalledWith('/create-account');
+
+    expect(router.push).not.toHaveBeenCalled();
+    expect(screen.getByText(/TEI Premium is in development/)).toBeTruthy();
+    expect(screen.getByText('IN DEVELOPMENT')).toBeTruthy();
+  });
+
+  it('SEND joins the waitlist and returns to the tier choice', async () => {
+    renderScreen(<AccountType />);
+    fireEvent.press(screen.getByText('Transformative'));
+
+    fireEvent.changeText(screen.getByLabelText('Name'), 'Ken');
+    fireEvent.changeText(screen.getByLabelText('Email'), 'ken@example.com');
+    fireEvent.press(screen.getByLabelText('Send'));
+
+    await waitFor(() => expect(mockJoin).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.queryByText(/TEI Premium is in development/)).toBeNull(),
+    );
+    expect(mockJoin).toHaveBeenCalledWith('ken@example.com', 'Ken');
+    expect(screen.getByText('Helpful')).toBeTruthy();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('SEND stays disabled until the email looks valid', () => {
+    renderScreen(<AccountType />);
+    fireEvent.press(screen.getByText('Transformative'));
+
+    fireEvent.changeText(screen.getByLabelText('Email'), 'not-an-email');
+    fireEvent.press(screen.getByLabelText('Send'));
+
+    expect(mockJoin).not.toHaveBeenCalled();
+  });
+
+  it('a waitlist failure keeps the form open with the error', async () => {
+    mockJoin.mockResolvedValue({ error: 'Network down' });
+    renderScreen(<AccountType />);
+    fireEvent.press(screen.getByText('Transformative'));
+
+    fireEvent.changeText(screen.getByLabelText('Email'), 'ken@example.com');
+    fireEvent.press(screen.getByLabelText('Send'));
+
+    expect(await screen.findByText('Network down')).toBeTruthy();
+    expect(screen.getByText(/TEI Premium is in development/)).toBeTruthy();
+  });
+
+  it('the waitlist close button returns without joining', () => {
+    renderScreen(<AccountType />);
+    fireEvent.press(screen.getByText('Transformative'));
+
+    fireEvent.press(screen.getByLabelText('Close waitlist'));
+
+    expect(screen.queryByText(/TEI Premium is in development/)).toBeNull();
+    expect(mockJoin).not.toHaveBeenCalled();
   });
 
   it('signed out, choosing a tier never calls changeTier', () => {
     renderScreen(<AccountType />);
-    fireEvent.press(screen.getByText('Transformative'));
+    fireEvent.press(screen.getByText('Insightful'));
     expect(mockChangeTier).not.toHaveBeenCalled();
   });
 
@@ -140,57 +196,72 @@ describe('app/account-type.tsx — "The 3 TEI" features sheet', () => {
 
     expect(screen.getByText('TEI Elemental')).toBeTruthy();
     expect(screen.getByText('$0 per month')).toBeTruthy();
+    expect(screen.getByText('Calculate Your Workload')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Use the Standard TEI Calculator to give each strength training session a numerical workload value.',
+      ),
+    ).toBeTruthy();
+
     expect(screen.getByText('TEI Basic')).toBeTruthy();
     expect(screen.getByText('$5 per month')).toBeTruthy();
+    expect(screen.getByText('Calculate. Save. Review.')).toBeTruthy();
+    expect(screen.getByText('Everything in Elemental, plus:')).toBeTruthy();
+    expect(
+      screen.getByText('Save Your Sessions - Build a history of your TEI values.'),
+    ).toBeTruthy();
+
     expect(screen.getByText('TEI Premium')).toBeTruthy();
     expect(screen.getByText('$11 per month')).toBeTruthy();
+    expect(screen.getByText('IN DEVELOPMENT')).toBeTruthy();
+    expect(screen.getByText('Measure. Understand. Plan.')).toBeTruthy();
+    expect(screen.getByText('Everything in Basic, plus:')).toBeTruthy();
+    expect(screen.getByText(/^5 Training Formats - /)).toBeTruthy();
+    expect(screen.getByText(/^Workload Designer & Planner - /)).toBeTruthy();
+    expect(screen.getByText(/Choose from 11 accent colors/)).toBeTruthy();
+    expect(
+      screen.getByText('Your Training. Your Workload. Your Intelligence.'),
+    ).toBeTruthy();
 
-    // Elemental + Basic both list the Standard calculator feature.
-    expect(screen.getAllByText('• Standard TEI Calculator')).toHaveLength(2);
-    expect(screen.getByText('• Save All Session TEI Values')).toBeTruthy();
-    expect(
-      screen.getByText('• Choose from 5 Different Training Formats'),
-    ).toBeTruthy();
-    expect(
-      screen.getByText('• Progress Bars and Quick References'),
-    ).toBeTruthy();
-    expect(
-      screen.getByText('• Save & Track Your Week, Month, Year, etc...'),
-    ).toBeTruthy();
-    expect(screen.getByText('• Workload Designer & Planner')).toBeTruthy();
-    expect(screen.getAllByText('SELECT')).toHaveLength(3);
+    // Elemental and Basic can be selected; Premium offers the waitlist.
+    expect(screen.getAllByText('SELECT')).toHaveLength(2);
+    expect(screen.getByLabelText('Join the TEI Premium waitlist')).toBeTruthy();
   });
 
   it('a SELECT inside the sheet chooses that plan and pushes /create-account', () => {
     renderScreen(<AccountType />);
     fireEvent.press(screen.getByLabelText('More about Transformative'));
 
-    fireEvent.press(screen.getAllByText('SELECT')[2]);
+    fireEvent.press(screen.getByLabelText('Select TEI Basic'));
 
     expect(router.push).toHaveBeenCalledWith('/create-account');
     expect(screen.queryByText('The 3 TEI')).toBeNull();
   });
 
-  it('"Select Your TEI" commits the highlighted plan and pushes /create-account', () => {
+  it('WAITLIST in the sheet opens the form, and SEND returns to the sheet', async () => {
     renderScreen(<AccountType />);
     fireEvent.press(screen.getByLabelText('More about Helpful'));
 
-    fireEvent.press(screen.getByLabelText('Highlight TEI Premium'));
-    fireEvent.press(screen.getByText('Select Your TEI'));
+    fireEvent.press(screen.getByLabelText('Join the TEI Premium waitlist'));
+    fireEvent.changeText(screen.getByLabelText('Email'), 'ken@example.com');
+    fireEvent.press(screen.getByLabelText('Send'));
 
-    expect(router.push).toHaveBeenCalledWith('/create-account');
-    expect(screen.queryByText('The 3 TEI')).toBeNull();
+    await waitFor(() => expect(mockJoin).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.queryByText(/TEI Premium is in development/)).toBeNull(),
+    );
+    expect(screen.getByText('The 3 TEI')).toBeTruthy();
+    expect(router.push).not.toHaveBeenCalled();
   });
 
-  // Nothing is preselected — the sheet is an explainer first — so with no plan
-  // highlighted the CTA just dismisses rather than committing a stray choice.
-  it('"Select Your TEI" only dismisses when no plan is highlighted', () => {
+  it('"Select Your TEI" returns to the Account Type Selection screen', () => {
     renderScreen(<AccountType />);
     fireEvent.press(screen.getByLabelText('More about Helpful'));
 
     fireEvent.press(screen.getByText('Select Your TEI'));
 
     expect(screen.queryByText('The 3 TEI')).toBeNull();
+    expect(screen.getByText('Helpful')).toBeTruthy();
     expect(router.push).not.toHaveBeenCalled();
     expect(router.replace).not.toHaveBeenCalled();
   });
@@ -212,10 +283,10 @@ describe('app/account-type.tsx — signed-in upgrade/downgrade mode', () => {
     mockAuth.profile = { tier: 'elemental' };
   });
 
-  it('shows the Stripe billing note', () => {
+  it('says which plan is current and how to switch', () => {
     renderScreen(<AccountType />);
     expect(
-      screen.getByText('Secure payment and billing are managed by Stripe.'),
+      screen.getByText('You’re on TEI Elemental. Tap another plan to switch.'),
     ).toBeTruthy();
   });
 
@@ -224,13 +295,13 @@ describe('app/account-type.tsx — signed-in upgrade/downgrade mode', () => {
     expect(screen.getByText(/Helpful\s+✓/)).toBeTruthy();
   });
 
-  it('picking a paid tier opens Stripe Checkout', async () => {
+  it('picking Premium offers the waitlist rather than Stripe Checkout', () => {
     renderScreen(<AccountType />);
 
     fireEvent.press(screen.getByText('Transformative'));
 
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/subscribe?tier=premium'));
-    expect(mockChangeTier).not.toHaveBeenCalled();
+    expect(screen.getByText(/TEI Premium is in development/)).toBeTruthy();
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it('re-picking the current tier is a no-op (toast only, no nav)', () => {
@@ -249,5 +320,24 @@ describe('app/account-type.tsx — signed-in upgrade/downgrade mode', () => {
     fireEvent.press(screen.getByText('Insightful'));
 
     await waitFor(() => expect(router.push).toHaveBeenCalledWith('/subscribe?tier=basic'));
+  });
+
+  it('on Basic, picking Elemental opens the switch-to-Elemental screen', () => {
+    mockAuth.profile = { tier: 'basic' };
+    renderScreen(<AccountType />);
+
+    fireEvent.press(screen.getByText('Helpful'));
+
+    expect(router.push).toHaveBeenCalledWith('/subscribe?change=elemental');
+  });
+
+  it('an account already on Premium keeps it as its current plan', () => {
+    mockAuth.profile = { tier: 'premium' };
+    renderScreen(<AccountType />);
+
+    expect(screen.getByText(/Transformative\s+✓/)).toBeTruthy();
+    fireEvent.press(screen.getByText(/Transformative/));
+    expect(screen.queryByText(/TEI Premium is in development/)).toBeNull();
+    expect(router.push).not.toHaveBeenCalled();
   });
 });

@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, DarkButton, Divider } from '../src/components/Chrome';
+import { DatePicker } from '../src/components/DatePicker';
 import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
 import {
@@ -29,7 +30,7 @@ export default function SessionType() {
   const router = useRouter();
   const { plan } = useLocalSearchParams<{ plan?: string }>();
   const insets = useSafeAreaInsets();
-  const { session, showToast } = useStore();
+  const { session, setSessionDate } = useStore();
   const { profile } = useAuth();
 
   const accent = useAccent();
@@ -37,6 +38,7 @@ export default function SessionType() {
 
   const [strength, setStrength] = useState<StrengthOption | null>(null);
   const [aerobic, setAerobic] = useState(false);
+  const [pickingDate, setPickingDate] = useState(false);
 
   // The selector is the gateway to the Premium calculators. Calculator
   // screens already enforce this as well, but doing it here closes the
@@ -59,7 +61,7 @@ export default function SessionType() {
   }
 
   function pickDateTime() {
-    showToast('Date picking is not wired up in the prototype.');
+    setPickingDate(true);
   }
 
   return (
@@ -147,6 +149,20 @@ export default function SessionType() {
         onPress={go}
         disabled={!target}
         style={{ alignSelf: 'center', minWidth: 264 }}
+      />
+
+      <DatePicker
+        visible={pickingDate}
+        title="This Training Session"
+        value={new Date(session.date)}
+        // A session is logged after the fact, so it can never be in the future.
+        maxDate={new Date()}
+        withTime
+        onCancel={() => setPickingDate(false)}
+        onConfirm={(d) => {
+          setPickingDate(false);
+          setSessionDate(d.toISOString());
+        }}
       />
     </ScrollView>
   );
