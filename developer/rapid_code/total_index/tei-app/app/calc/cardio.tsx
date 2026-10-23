@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { ProgressRing } from '../../src/components/ProgressRing';
 import { useStore } from '../../src/store';
 import { CALCULATOR_LABELS, LIMITS, calculateCardioTei } from '../../src/lib/tei';
-import { CalcShell, RingRow } from './_shared';
+import { CalcShell, RingRow } from '../../src/components/CalcShell';
 
 /** PREMIUM — Cardio ONLY Training Session Calculator. */
 export default function CardioCalculator() {

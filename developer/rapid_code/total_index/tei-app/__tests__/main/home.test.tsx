@@ -204,6 +204,13 @@ describe('Home', () => {
   describe('navigation — Basic user', () => {
     beforeEach(() => signedIn({ profile: makeProfile({ tier: 'basic' }) }));
 
+    it('offers Change Subscription rather than Upgrade', () => {
+      renderMain(<Home />);
+      expect(screen.queryByText('Upgrade')).toBeNull();
+      fireEvent.press(screen.getByText('Change Subscription'));
+      expect(router.push).toHaveBeenCalledWith('/account-type');
+    });
+
     it('Calculate Session still goes to /calculator (only Premium picks a type)', () => {
       renderMain(<Home />);
       fireEvent.press(screen.getByLabelText('Calculate Session'));

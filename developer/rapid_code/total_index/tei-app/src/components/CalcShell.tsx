@@ -3,15 +3,15 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BackArrow, Ellipsis, OutlineButton } from '../../src/components/Chrome';
-import { DatePicker } from '../../src/components/DatePicker';
-import { useAuth } from '../../src/auth';
-import { formatSessionDate, useStore } from '../../src/store';
-import { saveSession } from '../../src/lib/sessions';
-import { savePlan } from '../../src/lib/plans';
+import { BackArrow, Ellipsis, OutlineButton } from './Chrome';
+import { DatePicker } from './DatePicker';
+import { useAuth } from '../auth';
+import { formatSessionDate, useStore } from '../store';
+import { saveSession } from '../lib/sessions';
+import { savePlan } from '../lib/plans';
 import { DEFAULT_TARGET_MAX, EFFECTIVE_RANGES,
-  LIMITS, displayTei, validateSessionInputs, type CalculatorId } from '../../src/lib/tei';
-import { colors, useAccent, accentAlpha } from '../../src/theme';
+  LIMITS, displayTei, validateSessionInputs, type CalculatorId } from '../lib/tei';
+import { colors, useAccent, accentAlpha } from '../theme';
 
 /**
  * The four PREMIUM calculators differ only in which rings they show and which

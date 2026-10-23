@@ -1,5 +1,5 @@
 /**
- * app/calc/_shared.tsx — the chrome every PREMIUM calculator sits inside.
+ * src/components/CalcShell.tsx — the chrome every PREMIUM calculator sits inside.
  *
  * `CalcShell` owns the big score, the % of Target bar, the tier guard, the
  * implausible-TEI prompt and both save paths, so it is exercised here directly
@@ -8,7 +8,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { CalcShell, RingRow } from '../../app/calc/_shared';
+import { CalcShell, RingRow } from '../../src/components/CalcShell';
 import {
   DEFAULT_TARGET_MAX,
   EFFECTIVE_RANGES,

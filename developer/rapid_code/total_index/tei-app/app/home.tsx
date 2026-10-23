@@ -156,7 +156,9 @@ export default function Home() {
         accessibilityRole="button"
         style={{ alignSelf: 'center', marginTop: 16 }}
       >
-        <Text style={styles.upgrade}>Upgrade</Text>
+        <Text style={styles.upgrade}>
+          {reviewLocked ? 'Upgrade' : 'Change Subscription'}
+        </Text>
       </Pressable>
     </View>
   );

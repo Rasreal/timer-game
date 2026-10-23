@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { ProgressRing } from '../../src/components/ProgressRing';
 import { useStore } from '../../src/store';
 import { CALCULATOR_LABELS, LIMITS, calculateCircuitTei } from '../../src/lib/tei';
-import { CalcShell, RingRow } from './_shared';
+import { CalcShell, RingRow } from '../../src/components/CalcShell';
 
 /** PREMIUM — Circuit Strength Training Session Calculator. */
 export default function CircuitCalculator() {

@@ -303,7 +303,7 @@ function TheThreeTei({
             ]}
           />
 
-          <Text style={styles.sheetSlogan}>
+          <Text style={styles.sheetSlogan} numberOfLines={1} adjustsFontSizeToFit>
             Your Training. Your Workload. Your Intelligence.
           </Text>
 
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
   bulletRow: { flexDirection: 'row', gap: 8, paddingLeft: 8, marginTop: 3 },
   sheetSlogan: {
     color: colors.text,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
     marginTop: 26,

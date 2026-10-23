@@ -118,7 +118,7 @@ function WhatIsTei({ onClose, onGo }: { onClose: () => void; onGo: () => void })
           </Pressable>
 
           <Text style={styles.sheetTitle}>What is TEI?</Text>
-          <Text style={styles.sheetSub}>
+          <Text style={styles.sheetSub} numberOfLines={1} adjustsFontSizeToFit>
             Know the work. Understand the impact.
           </Text>
           <Text style={styles.sheetBody}>
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   sheetSub: {
     color: colors.text,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '500',
     marginTop: 6,
     marginBottom: 18,
