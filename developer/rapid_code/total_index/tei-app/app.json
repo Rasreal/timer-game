@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rhinoathletics.tei",
-      "buildNumber": "3",
+      "buildNumber": "5",
       "appleTeamId": "UDD38L4JNJ",
       "associatedDomains": ["applinks:tei-app-blue.vercel.app"],
       "infoPlist": {
@@ -31,7 +31,8 @@
       "favicon": "./assets/ra-app-icon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "./plugins/withPrebuiltDsyms"
     ],
     "experiments": {
       "typedRoutes": true
