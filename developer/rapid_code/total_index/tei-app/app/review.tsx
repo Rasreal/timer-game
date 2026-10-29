@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,14 +10,24 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, OutlineButton } from '../src/components/Chrome';
+import { DaySessionsSheet } from '../src/components/DaySessionsSheet';
 import { useAuth } from '../src/auth';
+import { useStore } from '../src/store';
 import { listSessionsBetween } from '../src/lib/sessions';
 import { listPlansBetween, planDayKey } from '../src/lib/plans';
-import { CALCULATOR_LABELS, GRADE_COLORS, gradeAgainstPlan, type CalculatorId } from '../src/lib/tei';
+import { calculatorRoute } from '../src/lib/review';
+import { GRADE_COLORS, gradeAgainstPlan } from '../src/lib/tei';
 import type { SessionRow } from '../src/lib/database.types';
 import { colors, useAccent } from '../src/theme';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+/**
+ * Two touches on the same day within this window count as a double tap —
+ * the generous end of the platforms' own double-tap windows (~300–500 ms), as
+ * a measured simulator double tap landed its touches 351 ms apart.
+ */
+const DOUBLE_TAP_MS = 500;
 
 /** One calendar cell: a real date plus whether it belongs to the shown month. */
 interface Cell {
@@ -36,12 +45,19 @@ interface Cell {
  *
  * Weeks run Sunday-Saturday and include spill-over days from the adjacent
  * months, so a week total is always a true seven-day total.
+ *
+ * Tap strategies from Ken's 22 Oct 2026 edits: a single tap shows that
+ * week's total in the footer, a double tap opens "TEI - 7 Days in Review" for
+ * the week, and a long press opens the day's saved session for correction
+ * (or, with several sessions, the Multiple Entries sheet to pick one).
  */
 export default function Review() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
+  const { loadSession, showToast } = useStore();
   const accent = useAccent();
+  const lastTap = useRef<{ key: string; at: number } | null>(null);
 
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
@@ -137,9 +153,13 @@ export default function Review() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    void load(weeks);
-  }, [weeks, load]);
+  // Reload on focus as well as on month change: returning from a corrected
+  // session must show the new score.
+  useFocusEffect(
+    useCallback(() => {
+      void load(weeks);
+    }, [weeks, load]),
+  );
 
   /** Total TEI keyed by local YYYY-MM-DD. */
   const byDay = useMemo(() => {
@@ -186,6 +206,40 @@ export default function Review() {
     weekPlanTotal(activeWeek) || null,
   );
   const selectedSessions = selectedDay ? sessionsForDay(selectedDay) : [];
+
+  function edit(session: SessionRow) {
+    setSelectedDay(null);
+    loadSession(session);
+    router.push(calculatorRoute(session.calculator) as never);
+  }
+
+  /**
+   * Counted on touch-down: a quick double tap can land its second touch
+   * before the first release has been delivered as a press.
+   */
+  function touchDay(date: Date, weekIndex: number, weekFirstDay: Date) {
+    setSelectedWeek(weekIndex);
+    const key = planDayKey(date);
+    const now = Date.now();
+    const previous = lastTap.current;
+    if (previous && previous.key === key && now - previous.at < DOUBLE_TAP_MS) {
+      lastTap.current = null;
+      router.push(`/review-week?start=${planDayKey(weekFirstDay)}` as never);
+      return;
+    }
+    lastTap.current = { key, at: now };
+  }
+
+  function holdDay(date: Date) {
+    const daySessions = sessionsForDay(date);
+    if (daySessions.length === 0) {
+      showToast(`No session saved on ${formatDate(date)}.`);
+    } else if (daySessions.length === 1) {
+      edit(daySessions[0]);
+    } else {
+      setSelectedDay(date);
+    }
+  }
 
   return (
     <View style={styles.root}>
@@ -246,21 +300,28 @@ export default function Review() {
             />
           ) : (
             weeks.map((week, wi) => (
-              <Pressable
+              // A View, not a Pressable: every day is its own tap target with
+              // its own gestures, and a pressable row would hide them from
+              // VoiceOver (and nest buttons on web). The marker slot on the
+              // left selects the week, as on the Plan calendar.
+              <View
                 key={wi}
-                onPress={() => setSelectedWeek(wi)}
-                accessibilityRole="button"
-                accessibilityLabel={`Week of ${formatWeekOf(week[0].date)}, total ${Math.round(weekTotal(week))} TEI`}
                 style={[styles.weekRow, wi > 0 && styles.weekRowDivider]}
               >
                 {/* Selected-week marker, as drawn in the mock-up */}
-                <View style={styles.selectorSlot}>
+                <Pressable
+                  onPress={() => setSelectedWeek(wi)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Week of ${formatWeekOf(week[0].date)}, total ${Math.round(weekTotal(week))} TEI`}
+                  hitSlop={10}
+                  style={styles.selectorSlot}
+                >
                   {selectedWeek === wi && (
                     <View
                       style={[styles.selectorDot, { backgroundColor: accent }]}
                     />
                   )}
-                </View>
+                </Pressable>
 
                 <View style={styles.weekCells}>
                   {week.map((cell, di) => {
@@ -275,18 +336,16 @@ export default function Review() {
                     return (
                       <Pressable
                         key={di}
-                        onPress={() => {
-                          setSelectedWeek(wi);
-                          if (isPremium && daySessions.length > 0) {
-                            setSelectedDay(cell.date);
-                          }
-                        }}
+                        onPressIn={() => touchDay(cell.date, wi, week[0].date)}
+                        onPress={() => setSelectedWeek(wi)}
+                        onLongPress={() => holdDay(cell.date)}
                         accessibilityRole="button"
                         accessibilityLabel={
                           daySessions.length > 0
-                            ? `View ${daySessions.length} ${daySessions.length === 1 ? 'session' : 'sessions'} on ${formatDate(cell.date)}, ${Math.round(value ?? 0)} TEI`
-                            : `Select week of ${formatWeekOf(week[0].date)}`
+                            ? `${formatDate(cell.date)}, ${daySessions.length} ${daySessions.length === 1 ? 'session' : 'sessions'}, ${Math.round(value ?? 0)} TEI`
+                            : `${formatDate(cell.date)}, no session`
                         }
+                        accessibilityHint="Tap for the week total, double-tap for the week's sessions, press and hold to edit."
                         style={styles.dayCell}
                       >
                         <Text
@@ -327,8 +386,15 @@ export default function Review() {
                     );
                   })}
                 </View>
-              </Pressable>
+              </View>
             ))
+          )}
+
+          {!loading && (
+            <Text style={styles.gestureHint}>
+              Tap a day for its week&rsquo;s total · double-tap for that
+              week&rsquo;s sessions · press and hold to edit a session
+            </Text>
           )}
         </View>
       </ScrollView>
@@ -384,7 +450,7 @@ export default function Review() {
         {error && <Text style={styles.error}>{error}</Text>}
 
         <OutlineButton
-          title={isPremium ? 'All Current Timeframes & Ranges' : 'See Ideal Ranges of TEI'}
+          title={isPremium ? 'All Current Timeframes & Ranges' : 'See Effective Ranges of TEI'}
           // The generated Expo route union refreshes on the next dev/build
           // pass; keep this conditional route valid for a clean type check.
           onPress={() => router.push((isPremium ? '/review-timeframe' : '/ranges') as never)}
@@ -393,46 +459,16 @@ export default function Review() {
         />
       </View>
 
-      <Modal
-        visible={selectedDay !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSelectedDay(null)}
-      >
-        <View style={styles.modalScrim}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Workout details</Text>
-                <Text style={styles.modalDate}>{selectedDay ? formatDate(selectedDay) : ''}</Text>
-              </View>
-              <Pressable
-                onPress={() => setSelectedDay(null)}
-                accessibilityRole="button"
-                accessibilityLabel="Close workout details"
-                hitSlop={12}
-              >
-                <Text style={[styles.modalClose, { color: accent }]}>×</Text>
-              </Pressable>
-            </View>
-            <Text style={styles.modalTotal}>
-              {Math.round(selectedSessions.reduce((sum, session) => sum + Number(session.tei), 0))} TEI total
-            </Text>
-            <ScrollView contentContainerStyle={styles.sessionList}>
-              {selectedSessions.map((session) => (
-                <View key={session.id} style={styles.sessionCard}>
-                  <View style={styles.sessionCardTop}>
-                    <Text style={styles.sessionName}>{calculatorName(session.calculator)}</Text>
-                    <Text style={[styles.sessionTei, { color: accent }]}>{Math.round(session.tei)} TEI</Text>
-                  </View>
-                  <Text style={styles.sessionTime}>{formatTime(session.performed_at)}</Text>
-                  <Text style={styles.sessionInputs}>{sessionInputs(session)}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <DaySessionsSheet
+        date={selectedDay}
+        sessions={selectedSessions}
+        onClose={() => setSelectedDay(null)}
+        onEdit={edit}
+        onHub={() => {
+          setSelectedDay(null);
+          router.replace('/home');
+        }}
+      />
     </View>
   );
 }
@@ -462,36 +498,6 @@ function formatWeekOfSplit(d: Date): { month: string; year: string } {
 
 function formatDate(d: Date): string {
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-}
-
-function calculatorName(calculator: string): string {
-  return CALCULATOR_LABELS[calculator as CalculatorId] ?? calculator;
-}
-
-function sessionInputs(session: SessionRow): string {
-  const fields: Array<[string, number | null]> = [
-    ['Sets', session.sets],
-    ['Rest', session.rest_seconds],
-    ['Exertion', session.exertion_percent],
-    ['Cardio', session.cardio_minutes],
-    ['Breakdowns', session.breakdowns],
-    ['Exercises', session.exercises],
-    ['Circuits', session.circuits],
-    ['Yoga', session.yoga_minutes],
-  ];
-  return fields
-    .filter(([, value]) => value !== null)
-    .map(([label, value]) => {
-      if (label === 'Rest') return `${label}: ${value}s`;
-      if (label === 'Exertion') return `${label}: ${value}%`;
-      if (label === 'Cardio' || label === 'Yoga') return `${label}: ${value} min`;
-      return `${label}: ${value}`;
-    })
-    .join(' · ');
 }
 
 const GREY_BAND = '#6E6E6E';
@@ -569,6 +575,14 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   dayScore: { color: colors.text, fontSize: 19, fontWeight: '700' },
+  gestureHint: {
+    color: '#9E9E9E',
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 10,
+  },
   dayRest: { color: '#4A4A4A', fontSize: 19, fontWeight: '700' },
 
   footer: {
@@ -655,29 +669,4 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   error: { color: '#FFD2D2', fontSize: 13, marginTop: 10 },
-  modalScrim: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    maxHeight: '72%',
-    backgroundColor: '#1C1C1C',
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    padding: 20,
-    paddingBottom: 30,
-  },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  modalTitle: { color: colors.text, fontSize: 24, fontWeight: '800' },
-  modalDate: { color: colors.textMuted, fontSize: 15, marginTop: 3 },
-  modalClose: { fontSize: 34, lineHeight: 30, fontWeight: '300' },
-  modalTotal: { color: colors.green, fontSize: 18, fontWeight: '700', marginTop: 17 },
-  sessionList: { gap: 10, paddingTop: 12 },
-  sessionCard: { backgroundColor: '#292929', borderRadius: 12, padding: 14 },
-  sessionCardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  sessionName: { color: colors.text, flex: 1, fontSize: 16, fontWeight: '700' },
-  sessionTei: { fontSize: 16, fontWeight: '800' },
-  sessionTime: { color: colors.textMuted, fontSize: 13, marginTop: 4 },
-  sessionInputs: { color: '#C7C7C7', fontSize: 13, lineHeight: 18, marginTop: 8 },
 });

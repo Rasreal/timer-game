@@ -132,13 +132,13 @@ describe('Home tiles follow the chosen accent', () => {
     expect(allColourValues()).not.toContain(DEFAULT_ACCENT);
   });
 
-  it('repaints the big last-session TEI score', async () => {
+  it('keeps the big Last TEI number grey at any accent, as in the mock-up', async () => {
     renderMain(<Home />);
     await act(async () => {});
 
     act(() => setAccent(PURPLE, 'premium'));
 
-    expect(styleOf(screen.getByText('27')).color).toBe(PURPLE);
+    expect(styleOf(screen.getByText('27')).color).toBe('#3A3A3A');
   });
 
   it('does not tint the locked tiles with the accent', () => {

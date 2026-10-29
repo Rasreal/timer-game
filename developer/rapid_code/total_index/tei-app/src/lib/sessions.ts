@@ -103,3 +103,42 @@ export async function latestSession(): Promise<{
 
   return { data: data ?? null, error: error ? error.message : null };
 }
+
+export type UpdateSessionArgs = Omit<SaveSessionArgs, 'userId'>;
+
+/**
+ * Correct a saved session — its values and/or when it happened. Reached by
+ * long-pressing a day on the Review calendar. RLS limits the update to the
+ * member's own rows on a paid tier.
+ */
+export async function updateSession(
+  id: string,
+  args: UpdateSessionArgs,
+): Promise<{ data: SessionRow | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({
+      performed_at: args.performedAt,
+      cardio_minutes: args.cardioMinutes,
+      tei: args.tei,
+      calculator: args.calculator ?? 'standard',
+      sets: args.sets ?? null,
+      rest_seconds: args.restSeconds ?? null,
+      exertion_percent: args.exertionPercent ?? null,
+      breakdowns: args.breakdowns ?? null,
+      exercises: args.exercises ?? null,
+      circuits: args.circuits ?? null,
+      yoga_minutes: args.yogaMinutes ?? null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  return { data: data ?? null, error: error ? error.message : null };
+}
+
+/** Remove a saved session for good. */
+export async function deleteSession(id: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('sessions').delete().eq('id', id);
+  return { error: error ? error.message : null };
+}

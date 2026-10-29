@@ -146,6 +146,9 @@ export function ProgressRing({
                 onChange(digits === '' ? null : Number(digits));
               }}
               keyboardType="number-pad"
+              // Typing replaces the value rather than appending to it, which
+              // matters when correcting a saved session.
+              selectTextOnFocus
               placeholder="- -"
               placeholderTextColor="#5A5A5A"
               accessibilityLabel={label}

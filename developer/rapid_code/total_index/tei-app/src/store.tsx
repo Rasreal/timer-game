@@ -8,7 +8,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { TeiTier } from './lib/database.types';
+import type { SessionRow, TeiTier } from './lib/database.types';
+import type { CalculatorId } from './lib/tei';
 
 export type Tier = TeiTier;
 
@@ -30,6 +31,12 @@ export interface SessionDraft {
    * when the draft was created, so saving stamps the save time instead.
    */
   dateChosen?: boolean;
+  /**
+   * Set when the draft is a saved session opened from Review for correction.
+   * SAVE then updates that row instead of inserting a new one, and `tei` is
+   * the saved score shown until the user re-calculates.
+   */
+  editing?: { id: string; tei: number; calculator: CalculatorId };
 }
 
 /**
@@ -52,10 +59,12 @@ interface Store {
   setTargetRange: (label: string | null) => void;
   session: SessionDraft;
   setSessionField: (
-    field: keyof Omit<SessionDraft, 'date' | 'dateChosen'>,
+    field: keyof Omit<SessionDraft, 'date' | 'dateChosen' | 'editing'>,
     value: number | null,
   ) => void;
   setSessionDate: (iso: string) => void;
+  /** Open a saved session in its calculator for editing. */
+  loadSession: (row: SessionRow) => void;
   resetSession: () => void;
   toast: string | null;
   showToast: (message: string) => void;
@@ -85,7 +94,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<string | null>(null);
 
   const setSessionField = useCallback(
-    (field: keyof Omit<SessionDraft, 'date' | 'dateChosen'>, value: number | null) => {
+    (field: keyof Omit<SessionDraft, 'date' | 'dateChosen' | 'editing'>, value: number | null) => {
       setSession((s) => ({ ...s, [field]: value }));
     },
     [],
@@ -93,6 +102,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const setSessionDate = useCallback((iso: string) => {
     setSession((s) => ({ ...s, date: iso, dateChosen: true }));
+  }, []);
+
+  const loadSession = useCallback((row: SessionRow) => {
+    setSession({
+      sets: row.sets,
+      restSeconds: row.rest_seconds,
+      exertionPercent: row.exertion_percent,
+      cardioMinutes: row.cardio_minutes,
+      breakdowns: row.breakdowns,
+      exercises: row.exercises,
+      circuits: row.circuits,
+      yogaMinutes: row.yoga_minutes,
+      date: row.performed_at,
+      // The saved timestamp is when the training happened; keep it on save.
+      dateChosen: true,
+      editing: {
+        id: row.id,
+        tei: Number(row.tei),
+        calculator: row.calculator as CalculatorId,
+      },
+    });
   }, []);
 
   const resetSession = useCallback(() => setSession(emptySession()), []);
@@ -127,6 +157,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       session,
       setSessionField,
       setSessionDate,
+      loadSession,
       resetSession,
       toast,
       showToast,
@@ -137,6 +168,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       session,
       setSessionField,
       setSessionDate,
+      loadSession,
       resetSession,
       toast,
       showToast,

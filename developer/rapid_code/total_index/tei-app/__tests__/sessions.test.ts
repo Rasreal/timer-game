@@ -14,6 +14,8 @@ import {
   listSessions,
   listSessionsBetween,
   latestSession,
+  updateSession,
+  deleteSession,
 } from '../src/lib/sessions';
 
 const ROW = {
@@ -321,5 +323,59 @@ describe('latestSession', () => {
       data: null,
       error: 'permission denied',
     });
+  });
+});
+
+describe('updateSession', () => {
+  it('updates that one row with every variable and the new date', async () => {
+    mockQ.setResult({ data: ROW, error: null });
+
+    const res = await updateSession('row-1', {
+      performedAt: '2026-04-26T09:00:00.000Z',
+      cardioMinutes: 30,
+      tei: 40,
+      sets: 4,
+      restSeconds: 60,
+      exertionPercent: 80,
+    });
+
+    expect(mockQ.from).toHaveBeenCalledWith('sessions');
+    expect(mockQ.update.mock.calls[0][0]).toEqual({
+      performed_at: '2026-04-26T09:00:00.000Z',
+      cardio_minutes: 30,
+      tei: 40,
+      calculator: 'standard',
+      sets: 4,
+      rest_seconds: 60,
+      exertion_percent: 80,
+      breakdowns: null,
+      exercises: null,
+      circuits: null,
+      yoga_minutes: null,
+    });
+    expect(mockQ.eq).toHaveBeenCalledWith('id', 'row-1');
+    expect(mockQ.calls).toEqual(['from', 'update', 'eq', 'select', 'single']);
+    expect(res).toEqual({ data: ROW, error: null });
+  });
+
+  it('returns the error message', async () => {
+    mockQ.setResult({ data: null, error: { message: 'denied' } });
+    const res = await updateSession('row-1', { performedAt: 'x', cardioMinutes: 0, tei: 3 });
+    expect(res).toEqual({ data: null, error: 'denied' });
+  });
+});
+
+describe('deleteSession', () => {
+  it('deletes by id', async () => {
+    mockQ.setResult({ data: null, error: null });
+    const res = await deleteSession('row-1');
+    expect(mockQ.delete).toHaveBeenCalledTimes(1);
+    expect(mockQ.eq).toHaveBeenCalledWith('id', 'row-1');
+    expect(res).toEqual({ error: null });
+  });
+
+  it('returns the error message', async () => {
+    mockQ.setResult({ data: null, error: { message: 'gone' } });
+    expect(await deleteSession('row-1')).toEqual({ error: 'gone' });
   });
 });

@@ -9,7 +9,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import Calculator from '../../app/calculator';
 import {
-  DEFAULT_TARGET_MAX,
+  DEFAULT_TARGET,
   EFFECTIVE_RANGES,
   LIMITS,
   calculateTei,
@@ -70,7 +70,9 @@ describe('calculator — rendering', () => {
   it('renders the TEI lockup, session block and the four variable rings', () => {
     renderCalc(<Calculator />);
 
-    expect(screen.getByText('TOTAL EFFECT INDEX')).toBeTruthy();
+    for (const word of ['TOTAL', 'EFFECT', 'INDEX']) {
+      expect(screen.getByText(word)).toBeTruthy();
+    }
     expect(screen.getByText('TEI')).toBeTruthy();
     expect(screen.getByText('This Session')).toBeTruthy();
 
@@ -462,9 +464,12 @@ describe('calculator — navigation', () => {
     }
   });
 
-  it('opens the Effective Ranges screen from the Ranges button', () => {
+  // Ken's 19 Oct 2026 layout: an Effective Ranges pill under the lockup
+  // replaces the Ranges CTA beside SAVE.
+  it('opens the Effective Ranges screen from the pill under the lockup', () => {
     renderCalc(<Calculator />);
-    fireEvent.press(screen.getByText('Ranges'));
+    expect(screen.queryByText('Ranges')).toBeNull();
+    fireEvent.press(screen.getByText('Effective Ranges'));
     expect(router.push).toHaveBeenCalledWith('/ranges');
   });
 
@@ -526,7 +531,7 @@ describe('calculator — tier behaviour', () => {
 
     const tei = calculateTei(REFERENCE).tei;
     const pct = Math.round(
-      Math.max(0, Math.min(1, tei / DEFAULT_TARGET_MAX)) * 100,
+      Math.max(0, Math.min(1, tei / DEFAULT_TARGET)) * 100,
     );
     expect(screen.getByText(`${pct}%`)).toBeTruthy();
   });
@@ -545,15 +550,19 @@ describe('calculator — tier behaviour', () => {
     expect(saveSession).not.toHaveBeenCalled();
   });
 
-  it('offers SAVE only on tiers that keep history', () => {
+  it('shows SAVE on every tier but keeps it disabled on Elemental', () => {
     auth('elemental');
     renderCalc(<Calculator />, { seed: REFERENCE });
-    expect(screen.queryByText('SAVE')).toBeNull();
+    pressCalculate();
+    fireEvent.press(screen.getByText('SAVE'));
+    expect(saveSession).not.toHaveBeenCalled();
 
     screen.unmount();
     auth('basic');
     renderCalc(<Calculator />, { seed: REFERENCE });
-    expect(screen.getByText('SAVE')).toBeTruthy();
+    pressCalculate();
+    fireEvent.press(screen.getByText('SAVE'));
+    expect(saveSession).toHaveBeenCalled();
   });
 
   it('Calculate TEI only shows the score — it never saves on its own', async () => {

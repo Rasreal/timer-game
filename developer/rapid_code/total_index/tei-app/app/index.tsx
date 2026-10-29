@@ -102,15 +102,18 @@ function WhatIsTei({ onClose, onGo }: { onClose: () => void; onGo: () => void })
         <ScrollView
           contentContainerStyle={{
             padding: 24,
-            paddingBottom: Math.max(insets.bottom, 20) + 24,
+            paddingTop: 20,
+            paddingBottom: Math.max(insets.bottom, 16) + 12,
           }}
         >
+          {/* Floated over the title's row so the whole sheet, down to See My
+              TEI, fits on one screen as in Ken's mock-up. */}
           <Pressable
             onPress={onClose}
             accessibilityRole="button"
             accessibilityLabel="Close"
             hitSlop={14}
-            style={{ alignSelf: 'flex-end' }}
+            style={{ position: 'absolute', top: 16, right: 22, zIndex: 1 }}
           >
             <Text style={{ color: colors.orange, fontSize: 30, fontWeight: '300' }}>
               ✕
@@ -234,7 +237,7 @@ const styles = StyleSheet.create({
 
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    height: '84%',
+    height: '90%',
     backgroundColor: 'rgba(46,46,46,0.99)',
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
@@ -244,7 +247,7 @@ const styles = StyleSheet.create({
     fontSize: 42,
     fontWeight: '600',
     letterSpacing: -1,
-    marginTop: 6,
+    marginTop: 14,
   },
   sheetSub: {
     color: colors.text,
@@ -257,7 +260,7 @@ const styles = StyleSheet.create({
     color: '#E2E2E2',
     fontSize: 17,
     lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: 20,
   },
   howItWorks: {
     fontSize: 27,
@@ -270,8 +273,8 @@ const styles = StyleSheet.create({
     fontSize: 21,
     fontWeight: '600',
     lineHeight: 27,
-    marginTop: 26,
-    marginBottom: 22,
+    marginTop: 12,
+    marginBottom: 18,
   },
   seeMyTei: {
     backgroundColor: '#141414',

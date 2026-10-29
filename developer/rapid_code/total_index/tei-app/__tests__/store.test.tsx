@@ -13,7 +13,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 const renderStore = () => renderHook(() => useStore(), { wrapper });
 
-const NUMERIC_FIELDS: (keyof Omit<SessionDraft, 'date' | 'dateChosen'>)[] = [
+const NUMERIC_FIELDS: (keyof Omit<SessionDraft, 'date' | 'dateChosen' | 'editing'>)[] = [
   'sets',
   'restSeconds',
   'exertionPercent',
@@ -366,5 +366,47 @@ describe('formatSessionDate', () => {
   it('reads the store default date without throwing', () => {
     const { result } = renderStore();
     expect(() => formatSessionDate(result.current.session.date)).not.toThrow();
+  });
+});
+
+describe('loadSession — opening a saved session for correction', () => {
+  const row = {
+    id: 'row-9',
+    user_id: 'user-1',
+    performed_at: '2026-10-20T13:15:00.000Z',
+    sets: null,
+    rest_seconds: null,
+    exertion_percent: 60,
+    cardio_minutes: 15,
+    breakdowns: null,
+    exercises: null,
+    circuits: null,
+    yoga_minutes: 30,
+    tei: 14.3,
+    calculator: 'yoga',
+    created_at: '2026-10-20T13:16:00.000Z',
+  };
+
+  it("fills the draft with the row's values, date and edit target", () => {
+    const { result } = renderStore();
+    act(() => result.current.loadSession(row));
+
+    expect(result.current.session).toMatchObject({
+      yogaMinutes: 30,
+      exertionPercent: 60,
+      cardioMinutes: 15,
+      sets: null,
+      date: row.performed_at,
+      dateChosen: true,
+      editing: { id: 'row-9', tei: 14.3, calculator: 'yoga' },
+    });
+  });
+
+  it('resetSession leaves edit mode', () => {
+    const { result } = renderStore();
+    act(() => result.current.loadSession(row));
+    act(() => result.current.resetSession());
+    expect(result.current.session.editing).toBeUndefined();
+    expect(result.current.session.yogaMinutes).toBeNull();
   });
 });

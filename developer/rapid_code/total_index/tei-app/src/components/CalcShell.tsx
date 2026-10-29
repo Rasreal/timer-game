@@ -1,16 +1,18 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, Ellipsis, OutlineButton } from './Chrome';
 import { DatePicker } from './DatePicker';
+import { DeleteSessionButton } from './DeleteSessionButton';
+import { useKeyboardLift } from './useKeyboardLift';
 import { useAuth } from '../auth';
 import { formatSessionDate, useStore } from '../store';
-import { saveSession } from '../lib/sessions';
+import { saveSession, updateSession } from '../lib/sessions';
 import { savePlan } from '../lib/plans';
-import { DEFAULT_TARGET_MAX, EFFECTIVE_RANGES,
-  LIMITS, displayTei, validateSessionInputs, type CalculatorId } from '../lib/tei';
+import { LIMITS, displayTei, targetForRange, validateSessionInputs,
+  type CalculatorId } from '../lib/tei';
 import { colors, useAccent, accentAlpha } from '../theme';
 
 /**
@@ -68,9 +70,14 @@ export function CalcShell({
   // instead of logging a session that already happened.
   const { plan: planDay } = useLocalSearchParams<{ plan?: string }>();
   const insets = useSafeAreaInsets();
-  const { session, setSessionDate, showToast, targetRange } = useStore();
+  const { session, setSessionDate, resetSession, showToast, targetRange } = useStore();
   const { profile } = useAuth();
-  const [tei, setTei] = useState<number | null>(null);
+  // A saved session of this calculator opened from Review for correction.
+  const editing =
+    !planDay && session.editing?.calculator === calculator ? session.editing : null;
+  const lift = useKeyboardLift(insets.top);
+  // An opened session already has its score.
+  const [tei, setTei] = useState<number | null>(editing ? editing.tei : null);
   const [saving, setSaving] = useState(false);
   // Same guard as app/calculator.tsx: SAVE is a single-shot action, so a
   // second press must not write a duplicate row.
@@ -81,31 +88,39 @@ export function CalcShell({
 
   // These four calculators ship with TEI Premium only. `profile` is null while
   // it loads, so wait for it rather than bouncing a Premium user to Home.
+  // Correcting a session saved back when the member was on Premium is still
+  // allowed on Basic.
   useEffect(() => {
-    if (profile && profile.tier !== 'premium') router.replace('/home');
-  }, [profile, router]);
+    if (profile && profile.tier !== 'premium' && !(editing && profile.tier === 'basic')) {
+      router.replace('/home');
+    }
+  }, [profile, router, editing]);
 
   // `tei` is a snapshot from the last Calculate, while SAVE writes the live
   // `saveFields`. Editing a ring afterwards would otherwise persist the old
   // score beside the new inputs, so any change clears the score — the user
   // re-calculates, and the new inputs may be saved as their own session.
+  // Compared by value so the mount (and a strict-mode re-run) does not wipe an
+  // opened session's score.
   const fieldsKey = JSON.stringify(saveFields);
+  const lastFields = useRef(fieldsKey);
   useEffect(() => {
+    if (lastFields.current === fieldsKey) return;
+    lastFields.current = fieldsKey;
     setTei(null);
     setSaved(false);
   }, [fieldsKey]);
 
   const score = tei === null ? 0 : displayTei(tei);
   const over = tei !== null && tei > LIMITS.tei.overAt;
-  // Measure against the timeframe the user chose on Effective Ranges. Its max
-  // is a period total (a week, a month), so a single session is only ever a
-  // slice of it; with nothing chosen, fall back to WEEKLY — the smallest real
-  // period target. LIMITS.tei.max is a SINGLE-SESSION ceiling and measuring
-  // against it inflated the percentage more than threefold.
-  const targetMax =
-    EFFECTIVE_RANGES.find((r) => r.label === targetRange)?.max ?? DEFAULT_TARGET_MAX;
+  // Measure against the timeframe the user chose on Effective Ranges. Its
+  // target is a period total (a week, a month), so a single session is only
+  // ever a slice of it; with nothing chosen, fall back to WEEKLY — the
+  // smallest real period target. LIMITS.tei.max is a SINGLE-SESSION ceiling
+  // and measuring against it inflated the percentage more than threefold.
+  const target = targetForRange(targetRange);
   const fraction =
-    tei === null ? 0 : Math.max(0, Math.min(1, tei / targetMax));
+    tei === null ? 0 : Math.max(0, Math.min(1, tei / target));
 
   /**
    * The rings hand `min`/`max` to ProgressRing for the arc only, so an
@@ -120,6 +135,8 @@ export function CalcShell({
 
   function calculate() {
     if (!complete) return;
+    // Bring the big number back into view above the keypad.
+    lift.collapse();
     if (checkRange()) return;
     const next = compute();
     setTei(next);
@@ -141,7 +158,8 @@ export function CalcShell({
     // These calculators are Premium-only, and the tier guard above is an
     // effect — a Basic user can press SAVE before the redirect lands, so the
     // same gate is enforced here rather than merely excluding Elemental.
-    if (!profile || profile.tier !== 'premium') {
+    const mayEdit = editing && profile?.tier !== 'elemental';
+    if (!profile || (profile.tier !== 'premium' && !mayEdit)) {
       showToast(
         planDay
           ? 'Planning needs TEI Premium.'
@@ -187,6 +205,30 @@ export function CalcShell({
       return;
     }
 
+    if (editing) {
+      const { error: updateError } = await updateSession(editing.id, {
+        performedAt: session.date,
+        cardioMinutes: saveFields.cardioMinutes,
+        sets: saveFields.sets ?? null,
+        restSeconds: saveFields.restSeconds ?? null,
+        exertionPercent: saveFields.exertionPercent ?? null,
+        breakdowns: saveFields.breakdowns ?? null,
+        exercises: saveFields.exercises ?? null,
+        circuits: saveFields.circuits ?? null,
+        yogaMinutes: saveFields.yogaMinutes ?? null,
+        tei: Number(tei.toFixed(2)),
+        calculator,
+      });
+      setSaving(false);
+      if (updateError) {
+        showToast(`Could not save: ${updateError}`);
+        return;
+      }
+      showToast(`Session updated — TEI ${tei.toFixed(2)}`);
+      leaveEdit();
+      return;
+    }
+
     const { error } = await saveSession({
       userId: profile.id,
       // A date the user picked is when the training happened. Otherwise stamp
@@ -210,111 +252,142 @@ export function CalcShell({
     showToast(error ? `Could not save: ${error}` : `Saved — TEI ${tei.toFixed(2)}`);
   }
 
+  /** Close an opened session: drop the draft and return to Review. */
+  function leaveEdit() {
+    resetSession();
+    router.canGoBack() ? router.back() : router.replace('/review');
+  }
+
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{
-        paddingTop: insets.top + 2,
-        paddingHorizontal: 20,
-        paddingBottom: Math.max(insets.bottom, 8) + 6,
-        flexGrow: 1,
-      }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <BackArrow
-        onPress={() => {
-          // Once a score exists this session is finished, so back belongs on
-          // Home — returning to the selector invited the user to re-pick a
-          // training type they had already logged.
-          if (tei !== null) {
-            router.replace('/home');
-            return;
-          }
-          // Nothing calculated yet: go back to wherever they came from.
-          // router.back() alone is a no-op when this screen was opened
-          // directly (deep link, or after a redirect consumed the history),
-          // leaving the arrow visibly dead. Fall back to the selector, which
-          // is where a Premium user reaches these calculators from.
-          router.canGoBack() ? router.back() : router.replace('/session-type');
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView
+        ref={lift.scrollRef}
+        style={{ flex: 1, backgroundColor: colors.bg }}
+        contentContainerStyle={{
+          paddingTop: insets.top + 2,
+          paddingHorizontal: 20,
+          paddingBottom: Math.max(insets.bottom, 8) + 6 + lift.bottomPadding,
+          flexGrow: 1,
         }}
-      />
+        keyboardShouldPersistTaps="handled"
+      >
+        <BackArrow
+          onPress={() => {
+            // Leaving an opened session discards any unsaved correction.
+            if (editing) {
+              leaveEdit();
+              return;
+            }
+            // Once a score exists this session is finished, so back belongs on
+            // Home — returning to the selector invited the user to re-pick a
+            // training type they had already logged.
+            if (tei !== null) {
+              router.replace('/home');
+              return;
+            }
+            // Nothing calculated yet: go back to wherever they came from.
+            // router.back() alone is a no-op when this screen was opened
+            // directly (deep link, or after a redirect consumed the history),
+            // leaving the arrow visibly dead. Fall back to the selector, which
+            // is where a Premium user reaches these calculators from.
+            router.canGoBack() ? router.back() : router.replace('/session-type');
+          }}
+        />
 
-      <View style={styles.headRow}>
-        <View style={styles.lockupCol}>
-          <StackedLockup />
-          {showRangesPill && (
-            <Pressable
-              onPress={() => router.push('/ranges')}
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.pill,
-                { borderColor: accent },
-                { backgroundColor: pressed ? accentAlpha(accent, 0.16) : 'transparent' },
-              ]}
-            >
-              <Text style={[styles.pillText, { color: accent }]}>Effective Ranges</Text>
-            </Pressable>
-          )}
+        <View style={styles.headRow}>
+          <View style={styles.lockupCol}>
+            <StackedLockup />
+            {showRangesPill && (
+              <Pressable
+                onPress={() => router.push('/ranges')}
+                accessibilityRole="button"
+                style={({ pressed }) => [
+                  styles.pill,
+                  { borderColor: accent },
+                  { backgroundColor: pressed ? accentAlpha(accent, 0.16) : 'transparent' },
+                ]}
+              >
+                <Text style={[styles.pillText, { color: accent }]}>Effective Ranges</Text>
+              </Pressable>
+            )}
+          </View>
+
+          <BigScore value={score} over={over} />
         </View>
 
-        <BigScore value={score} over={over} />
-      </View>
-
-      <View style={styles.targetBlock}>
-        <Text style={styles.targetPct}>{Math.round(fraction * 100)}%</Text>
-        <Text style={styles.targetLabel}>of Target</Text>
-        <View style={styles.barTrack}>
-          <View style={[styles.barFill, { flex: fraction }]} />
-          <View style={{ flex: 1 - fraction }} />
+        <View style={styles.targetBlock}>
+          <Text style={styles.targetPct}>{Math.round(fraction * 100)}%</Text>
+          <Text style={styles.targetLabel}>of Target</Text>
+          <View style={styles.barTrack}>
+            <View style={[styles.barFill, { flex: fraction }]} />
+            <View style={{ flex: 1 - fraction }} />
+          </View>
         </View>
-      </View>
 
-      <View style={styles.sessionBlock}>
-        <View style={styles.sessionRow}>
-          <CalendarGlyph />
-          <Text style={styles.sessionLabelText}>This Session</Text>
-          <Ellipsis
-            onPress={() => setPickingDate(true)}
-            color="#8A8A8A"
-            size={20}
-            label="Change session date"
+        {/* The block the keypad lifts to the top */}
+        <View style={styles.sessionBlock} onLayout={lift.onAnchorLayout}>
+          <View style={styles.sessionRow}>
+            <CalendarGlyph />
+            <Text style={styles.sessionLabelText}>
+              {editing ? 'Editing Session' : 'This Session'}
+            </Text>
+            <Ellipsis
+              onPress={() => setPickingDate(true)}
+              color="#8A8A8A"
+              size={20}
+              label="Change session date"
+            />
+          </View>
+          <Text style={styles.sessionDate}>{formatSessionDate(session.date)}</Text>
+        </View>
+
+        <DatePicker
+          visible={pickingDate}
+          title="This Session"
+          value={new Date(session.date)}
+          // A session is logged after the fact, so it can never be in the future.
+          maxDate={new Date()}
+          withTime
+          onCancel={() => setPickingDate(false)}
+          onConfirm={(d) => {
+            setPickingDate(false);
+            setSessionDate(d.toISOString());
+          }}
+        />
+
+        <View style={[styles.rings, tightRings && styles.ringsTight]}>{children}</View>
+
+        <View style={{ flex: 1, minHeight: 4 }} />
+
+        <Text style={styles.greenLabel}>{sessionLabel}</Text>
+
+        <View style={styles.ctaRow}>
+          <OutlineButton
+            title="Calculate TEI"
+            disabled={!complete}
+            onPress={calculate}
+            style={{ flex: 1 }}
+          />
+          <OutlineButton
+            title={saving ? 'Saving…' : 'SAVE'}
+            // Disabled while the keypad is up: Calculate (which closes it) comes
+            // first.
+            disabled={saving || lift.keyboardOpen}
+            onPress={persist}
           />
         </View>
-        <Text style={styles.sessionDate}>{formatSessionDate(session.date)}</Text>
-      </View>
 
-      <DatePicker
-        visible={pickingDate}
-        title="This Session"
-        value={new Date(session.date)}
-        // A session is logged after the fact, so it can never be in the future.
-        maxDate={new Date()}
-        withTime
-        onCancel={() => setPickingDate(false)}
-        onConfirm={(d) => {
-          setPickingDate(false);
-          setSessionDate(d.toISOString());
-        }}
+        {rangeError && <Text style={styles.rangeError}>{rangeError}</Text>}
+
+        {editing && <DeleteSessionButton id={editing.id} onDeleted={leaveEdit} />}
+      </ScrollView>
+      {/* The keypad lift scrolls content up past the status bar; keep the
+          clock on black rather than over the score. */}
+      <View
+        pointerEvents="none"
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.bg }}
       />
-
-      <View style={[styles.rings, tightRings && styles.ringsTight]}>{children}</View>
-
-      <View style={{ flex: 1, minHeight: 4 }} />
-
-      <Text style={styles.greenLabel}>{sessionLabel}</Text>
-
-      <View style={styles.ctaRow}>
-        <OutlineButton
-          title="Calculate TEI"
-          disabled={!complete}
-          onPress={calculate}
-          style={{ flex: 1 }}
-        />
-        <OutlineButton title={saving ? 'Saving…' : 'SAVE'} disabled={saving} onPress={persist} />
-      </View>
-
-      {rangeError && <Text style={styles.rangeError}>{rangeError}</Text>}
-    </ScrollView>
+    </View>
   );
 }
 

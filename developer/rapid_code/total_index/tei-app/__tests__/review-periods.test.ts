@@ -5,6 +5,14 @@ import {
   reviewDayKey,
   totalPlansInPeriod,
   totalSessionsInPeriod,
+  calculatorRoute,
+  parseDayKey,
+  previousFullWeekStart,
+  sessionVariables,
+  sessionsByDay,
+  startOfWeek,
+  sumTei,
+  weekDates,
 } from '../src/lib/review';
 
 describe('Premium review periods', () => {
@@ -41,5 +49,52 @@ describe('Premium review periods', () => {
     expect(gradePeriod(8, 10)).toBe('close');
     expect(gradePeriod(10, 10)).toBe('on');
     expect(gradePeriod(12, 10)).toBe('over');
+  });
+});
+
+describe('weekly review helpers', () => {
+  it('parses a day key as local midnight', () => {
+    expect(parseDayKey('2026-05-04')).toEqual(new Date(2026, 4, 4));
+    expect(parseDayKey('nope')).toBeNull();
+    expect(parseDayKey(undefined)).toBeNull();
+  });
+
+  it('weeks start on Sunday', () => {
+    expect(startOfWeek(new Date(2026, 4, 6, 15))).toEqual(new Date(2026, 4, 3));
+    expect(startOfWeek(new Date(2026, 4, 3))).toEqual(new Date(2026, 4, 3));
+    expect(weekDates(new Date(2026, 4, 3)).map((d) => d.getDate())).toEqual([3, 4, 5, 6, 7, 8, 9]);
+  });
+
+  it('the snapshot week is the last finished Sunday-to-Saturday', () => {
+    // Wednesday 29 Oct 2026 → the week of Sunday 18 Oct.
+    expect(previousFullWeekStart(new Date(2026, 9, 29, 12))).toEqual(new Date(2026, 9, 18));
+    // On a Sunday the week that just ended counts.
+    expect(previousFullWeekStart(new Date(2026, 9, 25, 8))).toEqual(new Date(2026, 9, 18));
+  });
+
+  it('buckets sessions by local day, oldest first', () => {
+    const late = makeSession({ id: 'late', performed_at: new Date(2026, 4, 4, 18).toISOString(), tei: 4 });
+    const early = makeSession({ id: 'early', performed_at: new Date(2026, 4, 4, 7).toISOString(), tei: 16 });
+    const other = makeSession({ id: 'other', performed_at: new Date(2026, 4, 5, 7).toISOString() });
+    const byDay = sessionsByDay([late, other, early]);
+
+    expect(byDay.get('2026-05-04')!.map((r) => r.id)).toEqual(['early', 'late']);
+    expect(sumTei(byDay.get('2026-05-04')!)).toBe(20);
+    expect(byDay.get('2026-05-05')!.map((r) => r.id)).toEqual(['other']);
+  });
+
+  it("lists each calculator's own variables", () => {
+    expect(sessionVariables(makeSession()).map((v) => v.label)).toEqual(['Sets', 'Seconds', '% Exert', 'Minutes']);
+    expect(sessionVariables(makeSession({ calculator: 'breakdown' })).map((v) => v.label)).toEqual([
+      'Sets', 'Breakdowns', 'Seconds', '% Exert', 'Minutes',
+    ]);
+    expect(sessionVariables(makeSession({ calculator: 'circuit' }))[0].label).toBe('Exercises');
+    expect(sessionVariables(makeSession({ calculator: 'cardio' }))).toHaveLength(1);
+    expect(sessionVariables(makeSession({ calculator: 'yoga' }))[0].label).toBe('Yoga Mins');
+  });
+
+  it('routes each calculator to its own screen', () => {
+    expect(calculatorRoute('standard')).toBe('/calculator');
+    expect(calculatorRoute('yoga')).toBe('/calc/yoga');
   });
 });

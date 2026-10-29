@@ -1,29 +1,29 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   BackArrow,
   Ellipsis,
   OutlineButton,
-  TeiLockup,
 } from '../src/components/Chrome';
 import { DatePicker } from '../src/components/DatePicker';
+import { DeleteSessionButton } from '../src/components/DeleteSessionButton';
 import { Ring } from '../src/components/Ring';
+import { useKeyboardLift } from '../src/components/useKeyboardLift';
 import { useAuth } from '../src/auth';
 import { formatSessionDate, useStore } from '../src/store';
-import { saveSession } from '../src/lib/sessions';
+import { saveSession, updateSession } from '../src/lib/sessions';
 import { savePlan } from '../src/lib/plans';
 import {
-  DEFAULT_TARGET_MAX,
-  EFFECTIVE_RANGES,
   LIMITS,
   calculateTei,
   displayTei,
+  targetForRange,
   validateSessionInputs,
 } from '../src/lib/tei';
-import { SHOW_DEV_TOOLS, colors } from '../src/theme';
+import { SHOW_DEV_TOOLS, accentAlpha, colors, useAccent } from '../src/theme';
 
 /** ELEMENTAL Screen 2 — Standard Strength Training Calculator. */
 export default function Calculator() {
@@ -32,10 +32,17 @@ export default function Calculator() {
   // day rather than logging a session that already happened.
   const { plan: planDay } = useLocalSearchParams<{ plan?: string }>();
   const insets = useSafeAreaInsets();
-  const { session, setSessionField, setSessionDate, showToast, targetRange } =
+  const { session, setSessionField, setSessionDate, resetSession, showToast, targetRange } =
     useStore();
   const { profile } = useAuth();
-  const [calculated, setCalculated] = useState(false);
+  // A saved session opened from Review for correction. Planner mode never
+  // edits, and a draft loaded for another calculator is not ours to edit.
+  const editing =
+    !planDay && session.editing?.calculator === 'standard' ? session.editing : null;
+  const lift = useKeyboardLift(insets.top);
+  const accent = useAccent();
+  // An opened session already has its score, so it starts calculated.
+  const [calculated, setCalculated] = useState(editing !== null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -47,7 +54,8 @@ export default function Calculator() {
   // Elemental is calculate-only by design; paid tiers persist history.
   const canSaveHistory = profile != null && profile.tier !== 'elemental';
   // Planner mode always offers SAVE so a non-Premium user hears why it
-  // cannot plan rather than finding no button at all.
+  // cannot plan rather than finding no button at all. Elemental sees SAVE
+  // too, but disabled (Ken's 19 Oct 2026 mock-ups).
   const showSave = canSaveHistory || Boolean(planDay);
 
   const complete =
@@ -71,17 +79,17 @@ export default function Calculator() {
 
   // Editing any variable after a calculation makes that score stale: clear it
   // so the user re-calculates before SAVE, and let the new inputs be saved as
-  // their own session.
+  // their own session. Compared by value so the mount (and a strict-mode
+  // re-run) does not wipe an opened session's score.
+  const inputsKey = `${session.sets}|${session.restSeconds}|${session.exertionPercent}|${session.cardioMinutes}`;
+  const lastInputs = useRef(inputsKey);
   useEffect(() => {
+    if (lastInputs.current === inputsKey) return;
+    lastInputs.current = inputsKey;
     setCalculated(false);
     setSaved(false);
     setSaveError(null);
-  }, [
-    session.sets,
-    session.restSeconds,
-    session.exertionPercent,
-    session.cardioMinutes,
-  ]);
+  }, [inputsKey]);
 
   // Client's tiered intent: on Basic and above, tapping a timeframe on the
   // Effective Ranges screen makes it the denominator of "% of Target".
@@ -90,11 +98,9 @@ export default function Calculator() {
   // With no timeframe chosen, measure against WEEKLY — the smallest real
   // period target. LIMITS.tei.max is a single-SESSION ceiling, so using it
   // here inflated the percentage more than threefold.
-  const targetMax =
-    EFFECTIVE_RANGES.find((r) => r.label === targetRange)?.max ??
-    DEFAULT_TARGET_MAX;
+  const target = targetForRange(targetRange);
   const targetFraction = showResult
-    ? Math.max(0, Math.min(1, result.tei / targetMax))
+    ? Math.max(0, Math.min(1, result.tei / target))
     : 0;
 
   /**
@@ -126,6 +132,8 @@ export default function Calculator() {
   /** Scores and shows the TEI only — persisting is SAVE's job. */
   function calculate() {
     if (!complete) return;
+    // Bring the big number back into view above the keypad.
+    lift.collapse();
     setSaveError(null);
     if (checkRange()) {
       setCalculated(false);
@@ -182,6 +190,26 @@ export default function Calculator() {
       return;
     }
 
+    if (editing) {
+      setSaving(true);
+      const { error } = await updateSession(editing.id, {
+        performedAt: session.date,
+        sets: session.sets ?? 0,
+        restSeconds: session.restSeconds ?? 0,
+        exertionPercent: session.exertionPercent ?? 0,
+        cardioMinutes: session.cardioMinutes ?? 0,
+        tei: Number(result.tei.toFixed(2)),
+      });
+      setSaving(false);
+      if (error) {
+        setSaveError(error);
+        return;
+      }
+      showToast(warning ?? `Session updated — TEI ${result.tei.toFixed(2)}`);
+      leaveEdit();
+      return;
+    }
+
     if (saved) {
       showToast('This session is already saved.');
       return;
@@ -213,214 +241,256 @@ export default function Calculator() {
     showToast(warning ?? `Saved — TEI ${result.tei.toFixed(2)}`);
   }
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{
-        paddingTop: insets.top + 6,
-        paddingHorizontal: 20,
-        paddingBottom: Math.max(insets.bottom, 12) + 8,
-        flexGrow: 1,
-      }}
-    >
-      <BackArrow
-        onPress={() => {
-          // Once a score exists this session is finished, so back belongs on
-          // Home — returning to the selector invited the user to re-pick a
-          // training type they had already logged.
-          if (showResult) {
-            router.replace('/home');
-            return;
-          }
-          // Nothing calculated yet: go back to whatever opened this screen —
-          // Home for Elemental and Basic, but the session-type selector for
-          // Premium. Hard-coding /home skipped the selector and looked like
-          // the app had jumped.
-          router.canGoBack() ? router.back() : router.replace('/home');
-        }}
-      />
+  /** Close an opened session: drop the draft and return to Review. */
+  function leaveEdit() {
+    resetSession();
+    router.canGoBack() ? router.back() : router.replace('/review');
+  }
 
-      {/* Large number + TEI lockup */}
-      <View style={styles.headRow}>
-        <View style={{ paddingTop: 18 }}>
-          <TeiLockup align="left" size="sm" />
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView
+        ref={lift.scrollRef}
+        style={{ flex: 1, backgroundColor: colors.bg }}
+        contentContainerStyle={{
+          paddingTop: insets.top + 2,
+          paddingHorizontal: 20,
+          paddingBottom: Math.max(insets.bottom, 12) + 8 + lift.bottomPadding,
+          flexGrow: 1,
+        }}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Ken's 19 Oct 2026 layout: the stacked lockup with the Effective Ranges
+            pill under it on the left, and the tall score beside it starting
+            level with the back arrow. */}
+        <View style={styles.headRow}>
+          <View style={styles.headLeft}>
+        <BackArrow
+          onPress={() => {
+            // Leaving an opened session discards any unsaved correction.
+            if (editing) {
+              leaveEdit();
+              return;
+            }
+            // Once a score exists this session is finished, so back belongs on
+            // Home — returning to the selector invited the user to re-pick a
+            // training type they had already logged.
+            if (showResult) {
+              router.replace('/home');
+              return;
+            }
+            // Nothing calculated yet: go back to whatever opened this screen —
+            // Home for Elemental and Basic, but the session-type selector for
+            // Premium. Hard-coding /home skipped the selector and looked like
+            // the app had jumped.
+            router.canGoBack() ? router.back() : router.replace('/home');
+          }}
+        />
+            <View style={styles.lockup}>
+              <Text style={styles.lockupWord}>TOTAL</Text>
+              <Text style={styles.lockupWord}>EFFECT</Text>
+              <Text style={styles.lockupWord}>INDEX</Text>
+              <Text style={styles.lockupTei}>TEI</Text>
+            </View>
+            {/* Always enabled, on every tier — it replaces the old Ranges CTA. */}
+            <Pressable
+              onPress={() => router.push('/ranges')}
+              accessibilityRole="button"
+              accessibilityLabel="Effective Ranges"
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.pill,
+                { borderColor: accent, backgroundColor: pressed ? accentAlpha(accent, 0.16) : 'transparent' },
+              ]}
+            >
+              <Text style={[styles.pillText, { color: accent }]}>Effective Ranges</Text>
+            </Pressable>
+          </View>
+
+          {showResult ? (
+            <MaskedNumber value={displayTei(result.tei)} />
+          ) : (
+            <Text style={[styles.bigNumber, { color: '#1A1A1A' }]} numberOfLines={1}>
+              0
+            </Text>
+          )}
         </View>
 
-        {showResult ? (
-          <MaskedNumber value={displayTei(result.tei)} />
-        ) : (
-          <Text style={[styles.bigNumber, { color: '#1A1A1A' }]}>0</Text>
-        )}
-      </View>
-
-      {showTargetBar && (
-        <View style={styles.targetWrap}>
-          {/* The percentage and its caption share a baseline row rather than
-              stacking — same type sizes, one line of height instead of two. */}
-          <View style={styles.targetHead}>
-            <Text style={styles.targetPct}>
-              {Math.round(targetFraction * 100)}%
-            </Text>
-            <Text style={styles.targetLabel}>
-              of {targetRange ? `${targetRange} Target` : 'Target'}
-            </Text>
+        {showTargetBar && (
+          <View style={styles.targetWrap}>
+            {/* The percentage and its caption share a baseline row rather than
+                stacking — same type sizes, one line of height instead of two. */}
+            <View style={styles.targetHead}>
+              <Text style={styles.targetPct}>
+                {Math.round(targetFraction * 100)}%
+              </Text>
+              <Text style={styles.targetLabel}>
+                of {targetRange ? `${targetRange} Target` : 'Target'}
+              </Text>
+            </View>
+            <View style={styles.targetTrack}>
+              <View
+                style={[styles.targetFill, { width: `${targetFraction * 100}%` }]}
+              />
+            </View>
           </View>
-          <View style={styles.targetTrack}>
-            <View
-              style={[styles.targetFill, { width: `${targetFraction * 100}%` }]}
+        )}
+
+        {/* Session date — the block the keypad lifts to the top */}
+        <View style={{ marginTop: 2 }} onLayout={lift.onAnchorLayout}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <CalendarGlyph />
+            <Text style={styles.sessionLabel}>
+              {editing ? 'Editing Session' : 'This Session'}
+            </Text>
+            <Ellipsis
+              onPress={() => setPickingDate(true)}
+              color="#8A8A8A"
+              size={20}
+              label="Change session date"
             />
           </View>
+          <Text style={styles.sessionDate}>{formatSessionDate(session.date)}</Text>
         </View>
-      )}
 
-      {/* Session date */}
-      <View style={{ marginTop: 2 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <CalendarGlyph />
-          <Text style={styles.sessionLabel}>This Session</Text>
-          <Ellipsis
-            onPress={() => setPickingDate(true)}
-            color="#8A8A8A"
-            size={20}
-            label="Change session date"
+        <DatePicker
+          visible={pickingDate}
+          title="This Session"
+          value={new Date(session.date)}
+          // A session is logged after the fact, so it can never be in the future.
+          maxDate={new Date()}
+          withTime
+          onCancel={() => setPickingDate(false)}
+          onConfirm={(d) => {
+            setPickingDate(false);
+            setSessionDate(d.toISOString());
+          }}
+        />
+
+        {/* Four variable rings */}
+        <View style={styles.ringGrid}>
+          {/* Spec (deck slide 13): every calculator offers two layers of data
+              entry — direct entry into the circle, or the ellipsis for a
+              dedicated screen explaining the variable. */}
+          <Ring
+            value={session.sets}
+            label="Sets"
+            onChange={(v) => setSessionField('sets', v)}
+            onEllipsis={() => router.push('/entry/sets?from=standard' as never)}
+            overRange={session.sets !== null && session.sets > LIMITS.sets.overAt}
+          />
+          <Ring
+            value={session.restSeconds}
+            label="Seconds"
+            onChange={(v) => setSessionField('restSeconds', v)}
+            onEllipsis={() => router.push('/entry/rest?from=standard' as never)}
+            overRange={
+              // 0 means "not entered yet" (or auto-filled for a cardio-only
+              // session), so it must not read as a dangerously short rest.
+              session.restSeconds !== null &&
+              session.restSeconds > 0 &&
+              session.restSeconds < LIMITS.rest.min
+            }
+          />
+          <Ring
+            value={session.exertionPercent}
+            label="% Exert"
+            onChange={(v) => setSessionField('exertionPercent', v)}
+            onEllipsis={() => router.push('/entry/exertion?from=standard' as never)}
+            overRange={
+              // Exertion is a 50-100 band, so either side of it is out of range.
+              // 0 is the zero-fill of a cardio-only session, not a bad entry.
+              session.exertionPercent !== null &&
+              session.exertionPercent > 0 &&
+              (session.exertionPercent < LIMITS.exertion.min ||
+                session.exertionPercent > LIMITS.exertion.max)
+            }
+          />
+          <Ring
+            value={session.cardioMinutes}
+            label="Minutes"
+            onChange={(v) => {
+              setSessionField('cardioMinutes', v);
+              // Client rule: someone logging a Cardio ONLY session enters cardio
+              // first, so zero-fill the untouched strength variables rather than
+              // making them type three zeros.
+              if (
+                v !== null &&
+                session.sets === null &&
+                session.restSeconds === null &&
+                session.exertionPercent === null
+              ) {
+                setSessionField('sets', 0);
+                setSessionField('restSeconds', 0);
+                setSessionField('exertionPercent', 0);
+              }
+            }}
+            onEllipsis={() => router.push('/entry/cardio?from=standard' as never)}
+            overRange={
+              session.cardioMinutes !== null &&
+              session.cardioMinutes > LIMITS.cardio.overAt
+            }
           />
         </View>
-        <Text style={styles.sessionDate}>{formatSessionDate(session.date)}</Text>
-      </View>
 
-      <DatePicker
-        visible={pickingDate}
-        title="This Session"
-        value={new Date(session.date)}
-        // A session is logged after the fact, so it can never be in the future.
-        maxDate={new Date()}
-        withTime
-        onCancel={() => setPickingDate(false)}
-        onConfirm={(d) => {
-          setPickingDate(false);
-          setSessionDate(d.toISOString());
-        }}
-      />
+        <View style={{ flex: 1, minHeight: 8 }} />
 
-      {/* Four variable rings */}
-      <View style={styles.ringGrid}>
-        {/* Spec (deck slide 13): every calculator offers two layers of data
-            entry — direct entry into the circle, or the ellipsis for a
-            dedicated screen explaining the variable. */}
-        <Ring
-          value={session.sets}
-          label="Sets"
-          onChange={(v) => setSessionField('sets', v)}
-          onEllipsis={() => router.push('/entry/sets?from=standard' as never)}
-          overRange={session.sets !== null && session.sets > LIMITS.sets.overAt}
-        />
-        <Ring
-          value={session.restSeconds}
-          label="Seconds"
-          onChange={(v) => setSessionField('restSeconds', v)}
-          onEllipsis={() => router.push('/entry/rest?from=standard' as never)}
-          overRange={
-            // 0 means "not entered yet" (or auto-filled for a cardio-only
-            // session), so it must not read as a dangerously short rest.
-            session.restSeconds !== null &&
-            session.restSeconds > 0 &&
-            session.restSeconds < LIMITS.rest.min
-          }
-        />
-        <Ring
-          value={session.exertionPercent}
-          label="% Exert"
-          onChange={(v) => setSessionField('exertionPercent', v)}
-          onEllipsis={() => router.push('/entry/exertion?from=standard' as never)}
-          overRange={
-            // Exertion is a 50-100 band, so either side of it is out of range.
-            // 0 is the zero-fill of a cardio-only session, not a bad entry.
-            session.exertionPercent !== null &&
-            session.exertionPercent > 0 &&
-            (session.exertionPercent < LIMITS.exertion.min ||
-              session.exertionPercent > LIMITS.exertion.max)
-          }
-        />
-        <Ring
-          value={session.cardioMinutes}
-          label="Minutes"
-          onChange={(v) => {
-            setSessionField('cardioMinutes', v);
-            // Client rule: someone logging a Cardio ONLY session enters cardio
-            // first, so zero-fill the untouched strength variables rather than
-            // making them type three zeros.
-            if (
-              v !== null &&
-              session.sets === null &&
-              session.restSeconds === null &&
-              session.exertionPercent === null
-            ) {
-              setSessionField('sets', 0);
-              setSessionField('restSeconds', 0);
-              setSessionField('exertionPercent', 0);
-            }
-          }}
-          onEllipsis={() => router.push('/entry/cardio?from=standard' as never)}
-          overRange={
-            session.cardioMinutes !== null &&
-            session.cardioMinutes > LIMITS.cardio.overAt
-          }
-        />
-      </View>
-
-      <View style={{ flex: 1, minHeight: 8 }} />
-
-      <View style={{ flexDirection: 'row', gap: showSave ? 10 : 12 }}>
-        <OutlineButton
-          title="Calculate TEI"
-          disabled={!complete}
-          onPress={calculate}
-          style={{ flex: 1 }}
-        />
-        {showSave && (
+        <View style={{ flexDirection: 'row', gap: 16 }}>
+          <OutlineButton
+            title="Calculate TEI"
+            disabled={!complete}
+            onPress={calculate}
+            style={{ flex: 1 }}
+          />
           <OutlineButton
             title={saving ? 'Saving…' : 'SAVE'}
-            disabled={saving}
+            // Elemental cannot save, so its SAVE stays disabled. On Basic it is
+            // disabled while the keypad is up — the score has to be calculated
+            // (which closes the keypad) first.
+            disabled={!showSave || saving || lift.keyboardOpen}
             onPress={persist}
-            style={styles.sideBtn}
+            style={styles.saveBtn}
           />
-        )}
-        <OutlineButton
-          title="Ranges"
-          onPress={() => router.push('/ranges')}
-          style={showSave && styles.sideBtn}
-        />
-      </View>
-
-      {rangeError && <Text style={styles.saveError}>{rangeError}</Text>}
-
-      {saveError && (
-        <Text style={styles.saveError}>Could not save session: {saveError}</Text>
-      )}
-
-      {!complete && (
-        <Text style={styles.hint}>
-          Type into a circle, or tap its ••• for guidance.
-        </Text>
-      )}
-
-      {showResult && SHOW_DEV_TOOLS && (
-        <View style={styles.breakdown}>
-          <Text style={styles.breakdownTitle}>How this TEI was calculated</Text>
-          <Text style={styles.breakdownBody}>
-            (({session.sets} × 0.06) × {result.restValue.toFixed(2)} ×{' '}
-            {result.exertionValue.toFixed(2)}) + {result.cardioValue.toFixed(2)}{' '}
-            = {(result.tei / 10).toFixed(3)}
-          </Text>
-          <Text style={styles.breakdownBody}>
-            × 10 ={' '}
-            <Text style={{ color: colors.orange, fontWeight: '700' }}>
-              {result.tei.toFixed(2)} TEI
-            </Text>
-          </Text>
         </View>
-      )}
-    </ScrollView>
+
+        {rangeError && <Text style={styles.saveError}>{rangeError}</Text>}
+
+        {saveError && (
+          <Text style={styles.saveError}>Could not save session: {saveError}</Text>
+        )}
+
+        {editing && <DeleteSessionButton id={editing.id} onDeleted={leaveEdit} />}
+
+        {!complete && (
+          <Text style={styles.hint}>
+            Type into a circle, or tap its ••• for guidance.
+          </Text>
+        )}
+
+        {showResult && SHOW_DEV_TOOLS && (
+          <View style={styles.breakdown}>
+            <Text style={styles.breakdownTitle}>How this TEI was calculated</Text>
+            <Text style={styles.breakdownBody}>
+              (({session.sets} × 0.06) × {result.restValue.toFixed(2)} ×{' '}
+              {result.exertionValue.toFixed(2)}) + {result.cardioValue.toFixed(2)}{' '}
+              = {(result.tei / 10).toFixed(3)}
+            </Text>
+            <Text style={styles.breakdownBody}>
+              × 10 ={' '}
+              <Text style={{ color: colors.orange, fontWeight: '700' }}>
+                {result.tei.toFixed(2)} TEI
+              </Text>
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+      {/* The keypad lift scrolls content up past the status bar; keep the
+          clock on black rather than over the score. */}
+      <View
+        pointerEvents="none"
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.bg }}
+      />
+    </View>
   );
 }
 
@@ -447,8 +517,14 @@ function CalendarGlyph() {
  */
 function MaskedNumber({ value }: { value: number }) {
   return (
-    <View>
-      <Text style={[styles.bigNumber, { color: colors.orange }]}>{value}</Text>
+    <View style={{ flex: 1 }}>
+      <Text
+        style={[styles.bigNumber, { color: colors.orange }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
+        {value}
+      </Text>
       <LinearGradient
         colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.88)']}
         locations={[0.25, 0.62, 1]}
@@ -464,18 +540,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    // Ken asked for the screen to finish above the fold. The lockup + score
-    // lockup keeps its 132pt type; only the empty leading/trailing space in
-    // the line box is reclaimed.
-    minHeight: 122,
+    marginBottom: 6,
   },
+  headLeft: { paddingRight: 8 },
+  lockup: { marginTop: 14 },
+  lockupWord: { color: '#CFCFCF', fontSize: 15, lineHeight: 17, fontWeight: '600' },
+  lockupTei: { color: colors.text, fontSize: 28, lineHeight: 31, fontWeight: '800', letterSpacing: -0.5 },
+  pill: {
+    alignSelf: 'flex-start',
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    marginTop: 14,
+  },
+  pillText: { fontSize: 13, fontWeight: '600' },
   bigNumber: {
-    fontSize: 132,
+    flex: 1,
+    textAlign: 'right',
+    // The mock-up's score is roughly as tall as the lockup and the pill
+    // together; the keypad lift keeps the rings reachable regardless.
+    fontSize: 200,
     fontWeight: '800',
-    letterSpacing: -5,
-    lineHeight: 122,
+    letterSpacing: -10,
+    lineHeight: 190,
     // Negative tracking clips the final glyph without a little breathing room.
-    paddingRight: 6,
+    paddingRight: 10,
   },
   calGlyph: {
     width: 19,
@@ -526,7 +616,7 @@ const styles = StyleSheet.create({
   },
   // Three CTAs share the row on saving tiers; trimming the side buttons'
   // padding keeps "Calculate TEI" on one line on a 375pt-wide phone.
-  sideBtn: { paddingHorizontal: 14 },
+  saveBtn: { paddingHorizontal: 26 },
   saveError: {
     color: '#FF6B6B',
     fontSize: 13,

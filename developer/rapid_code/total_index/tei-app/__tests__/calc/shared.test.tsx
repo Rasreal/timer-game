@@ -10,7 +10,7 @@ import { Text } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { CalcShell, RingRow } from '../../src/components/CalcShell';
 import {
-  DEFAULT_TARGET_MAX,
+  DEFAULT_TARGET,
   EFFECTIVE_RANGES,
   LIMITS,
   displayTei,
@@ -246,12 +246,12 @@ describe('CalcShell — % of Target bar', () => {
     renderShell({ tei });
     pressCalculate();
 
-    const pct = Math.round((tei / DEFAULT_TARGET_MAX) * 100);
+    const pct = Math.round((tei / DEFAULT_TARGET) * 100);
     expect(screen.getByText(`${pct}%`)).toBeTruthy();
   });
 
   it('clamps the bar to 100% for a score above the target', () => {
-    renderShell({ tei: DEFAULT_TARGET_MAX * 3 });
+    renderShell({ tei: DEFAULT_TARGET * 3 });
     pressCalculate();
     expect(screen.getByText('100%')).toBeTruthy();
   });
@@ -262,20 +262,22 @@ describe('CalcShell — % of Target bar', () => {
     expect(screen.getByText('0%')).toBeTruthy();
   });
 
-  // The fallback denominator is the WEEKLY period total, not LIMITS.tei.max —
-  // that is a SINGLE-SESSION ceiling (33) and measuring against it read more
-  // than three times too high for a user who never visited Ranges.
-  it('defaults to the WEEKLY period total rather than the single-session ceiling', () => {
+  // The fallback denominator is the WEEKLY target, not LIMITS.tei.max — that
+  // is a SINGLE-SESSION ceiling (33) and measuring against it read far too
+  // high for a user who never visited Ranges. Ken's 19 Oct 2026 edits set the
+  // target at the LOWER end of the range plus 10%: 55 → 60.5.
+  it('defaults to the WEEKLY lower bound plus 10% rather than the single-session ceiling', () => {
     const weekly = EFFECTIVE_RANGES.find((r) => r.label === 'WEEKLY')!;
-    expect(DEFAULT_TARGET_MAX).toBe(weekly.max);
+    expect(DEFAULT_TARGET).toBeCloseTo(weekly.min * 1.1);
+    expect(DEFAULT_TARGET).toBeCloseTo(60.5);
     expect(LIMITS.tei.max).toBe(33);
-    expect(weekly.max).toBe(111);
 
     renderShell({ tei: 16.5 });
     pressCalculate();
 
-    // 15% against WEEKLY, not the 50% the single-session ceiling gave.
-    expect(screen.getByText('15%')).toBeTruthy();
+    // 27% of 60.5 — not 15% of the upper 111, nor 50% of the ceiling.
+    expect(screen.getByText('27%')).toBeTruthy();
+    expect(screen.queryByText('15%')).toBeNull();
     expect(screen.queryByText('50%')).toBeNull();
   });
 });

@@ -1,6 +1,11 @@
 import type { PlanRow } from './plans';
 import type { SessionRow } from './database.types';
-import { EFFECTIVE_RANGES, gradeAgainstPlan, type PlanGrade } from './tei';
+import {
+  EFFECTIVE_RANGES,
+  gradeAgainstPlan,
+  type CalculatorId,
+  type PlanGrade,
+} from './tei';
 
 export type ReviewTimeframe = (typeof EFFECTIVE_RANGES)[number]['label'];
 
@@ -85,3 +90,102 @@ export function totalPlansInPeriod(
 export function gradePeriod(actual: number, planned: number): PlanGrade {
   return gradeAgainstPlan(actual, planned > 0 ? planned : null);
 }
+
+/* ---------------------------------------------------------------------------
+ * Weekly review (Ken's 22 Oct 2026 "Better explanation of REVIEW")
+ * ------------------------------------------------------------------------ */
+
+/** Parse a local YYYY-MM-DD without the UTC shift `new Date(string)` applies. */
+export function parseDayKey(key: string | undefined): Date | null {
+  const match = key?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+/** The Sunday on or before `date`, at local midnight. Weeks run Sun→Sat. */
+export function startOfWeek(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
+}
+
+/** Seven consecutive days from `start`. */
+export function weekDates(start: Date): Date[] {
+  return Array.from(
+    { length: 7 },
+    (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i),
+  );
+}
+
+/** Sunday of the last week that has fully finished — the SNAPSHOT week. */
+export function previousFullWeekStart(now = new Date()): Date {
+  const thisWeek = startOfWeek(now);
+  return new Date(thisWeek.getFullYear(), thisWeek.getMonth(), thisWeek.getDate() - 7);
+}
+
+/** Sessions bucketed by local day, each day oldest first. */
+export function sessionsByDay(rows: SessionRow[]): Map<string, SessionRow[]> {
+  const out = new Map<string, SessionRow[]>();
+  const sorted = [...rows].sort(
+    (a, b) => new Date(a.performed_at).getTime() - new Date(b.performed_at).getTime(),
+  );
+  for (const row of sorted) {
+    const key = reviewDayKey(new Date(row.performed_at));
+    const day = out.get(key);
+    if (day) day.push(row);
+    else out.set(key, [row]);
+  }
+  return out;
+}
+
+export function sumTei(rows: SessionRow[]): number {
+  return rows.reduce((sum, row) => sum + Number(row.tei), 0);
+}
+
+export interface SessionVariable {
+  label: string;
+  value: number | null;
+}
+
+/**
+ * The headline variables of a saved session, in the order its calculator's
+ * rings show them — the columns of a "7 Days in Review" row.
+ */
+export function sessionVariables(row: SessionRow): SessionVariable[] {
+  switch (row.calculator as CalculatorId) {
+    case 'breakdown':
+      return [
+        { label: 'Sets', value: row.sets },
+        { label: 'Breakdowns', value: row.breakdowns },
+        { label: 'Seconds', value: row.rest_seconds },
+        { label: '% Exert', value: row.exertion_percent },
+        { label: 'Minutes', value: row.cardio_minutes },
+      ];
+    case 'circuit':
+      return [
+        { label: 'Exercises', value: row.exercises },
+        { label: 'Circuits', value: row.circuits },
+        { label: '% Exert', value: row.exertion_percent },
+        { label: 'Minutes', value: row.cardio_minutes },
+      ];
+    case 'cardio':
+      return [{ label: 'Cardio Minutes', value: row.cardio_minutes }];
+    case 'yoga':
+      return [
+        { label: 'Yoga Mins', value: row.yoga_minutes },
+        { label: '% Exert', value: row.exertion_percent },
+        { label: 'Minutes', value: row.cardio_minutes },
+      ];
+    default:
+      return [
+        { label: 'Sets', value: row.sets },
+        { label: 'Seconds', value: row.rest_seconds },
+        { label: '% Exert', value: row.exertion_percent },
+        { label: 'Minutes', value: row.cardio_minutes },
+      ];
+  }
+}
+
+/** The calculator screen that edits a session saved by `calculator`. */
+export function calculatorRoute(calculator: string): string {
+  return calculator === 'standard' || !calculator ? '/calculator' : `/calc/${calculator}`;
+}
+

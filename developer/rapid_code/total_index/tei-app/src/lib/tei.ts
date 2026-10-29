@@ -139,12 +139,35 @@ export const EFFECTIVE_RANGES = [
 ] as const;
 
 /**
+ * The number a range's "% of Target" is measured against. Ken's 19 Oct 2026
+ * edits: the LOWER end of the range plus 10% (WEEKLY 55/111 → 60.5), not the
+ * upper end.
+ */
+export function rangeTarget(range: { min: number }): number {
+  return range.min * 1.1;
+}
+
+/** Target for a timeframe label, falling back to WEEKLY when none is chosen. */
+export function targetForRange(label: string | null | undefined): number {
+  return rangeTarget(EFFECTIVE_RANGES.find((r) => r.label === label) ?? EFFECTIVE_RANGES[0]);
+}
+
+/**
  * Denominator for the "% of Target" bar before the user has picked a
- * timeframe on Effective Ranges. It is the WEEKLY total — the smallest real
+ * timeframe on Effective Ranges. It is the WEEKLY target — the smallest real
  * period target — rather than `LIMITS.tei.max`, which is a SINGLE-SESSION
  * ceiling and made an unset bar read more than three times too high.
  */
-export const DEFAULT_TARGET_MAX = EFFECTIVE_RANGES[0].max;
+export const DEFAULT_TARGET = rangeTarget(EFFECTIVE_RANGES[0]);
+
+/**
+ * The Home screen's "Last TEI – NN% of Target" compares ONE session with the
+ * weekly target, so the week is shared across this many sessions.
+ */
+export const SESSIONS_PER_WEEK = 3;
+
+/** One session's share of the weekly target (60.5 / 3 ≈ 20.2 TEI). */
+export const SESSION_TARGET = DEFAULT_TARGET / SESSIONS_PER_WEEK;
 
 /**
  * Input bounds, from the workbook's "Specification" column. Values outside

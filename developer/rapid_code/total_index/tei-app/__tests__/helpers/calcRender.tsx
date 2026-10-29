@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { act, render, type RenderResult } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StoreProvider, useStore, type SessionDraft } from '../../src/store';
+import type { SessionRow } from '../../src/lib/database.types';
 
 /** Deterministic insets so `useSafeAreaInsets()` resolves without a device. */
 const INITIAL_METRICS = {
@@ -22,7 +23,7 @@ const INITIAL_METRICS = {
  * jest.mock()'d by the individual test file so nothing touches the network.
  */
 
-export type SessionSeed = Partial<Omit<SessionDraft, 'date' | 'dateChosen'>>;
+export type SessionSeed = Partial<Omit<SessionDraft, 'date' | 'dateChosen' | 'editing'>>;
 
 export interface StoreHandle {
   /** Write one variable into the session draft. */
@@ -47,7 +48,12 @@ export interface RenderCalcResult extends RenderResult {
 
 export function renderCalc(
   ui: ReactElement,
-  options: { seed?: SessionSeed; seedBeforeMount?: boolean } = {},
+  options: {
+    seed?: SessionSeed;
+    seedBeforeMount?: boolean;
+    /** A saved session opened for editing, loaded before the screen mounts. */
+    load?: SessionRow;
+  } = {},
 ): RenderCalcResult {
   let live: ReturnType<typeof useStore> | null = null;
   const capture = (s: ReturnType<typeof useStore>) => {
@@ -57,7 +63,7 @@ export function renderCalc(
   // Screens whose `useState` initialiser reads the store (the guided entry
   // screen does) must not see an empty draft on their first render, so the
   // seed is applied to a store-only tree and the screen is mounted after.
-  const deferred = Boolean(options.seed && options.seedBeforeMount);
+  const deferred = Boolean((options.seed && options.seedBeforeMount) || options.load);
 
   const tree = (children: ReactElement | null) => (
     <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
@@ -85,6 +91,12 @@ export function renderCalc(
     toast: () => live!.toast,
   };
 
+  if (options.load) {
+    const row = options.load;
+    act(() => {
+      live!.loadSession(row);
+    });
+  }
   if (options.seed) store.seed(options.seed);
   if (deferred) act(() => result.rerender(tree(ui)));
 

@@ -314,9 +314,9 @@ describe('Review', () => {
       expect(router.replace).toHaveBeenCalledWith('/home');
     });
 
-    it('"See Ideal Ranges of TEI" pushes /ranges', async () => {
+    it('"See Effective Ranges of TEI" pushes /ranges', async () => {
       await renderReview();
-      fireEvent.press(screen.getByText('See Ideal Ranges of TEI'));
+      fireEvent.press(screen.getByText('See Effective Ranges of TEI'));
       expect(router.push).toHaveBeenCalledWith('/ranges');
     });
 
@@ -455,25 +455,90 @@ describe('Review', () => {
       });
       expect(flatten(total!.props.style).color).toBe(GRADE_COLORS.over);
     });
+  });
 
-    it('opens Premium per-session details from a saved day', async () => {
-      const day = dayInThisMonth(13);
+  describe('tap strategies (22 Oct 2026 edits)', () => {
+    const yoga = (over: Record<string, unknown> = {}) =>
+      makeSession({
+        id: 'yoga-session',
+        calculator: 'yoga',
+        yoga_minutes: 30,
+        performed_at: dayInThisMonth(13).toISOString(),
+        tei: 18,
+        ...over,
+      });
+
+    it('a single tap only selects the week', async () => {
+      listBetween.mockResolvedValue({ data: [yoga()], error: null });
+      await renderReview();
+
+      const cell = screen.getByLabelText(/, 1 session, 18 TEI$/);
+      fireEvent(cell, 'pressIn');
+      fireEvent.press(cell);
+      expect(router.push).not.toHaveBeenCalled();
+    });
+
+    it('two touches on different days are not a double tap', async () => {
       listBetween.mockResolvedValue({
-        data: [makeSession({
-          id: 'yoga-session',
-          calculator: 'yoga',
-          yoga_minutes: 30,
-          performed_at: day.toISOString(),
-          tei: 18,
-        })],
+        data: [yoga(), yoga({ id: 'b', performed_at: dayInThisMonth(14).toISOString(), tei: 9 })],
         error: null,
       });
       await renderReview();
 
-      fireEvent.press(screen.getByLabelText(/^View 1 session on /));
-      expect(screen.getByText('Workout details')).toBeTruthy();
-      expect(screen.getByText('YOGA Training')).toBeTruthy();
-      expect(screen.getByText(/Yoga: 30 min/)).toBeTruthy();
+      fireEvent(screen.getByLabelText(/, 1 session, 18 TEI$/), 'pressIn');
+      fireEvent(screen.getByLabelText(/, 1 session, 9 TEI$/), 'pressIn');
+      expect(router.push).not.toHaveBeenCalled();
+    });
+
+    it("a double tap opens that week's 7 Days in Review", async () => {
+      listBetween.mockResolvedValue({ data: [yoga()], error: null });
+      await renderReview();
+
+      // Counted on touch-down, as a fast double tap delivers it.
+      const cell = screen.getByLabelText(/, 1 session, 18 TEI$/);
+      fireEvent(cell, 'pressIn');
+      fireEvent(cell, 'pressIn');
+
+      const day = dayInThisMonth(13);
+      const sunday = new Date(day.getFullYear(), day.getMonth(), day.getDate() - day.getDay());
+      expect(router.push).toHaveBeenCalledWith(`/review-week?start=${dayKey(sunday)}`);
+    });
+
+    it("a long press opens the day's only session in its own calculator, on Basic too", async () => {
+      listBetween.mockResolvedValue({ data: [yoga()], error: null });
+      await renderReview();
+
+      fireEvent(screen.getByLabelText(/, 1 session, 18 TEI$/), 'longPress');
+      expect(router.push).toHaveBeenCalledWith('/calc/yoga');
+    });
+
+    it('a long press on a day with several sessions slides up Multiple Entries', async () => {
+      const day = dayInThisMonth(13);
+      listBetween.mockResolvedValue({
+        data: [
+          yoga({ id: 'a', performed_at: new Date(day.getTime() - 3 * 3600_000).toISOString(), tei: 16 }),
+          yoga({ id: 'b', calculator: 'standard', tei: 4 }),
+        ],
+        error: null,
+      });
+      await renderReview();
+
+      fireEvent(screen.getByLabelText(/, 2 sessions, 20 TEI$/), 'longPress');
+      expect(screen.getByText('2 Sessions')).toBeTruthy();
+      expect(router.push).not.toHaveBeenCalled();
+
+      // Picking one opens it for correction.
+      fireEvent.press(screen.getByLabelText('Session 2, 4 TEI. Edit this session.'));
+      expect(router.push).toHaveBeenCalledWith('/calculator');
+    });
+
+    it('a long press on an empty day explains there is nothing to edit', async () => {
+      listBetween.mockResolvedValue({ data: [], error: null });
+      await renderReview();
+
+      fireEvent(screen.getAllByLabelText(/, no session$/)[0], 'longPress');
+      expect(screen.getByText(/^No session saved on /)).toBeTruthy();
+      expect(router.push).not.toHaveBeenCalled();
     });
   });
 });
