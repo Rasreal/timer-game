@@ -19,12 +19,12 @@ describe('Premium review periods', () => {
   const now = new Date(2026, 7, 15, 10, 0, 0);
   const periods = currentTimeframePeriods(now);
 
-  it('uses current Sunday-start periods through today', () => {
+  it('uses current Monday-start periods through today', () => {
     expect(periods.map((period) => period.label)).toEqual([
       'WEEKLY', 'MONTHLY', 'QUARTERLY', 'SEMI-ANNUAL', 'ANNUAL',
     ]);
-    expect(reviewDayKey(periods[0].start)).toBe('2026-08-09');
-    expect(reviewDayKey(periods[0].end)).toBe('2026-08-16');
+    expect(reviewDayKey(periods[0].start)).toBe('2026-08-10');
+    expect(reviewDayKey(periods[0].end)).toBe('2026-08-17');
     expect(reviewDayKey(periods[2].start)).toBe('2026-07-01');
     expect(reviewDayKey(periods[3].start)).toBe('2026-07-01');
     expect(reviewDayKey(periods[4].start)).toBe('2026-01-01');
@@ -33,14 +33,14 @@ describe('Premium review periods', () => {
   it('sums only sessions and plans inside a half-open period', () => {
     const weekly = periods[0];
     const inside = new Date(2026, 7, 12, 12).toISOString();
-    const outside = new Date(2026, 7, 16, 12).toISOString();
+    const outside = new Date(2026, 7, 17, 12).toISOString();
     expect(totalSessionsInPeriod([
       makeSession({ performed_at: inside, tei: 12 }),
       makeSession({ id: 'outside', performed_at: outside, tei: 50 }),
     ], weekly.start, weekly.end)).toBe(12);
     expect(totalPlansInPeriod([
       makePlan({ planned_for: '2026-08-12', tei: 16 }),
-      makePlan({ id: 'outside', planned_for: '2026-08-16', tei: 50 }),
+      makePlan({ id: 'outside', planned_for: '2026-08-17', tei: 50 }),
     ], weekly.start, weekly.end)).toBe(16);
   });
 
@@ -59,17 +59,21 @@ describe('weekly review helpers', () => {
     expect(parseDayKey(undefined)).toBeNull();
   });
 
-  it('weeks start on Sunday', () => {
-    expect(startOfWeek(new Date(2026, 4, 6, 15))).toEqual(new Date(2026, 4, 3));
-    expect(startOfWeek(new Date(2026, 4, 3))).toEqual(new Date(2026, 4, 3));
-    expect(weekDates(new Date(2026, 4, 3)).map((d) => d.getDate())).toEqual([3, 4, 5, 6, 7, 8, 9]);
+  it('weeks start on Monday', () => {
+    expect(startOfWeek(new Date(2026, 4, 6, 15))).toEqual(new Date(2026, 4, 4));
+    expect(startOfWeek(new Date(2026, 4, 4))).toEqual(new Date(2026, 4, 4));
+    // A Sunday closes the week that began the Monday before.
+    expect(startOfWeek(new Date(2026, 4, 10, 23))).toEqual(new Date(2026, 4, 4));
+    expect(weekDates(new Date(2026, 4, 4)).map((d) => d.getDate())).toEqual([4, 5, 6, 7, 8, 9, 10]);
   });
 
-  it('the snapshot week is the last finished Sunday-to-Saturday', () => {
-    // Wednesday 29 Oct 2026 → the week of Sunday 18 Oct.
-    expect(previousFullWeekStart(new Date(2026, 9, 29, 12))).toEqual(new Date(2026, 9, 18));
-    // On a Sunday the week that just ended counts.
-    expect(previousFullWeekStart(new Date(2026, 9, 25, 8))).toEqual(new Date(2026, 9, 18));
+  it('the snapshot week is the last finished Monday-to-Sunday', () => {
+    // Thursday 29 Oct 2026 → the week of Monday 19 Oct.
+    expect(previousFullWeekStart(new Date(2026, 9, 29, 12))).toEqual(new Date(2026, 9, 19));
+    // On a Sunday that week is still running, so the one before it counts.
+    expect(previousFullWeekStart(new Date(2026, 9, 25, 8))).toEqual(new Date(2026, 9, 12));
+    // On a Monday the week that just ended counts.
+    expect(previousFullWeekStart(new Date(2026, 9, 26, 8))).toEqual(new Date(2026, 9, 19));
   });
 
   it('buckets sessions by local day, oldest first', () => {

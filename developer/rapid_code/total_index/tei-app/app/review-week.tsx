@@ -37,7 +37,7 @@ import { colors, useAccent } from '../src/theme';
  * "TEI - 7 Days in Review" (Ken's 22 Oct 2026 mock-ups), reached by
  * double-tapping a day on the monthly Review calendar.
  *
- * One row per day of that Sunday-to-Saturday week: the session's variables
+ * One row per day of that Monday-to-Sunday week: the session's variables
  * and its TEI, OFF for a past day with nothing logged, or — when the day has
  * more than one session — a green "Multiple Entries" box whose tap slides up
  * the day's sessions. Tapping a session's TEI opens it for correction.
@@ -305,7 +305,9 @@ const styles = StyleSheet.create({
   rule: { height: 1, backgroundColor: '#9A9A9A', marginTop: 3 },
   multi: {
     marginTop: 6,
-    backgroundColor: '#5E9E3B',
+    marginHorizontal: 6,
+    // The mock-up's muted green, inset from the row's rule.
+    backgroundColor: '#6A9B4C',
     borderRadius: 4,
     paddingVertical: 5,
     alignItems: 'center',

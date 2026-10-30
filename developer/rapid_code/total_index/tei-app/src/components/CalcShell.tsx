@@ -44,7 +44,10 @@ export interface CalcShellProps {
     circuits?: number | null;
     yogaMinutes?: number | null;
   };
-  /** Yoga is the only mock-up carrying the Effective Ranges pill. */
+  /**
+   * The Effective Ranges pill under the lockup. Ken's 22 Oct edits make it
+   * the Ranges button on every calculator, so it shows unless turned off.
+   */
   showRangesPill?: boolean;
   /**
    * Screens whose rings wrap to three rows (Breakdown) need a tighter gap
@@ -61,7 +64,7 @@ export function CalcShell({
   complete,
   compute,
   saveFields,
-  showRangesPill = false,
+  showRangesPill = true,
   tightRings = false,
   children,
 }: CalcShellProps) {

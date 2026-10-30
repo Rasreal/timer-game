@@ -54,8 +54,9 @@ export default function Calculator() {
   // Elemental is calculate-only by design; paid tiers persist history.
   const canSaveHistory = profile != null && profile.tier !== 'elemental';
   // Planner mode always offers SAVE so a non-Premium user hears why it
-  // cannot plan rather than finding no button at all. Elemental sees SAVE
-  // too, but disabled (Ken's 19 Oct 2026 mock-ups).
+  // cannot plan rather than finding no button at all. Elemental gets no SAVE:
+  // a full-width Calculate TEI and an Upgrade link instead of a dead button
+  // (30 Oct 2026 wireframe).
   const showSave = canSaveHistory || Boolean(planDay);
 
   const complete =
@@ -78,8 +79,8 @@ export default function Calculator() {
   const showResult = calculated && complete;
 
   // Editing any variable after a calculation makes that score stale: clear it
-  // so the user re-calculates before SAVE, and let the new inputs be saved as
-  // their own session. Compared by value so the mount (and a strict-mode
+  // so the user re-calculates before SAVE (a new session, or the corrected
+  // one when editing). Compared by value so the mount (and a strict-mode
   // re-run) does not wipe an opened session's score.
   const inputsKey = `${session.sets}|${session.restSeconds}|${session.exertionPercent}|${session.cardioMinutes}`;
   const lastInputs = useRef(inputsKey);
@@ -141,11 +142,9 @@ export default function Calculator() {
     }
     setCalculated(true);
 
-    if (warning) {
-      showToast(warning);
-    } else if (!showSave) {
-      showToast(`TEI ${result.tei.toFixed(2)} for this session`);
-    }
+    // The big number already shows the score; a toast would only cover the
+    // buttons. The over-33 warning still needs saying.
+    if (warning) showToast(warning);
   }
 
   async function persist() {
@@ -440,18 +439,34 @@ export default function Calculator() {
             title="Calculate TEI"
             disabled={!complete}
             onPress={calculate}
-            style={{ flex: 1 }}
+            style={styles.ctaBtn}
           />
-          <OutlineButton
-            title={saving ? 'Saving…' : 'SAVE'}
-            // Elemental cannot save, so its SAVE stays disabled. On Basic it is
-            // disabled while the keypad is up — the score has to be calculated
-            // (which closes the keypad) first.
-            disabled={!showSave || saving || lift.keyboardOpen}
-            onPress={persist}
-            style={styles.saveBtn}
-          />
+          {showSave && (
+            <OutlineButton
+              title={saving ? 'Saving…' : 'SAVE'}
+              // Disabled while the keypad is up — the score has to be
+              // calculated (which closes the keypad) first.
+              disabled={saving || lift.keyboardOpen}
+              onPress={persist}
+              style={styles.ctaBtn}
+            />
+          )}
         </View>
+
+        {!showSave && (
+          <Pressable
+            onPress={() => router.push('/account-type')}
+            accessibilityRole="link"
+            accessibilityLabel="Upgrade to save your calculations"
+            hitSlop={8}
+            style={({ pressed }) => [styles.upgrade, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Text style={styles.upgradeText}>
+              <Text style={[styles.upgradeLink, { color: accent }]}>Upgrade</Text> to save your
+              calculations.
+            </Text>
+          </Pressable>
+        )}
 
         {rangeError && <Text style={styles.saveError}>{rangeError}</Text>}
 
@@ -614,9 +629,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
   },
-  // Three CTAs share the row on saving tiers; trimming the side buttons'
-  // padding keeps "Calculate TEI" on one line on a 375pt-wide phone.
-  saveBtn: { paddingHorizontal: 26 },
+  // Calculate TEI and SAVE share the row at equal width; the trimmed padding
+  // keeps "Calculate TEI" on one line on a 375pt-wide phone. Alone (Elemental)
+  // Calculate TEI spans the row.
+  ctaBtn: { flex: 1, paddingHorizontal: 10 },
+  upgrade: { alignSelf: 'center', marginTop: 12 },
+  upgradeText: { color: '#A0A0A0', fontSize: 14, lineHeight: 19, textAlign: 'center' },
+  upgradeLink: { fontWeight: '600', textDecorationLine: 'underline' },
   saveError: {
     color: '#FF6B6B',
     fontSize: 13,

@@ -1030,3 +1030,16 @@ describe('GRADE_COLORS', () => {
     }
   });
 });
+
+describe('% of Target (19 Oct 2026 edits)', () => {
+  it('measures against the lower bound of a range plus 10%', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { rangeTarget, targetForRange, DEFAULT_TARGET, SESSION_TARGET } = require('../src/lib/tei');
+    expect(rangeTarget({ min: 55 })).toBeCloseTo(60.5);
+    expect(targetForRange('MONTHLY')).toBeCloseTo(275);
+    expect(targetForRange(null)).toBeCloseTo(60.5);
+    expect(DEFAULT_TARGET).toBeCloseTo(60.5);
+    // Home compares one session with a third of the weekly target.
+    expect(SESSION_TARGET).toBeCloseTo(60.5 / 3);
+  });
+});

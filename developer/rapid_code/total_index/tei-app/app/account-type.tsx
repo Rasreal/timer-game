@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   Modal,
@@ -14,6 +14,7 @@ import {
   Divider,
   Ellipsis,
   OutlineButton,
+  Toast,
 } from '../src/components/Chrome';
 import {
   InDevelopmentBadge,
@@ -44,9 +45,20 @@ export default function AccountType() {
   const signedIn = session != null;
   const currentTier = signedIn ? profile?.tier : undefined;
 
+  // The app-wide toast is drawn under any open Modal, so a confirmation for a
+  // SEND made inside "The 3 TEI" is shown inside that sheet instead.
+  const [sheetNote, setSheetNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!sheetNote) return;
+    const timer = setTimeout(() => setSheetNote(null), 2600);
+    return () => clearTimeout(timer);
+  }, [sheetNote]);
+
   function waitlistSent() {
+    const message = 'You’re on the TEI Premium waitlist. Pick a TEI for now.';
+    if (waitlistOver === 'sheet') setSheetNote(message);
+    else showToast(message);
     setWaitlistOver(null);
-    showToast('You’re on the TEI Premium waitlist. Pick a TEI for now.');
   }
 
   async function choose(tier: Tier) {
@@ -92,8 +104,9 @@ export default function AccountType() {
           </View>
         </View>
 
+        {/* Line breaks as in Ken's 20 Oct mock-up. */}
         <Text style={styles.question}>
-          What kind of training information do you want{' '}
+          {'What kind of\ntraining information do you\nwant '}
           <Text style={{ fontWeight: '700', color: colors.text }}>TEI</Text> to
           provide?
         </Text>
@@ -168,6 +181,7 @@ export default function AccountType() {
             onSent={waitlistSent}
           />
         )}
+        {sheetNote && <Toast message={sheetNote} />}
       </Modal>
     </View>
   );
@@ -246,10 +260,13 @@ function TheThreeTei({
   return (
     <View style={{ flex: 1, justifyContent: 'flex-end' }}>
       <View style={styles.sheet}>
+        {/* Sized so the whole sheet, down to Select Your TEI, fits on one
+            screen as in Ken's 20 Oct mock-up; it still scrolls if needed. */}
         <ScrollView
           contentContainerStyle={{
-            padding: 22,
-            paddingBottom: Math.max(insets.bottom, 20) + 24,
+            padding: 20,
+            paddingTop: 18,
+            paddingBottom: Math.max(insets.bottom, 16) + 8,
           }}
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -312,8 +329,8 @@ function TheThreeTei({
           <OutlineButton
             title="Select Your TEI"
             onPress={onClose}
-            fontSize={23}
-            style={{ marginTop: 18, alignSelf: 'center', paddingHorizontal: 44 }}
+            fontSize={20}
+            style={{ marginTop: 12, alignSelf: 'center', paddingHorizontal: 44 }}
           />
         </ScrollView>
       </View>
@@ -343,7 +360,7 @@ function PlanBlock({
   const pillColor = waitlist ? WAITLIST_YELLOW : accent;
 
   return (
-    <View style={{ marginTop: 22 }}>
+    <View style={{ marginTop: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Text style={[styles.planName, { color: accent }]}>{name}</Text>
         <Text
@@ -441,21 +458,21 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   sheet: {
-    height: '90%',
+    height: '94%',
     backgroundColor: '#0D0D0D',
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
   },
   sheetTitle: {
     color: colors.text,
-    fontSize: 38,
+    fontSize: 33,
     fontWeight: '500',
     letterSpacing: -1,
   },
-  sheetSub: { color: colors.text, fontSize: 23, fontWeight: '500', marginTop: 2 },
+  sheetSub: { color: colors.text, fontSize: 20, fontWeight: '500', marginTop: 0 },
   planName: {
     flex: 1,
-    fontSize: 26,
+    fontSize: 23,
     fontWeight: '500',
     letterSpacing: -0.5,
   },
@@ -478,14 +495,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   waitlistText: { fontWeight: '800', letterSpacing: 1 },
-  planTagline: { color: colors.text, fontSize: 17, fontWeight: '700', marginTop: 6 },
-  featBody: { color: '#D2D2D2', fontSize: 15.5, lineHeight: 21 },
-  bulletRow: { flexDirection: 'row', gap: 8, paddingLeft: 8, marginTop: 3 },
+  planTagline: { color: colors.text, fontSize: 16, fontWeight: '700', marginTop: 4 },
+  featBody: { color: '#D2D2D2', fontSize: 14, lineHeight: 18 },
+  bulletRow: { flexDirection: 'row', gap: 8, paddingLeft: 8, marginTop: 1 },
   sheetSlogan: {
     color: colors.text,
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
-    marginTop: 26,
+    marginTop: 14,
   },
 });

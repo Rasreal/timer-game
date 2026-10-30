@@ -32,7 +32,9 @@ export function useKeyboardLift(topInset = 0) {
       // Wait a frame so the extra bottom padding exists before scrolling.
       requestAnimationFrame(() =>
         scrollRef.current?.scrollTo({
-          y: Math.max(0, anchorY.current - topInset - 6),
+          // Exactly at the anchor: any less and a strip of whatever sits above
+          // it (the % of Target bar) shows under the status bar.
+          y: Math.max(0, anchorY.current - topInset),
           animated: true,
         }),
       );

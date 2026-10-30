@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { daysSinceMonday, WEEKDAY_INITIALS as WEEKDAYS } from '../lib/review';
 import { colors, onAccentTint, useAccent } from '../theme';
 
 /**
@@ -9,7 +10,7 @@ import { colors, onAccentTint, useAccent } from '../theme';
  * android/ projects would then need a rebuild before any of the date controls
  * worked. This one runs everywhere the app already does, web included.
  *
- * Weeks start on Sunday, matching the Review and Plan calendars.
+ * Weeks start on Monday, matching the Review and Plan calendars.
  */
 export interface DatePickerProps {
   visible: boolean;
@@ -30,7 +31,6 @@ export interface DatePickerProps {
   onConfirm: (date: Date) => void;
 }
 
-const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MINUTE_STEP = 5;
 
 export function startOfDay(d: Date): Date {
@@ -57,7 +57,7 @@ function monthIndex(d: Date): number {
 function monthGrid(cursor: Date): (Date | null)[][] {
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
-  const lead = new Date(year, month, 1).getDay();
+  const lead = daysSinceMonday(new Date(year, month, 1));
   const length = new Date(year, month + 1, 0).getDate();
 
   const cells: (Date | null)[] = Array.from({ length: lead }, () => null);

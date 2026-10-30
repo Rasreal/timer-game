@@ -494,14 +494,57 @@ describe('Review', () => {
       listBetween.mockResolvedValue({ data: [yoga()], error: null });
       await renderReview();
 
-      // Counted on touch-down, as a fast double tap delivers it.
+      // Timed from touch-down, completed by a short second release.
       const cell = screen.getByLabelText(/, 1 session, 18 TEI$/);
       fireEvent(cell, 'pressIn');
+      fireEvent(cell, 'pressOut');
       fireEvent(cell, 'pressIn');
+      expect(router.push).not.toHaveBeenCalled();
+      fireEvent(cell, 'pressOut');
 
       const day = dayInThisMonth(13);
-      const sunday = new Date(day.getFullYear(), day.getMonth(), day.getDate() - day.getDay());
-      expect(router.push).toHaveBeenCalledWith(`/review-week?start=${dayKey(sunday)}`);
+      const monday = new Date(day.getFullYear(), day.getMonth(), day.getDate() - (day.getDay() + 6) % 7);
+      expect(router.push).toHaveBeenCalledWith(`/review-week?start=${dayKey(monday)}`);
+    });
+
+    it('a tap followed by a long press edits rather than opening the week', async () => {
+      listBetween.mockResolvedValue({ data: [yoga()], error: null });
+      await renderReview();
+
+      const cell = screen.getByLabelText(/, 1 session, 18 TEI$/);
+      fireEvent(cell, 'pressIn');
+      fireEvent(cell, 'pressOut');
+      fireEvent(cell, 'pressIn');
+      fireEvent(cell, 'longPress');
+      fireEvent(cell, 'pressOut');
+
+      expect(router.push).toHaveBeenCalledTimes(1);
+      expect(router.push).toHaveBeenCalledWith('/calc/yoga');
+    });
+
+    it('offers the double tap and the long press as VoiceOver actions', async () => {
+      listBetween.mockResolvedValue({ data: [yoga()], error: null });
+      await renderReview();
+
+      const cell = screen.getByLabelText(/, 1 session, 18 TEI$/);
+      expect(cell.props.accessibilityActions.map((a: { name: string }) => a.name)).toEqual([
+        'openWeek',
+        'editSession',
+      ]);
+      fireEvent(cell, 'accessibilityAction', { nativeEvent: { actionName: 'openWeek' } });
+      expect(router.push).toHaveBeenCalledWith(expect.stringMatching(/^\/review-week\?start=/));
+      fireEvent(cell, 'accessibilityAction', { nativeEvent: { actionName: 'editSession' } });
+      expect(router.push).toHaveBeenCalledWith('/calc/yoga');
+    });
+
+    it('marks past spill-over days from the previous month as rest days', async () => {
+      await renderReview();
+      const first = new Date();
+      first.setDate(1);
+      // The grid starts on the Monday before the 1st; those days are past.
+      if (first.getDay() !== 1) {
+        expect(screen.getAllByText('X').length).toBeGreaterThan(0);
+      }
     });
 
     it("a long press opens the day's only session in its own calculator, on Basic too", async () => {

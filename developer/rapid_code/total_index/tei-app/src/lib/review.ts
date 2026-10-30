@@ -32,7 +32,7 @@ export function reviewDayKey(date: Date): string {
  */
 export function currentTimeframePeriods(now = new Date()): TimeframePeriod[] {
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+  const weekStart = startOfWeek(now);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
   const semiAnnualStart = new Date(now.getFullYear(), now.getMonth() < 6 ? 0 : 6, 1);
@@ -102,9 +102,17 @@ export function parseDayKey(key: string | undefined): Date | null {
   return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 }
 
-/** The Sunday on or before `date`, at local midnight. Weeks run Sun→Sat. */
+/** Calendar column headings. Weeks run Monday to Sunday (Ken, 29 Oct 2026). */
+export const WEEKDAY_INITIALS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+/** Days since the Monday on or before `date`: 0 for Monday … 6 for Sunday. */
+export function daysSinceMonday(date: Date): number {
+  return (date.getDay() + 6) % 7;
+}
+
+/** The Monday on or before `date`, at local midnight. Weeks run Mon→Sun. */
 export function startOfWeek(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - daysSinceMonday(date));
 }
 
 /** Seven consecutive days from `start`. */
@@ -115,7 +123,7 @@ export function weekDates(start: Date): Date[] {
   );
 }
 
-/** Sunday of the last week that has fully finished — the SNAPSHOT week. */
+/** Monday of the last week that has fully finished — the SNAPSHOT week. */
 export function previousFullWeekStart(now = new Date()): Date {
   const thisWeek = startOfWeek(now);
   return new Date(thisWeek.getFullYear(), thisWeek.getMonth(), thisWeek.getDate() - 7);

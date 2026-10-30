@@ -57,10 +57,11 @@ describe('DatePicker', () => {
     expect(day('October 20, 2026').props.accessibilityState?.selected).toBe(false);
   });
 
-  it('starts the week on Sunday', () => {
+  it('starts the week on Monday', () => {
     renderPicker();
-    // 1 October 2026 is a Thursday, so four blank cells lead the first row.
+    // 1 October 2026 is a Thursday, so three blank cells lead the first row.
     expect(screen.getAllByText('S')).toHaveLength(2);
+    expect(screen.getByText('M')).toBeTruthy();
     expect(screen.getByText('October 2026')).toBeTruthy();
   });
 

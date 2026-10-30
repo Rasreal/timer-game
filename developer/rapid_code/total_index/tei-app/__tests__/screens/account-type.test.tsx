@@ -55,7 +55,7 @@ describe('app/account-type.tsx — Account Type Selection (signed out)', () => {
     expect(screen.getAllByText('TEI').length).toBeGreaterThanOrEqual(1);
     expect(
       screen.getByText(
-        /What kind of training information do you want\s+TEI\s+to provide\?/,
+        /What kind of\s+training information do you\s+want\s+TEI\s+to provide\?/,
       ),
     ).toBeTruthy();
   });

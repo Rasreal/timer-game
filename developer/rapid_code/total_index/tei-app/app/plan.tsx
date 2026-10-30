@@ -13,9 +13,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, OutlineButton } from '../src/components/Chrome';
 import { useAuth } from '../src/auth';
 import { listPlansBetween, planDayKey, type PlanRow } from '../src/lib/plans';
+import { startOfWeek, WEEKDAY_INITIALS as WEEKDAYS } from '../src/lib/review';
 import { colors, useAccent } from '../src/theme';
 
-const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 /** One calendar cell: a real date plus whether it belongs to the shown month. */
 interface Cell {
@@ -31,7 +31,7 @@ interface Cell {
  * TEI in orange and the week ring is yellow, marking intent rather than
  * recorded work.
  *
- * Weeks run Sunday-Saturday and include spill-over days from the adjacent
+ * Weeks run Monday-Sunday and include spill-over days from the adjacent
  * months, so a week total is always a true seven-day total.
  */
 export default function Plan() {
@@ -63,9 +63,8 @@ export default function Plan() {
     const year = cursor.getFullYear();
     const month = cursor.getMonth();
 
-    // Back up to the Sunday on or before the 1st.
-    const start = new Date(year, month, 1);
-    start.setDate(start.getDate() - start.getDay());
+    // Back up to the Monday on or before the 1st.
+    const start = startOfWeek(new Date(year, month, 1));
 
     const out: Cell[][] = [];
     const d = new Date(start);
@@ -307,7 +306,7 @@ export default function Plan() {
               <View style={styles.footerLine} />
               <Text style={styles.footerLabel}>TEI Total Week of</Text>
             </View>
-            <Text style={styles.footerDate}>
+            <Text style={styles.footerDate} numberOfLines={1} adjustsFontSizeToFit>
               {weekStart ? formatWeekOfSplit(weekStart).month : ''}{' '}
               <Text style={{ color: '#B8B8B8' }}>
                 {weekStart ? formatWeekOfSplit(weekStart).year : ''}

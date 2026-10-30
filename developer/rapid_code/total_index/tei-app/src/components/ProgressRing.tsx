@@ -160,7 +160,10 @@ export function ProgressRing({
               {value === null ? '- -' : String(value)}
             </Text>
           )}
-          <Text style={styles.label}>{label}</Text>
+          {/* One line: "Breakdowns" shrinks rather than breaking mid-word. */}
+          <Text style={styles.label} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            {label}
+          </Text>
         </Pressable>
 
         {/* Embedded in the bottom of the ring rather than sitting below it —

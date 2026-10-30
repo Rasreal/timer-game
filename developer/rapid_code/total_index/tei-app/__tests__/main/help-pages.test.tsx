@@ -53,6 +53,25 @@ describe('Understanding YOUR Training', () => {
     }
   });
 
+  it('uses the band boundaries measured off Ken\'s 22 Oct graphic', () => {
+    const bounds = (bands: typeof TRAINING_EFFECTS) => bands.map((b) => [b.label, b.from, b.to]);
+    expect(bounds(TRAINING_EFFECTS)).toEqual([
+      ['Therapy/Health', 2, 5],
+      ['Maintenance', 6, 8],
+      ['Change', 9, 12],
+      ['Conditioning', 13, 17],
+      ['Performance', 18, 22],
+      ['Extreme', 23, 27],
+      ['Excessive', 28, 33],
+    ]);
+    expect(bounds(TRAINING_REASONS)).toEqual([
+      ['GENERAL HEALTH', 2, 5],
+      ['IMPROVE AESTHETICS', 6, 14],
+      ['ATHLETIC PERFORMANCE', 15, 25],
+      ['DEATHWISH', 26, 33],
+    ]);
+  });
+
   it('turns Extreme exactly where the calculators turn red', () => {
     expect(effectFor(LIMITS.tei.overAt).label).toBe('Performance');
     expect(effectFor(LIMITS.tei.overAt + 1).label).toBe('Extreme');
@@ -87,7 +106,7 @@ describe('What kind of athlete are you?', () => {
 
     expect(screen.getByText('Performance Athlete')).toBeTruthy();
     expect(screen.getByText('ATHLETIC PERFORMANCE')).toBeTruthy();
-    expect(screen.getByText('TEI 13–25 per session')).toBeTruthy();
+    expect(screen.getByText('TEI 15–25 per session')).toBeTruthy();
   });
 
   it('can be retaken', () => {

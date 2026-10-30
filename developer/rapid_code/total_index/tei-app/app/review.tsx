@@ -15,12 +15,15 @@ import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
 import { listSessionsBetween } from '../src/lib/sessions';
 import { listPlansBetween, planDayKey } from '../src/lib/plans';
-import { calculatorRoute } from '../src/lib/review';
+import {
+  calculatorRoute,
+  startOfWeek,
+  WEEKDAY_INITIALS as WEEKDAYS,
+} from '../src/lib/review';
 import { GRADE_COLORS, gradeAgainstPlan } from '../src/lib/tei';
 import type { SessionRow } from '../src/lib/database.types';
 import { colors, useAccent } from '../src/theme';
 
-const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 /**
  * Two touches on the same day within this window count as a double tap —
@@ -43,7 +46,7 @@ interface Cell {
  * day's TEI (or `X` for a rest day), and a grey footer band showing the
  * selected week's total in a green ring.
  *
- * Weeks run Sunday-Saturday and include spill-over days from the adjacent
+ * Weeks run Monday-Sunday and include spill-over days from the adjacent
  * months, so a week total is always a true seven-day total.
  *
  * Tap strategies from Ken's 22 Oct 2026 edits: a single tap shows that
@@ -58,6 +61,9 @@ export default function Review() {
   const { loadSession, showToast } = useStore();
   const accent = useAccent();
   const lastTap = useRef<{ key: string; at: number } | null>(null);
+  // A second touch on the same day that may become a double tap: it counts
+  // only if released quickly, so a tap followed by a long press still edits.
+  const pendingDouble = useRef<{ key: string; at: number; weekFirstDay: Date } | null>(null);
 
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
@@ -87,9 +93,8 @@ export default function Review() {
     const year = cursor.getFullYear();
     const month = cursor.getMonth();
 
-    // Back up to the Sunday on or before the 1st.
-    const start = new Date(year, month, 1);
-    start.setDate(start.getDate() - start.getDay());
+    // Back up to the Monday on or before the 1st.
+    const start = startOfWeek(new Date(year, month, 1));
 
     const out: Cell[][] = [];
     const d = new Date(start);
@@ -213,9 +218,14 @@ export default function Review() {
     router.push(calculatorRoute(session.calculator) as never);
   }
 
+  function openWeek(weekFirstDay: Date) {
+    router.push(`/review-week?start=${planDayKey(weekFirstDay)}` as never);
+  }
+
   /**
-   * Counted on touch-down: a quick double tap can land its second touch
-   * before the first release has been delivered as a press.
+   * Taps are timed from touch-down: a quick double tap can land its second
+   * touch before the first release has been delivered as a press. The second
+   * touch is only a candidate until it is released (`releaseDay`).
    */
   function touchDay(date: Date, weekIndex: number, weekFirstDay: Date) {
     setSelectedWeek(weekIndex);
@@ -224,13 +234,28 @@ export default function Review() {
     const previous = lastTap.current;
     if (previous && previous.key === key && now - previous.at < DOUBLE_TAP_MS) {
       lastTap.current = null;
-      router.push(`/review-week?start=${planDayKey(weekFirstDay)}` as never);
+      pendingDouble.current = { key, at: now, weekFirstDay };
       return;
     }
+    pendingDouble.current = null;
     lastTap.current = { key, at: now };
   }
 
+  /** A short second touch completes the double tap; a held one is a long press. */
+  function releaseDay(date: Date) {
+    const pending = pendingDouble.current;
+    pendingDouble.current = null;
+    if (
+      pending &&
+      pending.key === planDayKey(date) &&
+      Date.now() - pending.at < DOUBLE_TAP_MS
+    ) {
+      openWeek(pending.weekFirstDay);
+    }
+  }
+
   function holdDay(date: Date) {
+    pendingDouble.current = null;
     const daySessions = sessionsForDay(date);
     if (daySessions.length === 0) {
       showToast(`No session saved on ${formatDate(date)}.`);
@@ -337,6 +362,7 @@ export default function Review() {
                       <Pressable
                         key={di}
                         onPressIn={() => touchDay(cell.date, wi, week[0].date)}
+                        onPressOut={() => releaseDay(cell.date)}
                         onPress={() => setSelectedWeek(wi)}
                         onLongPress={() => holdDay(cell.date)}
                         accessibilityRole="button"
@@ -345,7 +371,20 @@ export default function Review() {
                             ? `${formatDate(cell.date)}, ${daySessions.length} ${daySessions.length === 1 ? 'session' : 'sessions'}, ${Math.round(value ?? 0)} TEI`
                             : `${formatDate(cell.date)}, no session`
                         }
-                        accessibilityHint="Tap for the week total, double-tap for the week's sessions, press and hold to edit."
+                        accessibilityHint="Selects the week. Swipe up or down for the week's sessions or to edit."
+                        // VoiceOver's own double tap is a plain press, so the
+                        // calendar's double tap and long press are offered as
+                        // actions instead.
+                        accessibilityActions={[
+                          { name: 'openWeek', label: 'See this week’s sessions' },
+                          ...(daySessions.length > 0
+                            ? [{ name: 'editSession', label: 'Edit this day’s session' }]
+                            : []),
+                        ]}
+                        onAccessibilityAction={(event) => {
+                          if (event.nativeEvent.actionName === 'openWeek') openWeek(week[0].date);
+                          if (event.nativeEvent.actionName === 'editSession') holdDay(cell.date);
+                        }}
                         style={styles.dayCell}
                       >
                         <Text
@@ -369,8 +408,10 @@ export default function Review() {
                               >
                                 {Math.round(value)}
                               </Text>
-                            ) : cell.inMonth && !isFuture(cell.date) ? (
-                              // No session logged: a rest day.
+                            ) : !isFuture(cell.date) ? (
+                              // No session logged: a rest day, spill-over days
+                              // from the previous month included (22 Oct
+                              // mock-up).
                               <Text style={styles.dayRest}>X</Text>
                             ) : null}
                           </View>
@@ -418,7 +459,7 @@ export default function Review() {
               <View style={styles.footerLine} />
               <Text style={styles.footerLabel}>TEI Total Week of</Text>
             </View>
-            <Text style={styles.footerDate}>
+            <Text style={styles.footerDate} numberOfLines={1} adjustsFontSizeToFit>
               {weekStart ? formatWeekOfSplit(weekStart).month : ''}{' '}
               <Text style={{ color: '#B8B8B8' }}>
                 {weekStart ? formatWeekOfSplit(weekStart).year : ''}
@@ -510,8 +551,8 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     color: colors.text,
-    fontSize: 23,
-    fontWeight: '700',
+    fontSize: 21,
+    fontWeight: '600',
     textAlign: 'center',
   },
   monthRow: {

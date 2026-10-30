@@ -34,6 +34,8 @@ export interface StoreHandle {
   current: () => SessionDraft;
   /** The most recent toast message, or null. */
   toast: () => string | null;
+  /** Set the session date as the date picker would. */
+  setDate: (iso: string) => void;
 }
 
 function Probe({ onReady }: { onReady: (s: ReturnType<typeof useStore>) => void }) {
@@ -89,6 +91,10 @@ export function renderCalc(
       }),
     current: () => live!.session,
     toast: () => live!.toast,
+    setDate: (iso) =>
+      act(() => {
+        live!.setSessionDate(iso);
+      }),
   };
 
   if (options.load) {

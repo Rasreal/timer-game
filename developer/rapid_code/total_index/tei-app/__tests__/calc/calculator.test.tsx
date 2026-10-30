@@ -365,15 +365,14 @@ describe('calculator — implausible TEI prompt', () => {
     await waitFor(() => expect(store.toast()).toBe(warning(tei)));
   });
 
-  it('does not warn at or below the implausible threshold', async () => {
+  it('does not warn at or below the implausible threshold', () => {
     const { store } = renderCalc(<Calculator />, { seed: REFERENCE });
     pressCalculate();
 
-    await waitFor(() => expect(store.toast()).not.toBeNull());
-    expect(store.toast()).not.toMatch(/survivable/);
-    expect(store.toast()).toBe(
-      `TEI ${calculateTei(REFERENCE).tei.toFixed(2)} for this session`,
-    );
+    // No toast at all: the big number shows the score, and a toast would
+    // cover the buttons.
+    expect(store.toast()).toBeNull();
+    expect(screen.getByText(String(displayTei(calculateTei(REFERENCE).tei)))).toBeTruthy();
   });
 });
 
@@ -536,30 +535,32 @@ describe('calculator — tier behaviour', () => {
     expect(screen.getByText(`${pct}%`)).toBeTruthy();
   });
 
-  it('does not persist a session on Elemental — it only toasts the score', async () => {
+  it('does not persist a session on Elemental — it only shows the score', () => {
     auth('elemental');
     const { store } = renderCalc(<Calculator />, { seed: REFERENCE });
 
     pressCalculate();
 
-    await waitFor(() =>
-      expect(store.toast()).toBe(
-        `TEI ${calculateTei(REFERENCE).tei.toFixed(2)} for this session`,
-      ),
-    );
+    expect(screen.getByText(String(displayTei(calculateTei(REFERENCE).tei)))).toBeTruthy();
+    expect(store.toast()).toBeNull();
     expect(saveSession).not.toHaveBeenCalled();
   });
 
-  it('shows SAVE on every tier but keeps it disabled on Elemental', () => {
+  it('gives Elemental no SAVE, only an Upgrade link under Calculate TEI', () => {
     auth('elemental');
     renderCalc(<Calculator />, { seed: REFERENCE });
     pressCalculate();
-    fireEvent.press(screen.getByText('SAVE'));
+    expect(screen.queryByText('SAVE')).toBeNull();
     expect(saveSession).not.toHaveBeenCalled();
 
-    screen.unmount();
+    fireEvent.press(screen.getByLabelText('Upgrade to save your calculations'));
+    expect(router.push).toHaveBeenCalledWith('/account-type');
+  });
+
+  it('shows SAVE beside Calculate TEI on the saving tiers, with no Upgrade link', () => {
     auth('basic');
     renderCalc(<Calculator />, { seed: REFERENCE });
+    expect(screen.queryByLabelText('Upgrade to save your calculations')).toBeNull();
     pressCalculate();
     fireEvent.press(screen.getByText('SAVE'));
     expect(saveSession).toHaveBeenCalled();

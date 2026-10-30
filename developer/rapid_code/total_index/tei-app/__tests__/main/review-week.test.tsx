@@ -16,14 +16,14 @@ const listBetween = sessions.listSessionsBetween as jest.MockedFunction<
   typeof sessions.listSessionsBetween
 >;
 
-/** A Sunday well in the past, so every day of its week is a past day. */
-const SUNDAY = new Date(2026, 4, 3); // May 3, 2026
+/** A Monday well in the past, so every day of its week is a past day. */
+const MONDAY = new Date(2026, 4, 4); // May 4, 2026
 const at = (dayOffset: number, hour: number) =>
-  new Date(2026, 4, 3 + dayOffset, hour, 0, 0).toISOString();
+  new Date(2026, 4, 4 + dayOffset, hour, 0, 0).toISOString();
 
 beforeEach(() => {
   mockedAuth.mockReturnValue(makeAuth({ profile: makeProfile({ tier: 'basic' }) }) as never);
-  (useLocalSearchParams as jest.Mock).mockReturnValue({ start: '2026-05-03' });
+  (useLocalSearchParams as jest.Mock).mockReturnValue({ start: '2026-05-04' });
   (router as unknown as { canGoBack: jest.Mock }).canGoBack = jest.fn(() => true);
   listBetween.mockResolvedValue({ data: [], error: null });
 });
@@ -35,13 +35,13 @@ async function renderWeek() {
 }
 
 describe('TEI - 7 Days in Review', () => {
-  it('queries exactly the seven days from the start Sunday', async () => {
+  it('queries exactly the seven days from the start Monday', async () => {
     await renderWeek();
 
     const [from, to] = listBetween.mock.calls[0];
-    expect(new Date(from).getTime()).toBe(SUNDAY.getTime());
-    expect(new Date(to).getTime()).toBe(new Date(2026, 4, 10).getTime());
-    expect(screen.getByText('May 3, 2026')).toBeTruthy();
+    expect(new Date(from).getTime()).toBe(MONDAY.getTime());
+    expect(new Date(to).getTime()).toBe(new Date(2026, 4, 11).getTime());
+    expect(screen.getByText('May 4, 2026')).toBeTruthy();
   });
 
   it('lists the seven days with OFF for past rest days', async () => {
@@ -50,7 +50,7 @@ describe('TEI - 7 Days in Review', () => {
     for (let i = 1; i <= 7; i++) {
       expect(screen.getByText(`Day ${i}:`, { exact: false })).toBeTruthy();
     }
-    expect(screen.getByText(/SUNDAY - May 3, 2026/)).toBeTruthy();
+    expect(screen.getByText(/MONDAY - May 4, 2026/)).toBeTruthy();
     expect(screen.getAllByText('OFF')).toHaveLength(7);
   });
 
@@ -92,7 +92,7 @@ describe('TEI - 7 Days in Review', () => {
 
     fireEvent.press(screen.getByText('Multiple Entries →'));
     expect(screen.getByText('2 Sessions')).toBeTruthy();
-    expect(screen.getByText('Tuesday - May 5, 2026')).toBeTruthy();
+    expect(screen.getByText('Wednesday - May 6, 2026')).toBeTruthy();
     // Five slots as drawn, the unused three dimmed.
     expect(screen.getByLabelText('Session 3, empty')).toBeTruthy();
     expect(screen.getByLabelText('Session 5, empty')).toBeTruthy();
@@ -131,11 +131,11 @@ describe('TEI - 7 Days in Review', () => {
     expect(router.replace).toHaveBeenCalledWith('/home');
   });
 
-  it('starts on the Sunday even when handed a mid-week day', async () => {
+  it('starts on the Monday even when handed a mid-week day', async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ start: '2026-05-06' });
     await renderWeek();
 
-    expect(new Date(listBetween.mock.calls[0][0]).getTime()).toBe(SUNDAY.getTime());
+    expect(new Date(listBetween.mock.calls[0][0]).getTime()).toBe(MONDAY.getTime());
   });
 
   it('shows a load failure', async () => {
@@ -154,7 +154,7 @@ describe('TEI - 7 Days in Review', () => {
 });
 
 describe('SNAPSHOT of previous full week', () => {
-  it('reads the last finished Sunday-to-Saturday week and shows its total', async () => {
+  it('reads the last finished Monday-to-Sunday week and shows its total', async () => {
     const start = previousFullWeekStart();
     const day = (offset: number) =>
       new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset, 10).toISOString();

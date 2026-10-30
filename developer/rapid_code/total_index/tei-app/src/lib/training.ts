@@ -1,7 +1,8 @@
 /**
  * "Understanding YOUR Training" — the chart in Ken's 19 and 22 Oct 2026 edits
  * that maps a session TEI (2–33) to the effect it has and the reason someone
- * would train at that level. Bands read off his graphic; the red Extreme band
+ * would train at that level. Bands measured off the row lines of his 22 Oct
+ * graphic; the red Extreme band
  * starting above 22 matches `LIMITS.tei.overAt`.
  */
 
@@ -21,14 +22,14 @@ export const TRAINING_EFFECTS: TrainingBand[] = [
   { label: 'Change', from: 9, to: 12, color: '#8CD83F' },
   { label: 'Conditioning', from: 13, to: 17, color: '#F3E52B' },
   { label: 'Performance', from: 18, to: 22, color: '#F7A12C' },
-  { label: 'Extreme', from: 23, to: 26, color: '#F2322F' },
-  { label: 'Excessive', from: 27, to: 33, color: '#7A3EB8' },
+  { label: 'Extreme', from: 23, to: 27, color: '#F2322F' },
+  { label: 'Excessive', from: 28, to: 33, color: '#7A3EB8' },
 ];
 
 export const TRAINING_REASONS: TrainingBand[] = [
   { label: 'GENERAL HEALTH', from: 2, to: 5, color: '#9FD3E3' },
-  { label: 'IMPROVE AESTHETICS', from: 6, to: 12, color: '#C9DF95' },
-  { label: 'ATHLETIC PERFORMANCE', from: 13, to: 25, color: '#D4BE78' },
+  { label: 'IMPROVE AESTHETICS', from: 6, to: 14, color: '#C9DF95' },
+  { label: 'ATHLETIC PERFORMANCE', from: 15, to: 25, color: '#D4BE78' },
   { label: 'DEATHWISH', from: 26, to: 33, color: '#3A1C3E' },
 ];
 

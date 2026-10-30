@@ -114,6 +114,21 @@ describe('Standard calculator — editing a saved session', () => {
     );
   });
 
+  it('a date-only correction saves straight away, keeping the values', async () => {
+    const { store } = renderCalc(<Calculator />, { load: STANDARD });
+
+    // The picker writes through setSessionDate (its calendar is covered by the
+    // DatePicker tests); only the date changes, so the score stays valid.
+    const picked = '2026-10-18T09:00:00.000Z';
+    store.setDate(picked);
+    fireEvent.press(screen.getByText('SAVE'));
+
+    await waitFor(() => expect(updateSession).toHaveBeenCalled());
+    const [, args] = (updateSession as jest.Mock).mock.calls[0];
+    expect(args.performedAt).toBe(picked);
+    expect(args.sets).toBe(11);
+  });
+
   it('shows the update error and stays on the screen', async () => {
     (updateSession as jest.Mock).mockResolvedValueOnce({ data: null, error: 'permission denied' });
     renderCalc(<Calculator />, { load: STANDARD });
