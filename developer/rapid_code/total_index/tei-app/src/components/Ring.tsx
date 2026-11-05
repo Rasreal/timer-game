@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { colors } from '../theme';
+import { colors, useAccent } from '../theme';
 import { Ellipsis } from './Chrome';
 
 /**
@@ -25,6 +25,7 @@ export function Ring({
   onChange?: (v: number | null) => void;
   overRange?: boolean;
 }) {
+  const accent = useAccent();
   const hero = variant === 'hero';
   const size = hero ? 236 : 132;
   const numberSize = hero ? 74 : 44;
@@ -113,7 +114,7 @@ export function Ring({
               placeholder="- -"
               placeholderTextColor="#5A5A5A"
               accessibilityLabel={label}
-              selectionColor={colors.orange}
+              selectionColor={accent}
               style={{
                 width: hero ? 168 : 104,
                 height: numberSize + 12,

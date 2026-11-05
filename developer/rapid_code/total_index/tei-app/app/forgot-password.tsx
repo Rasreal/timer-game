@@ -14,10 +14,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandLockup, OutlineButton } from '../src/components/Chrome';
 import { useAuth } from '../src/auth';
-import { colors } from '../src/theme';
+import { colors, useAccent } from '../src/theme';
 
 /** Starts Supabase's email-based password-recovery flow. */
 export default function ForgotPassword() {
+  const accent = useAccent();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { requestPasswordReset } = useAuth();
@@ -85,7 +86,7 @@ export default function ForgotPassword() {
             autoComplete="email"
             editable={!busy}
             onSubmitEditing={sendResetLink}
-            selectionColor={colors.orange}
+            selectionColor={accent}
             style={styles.field}
           />
 

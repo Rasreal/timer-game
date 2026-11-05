@@ -11,7 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth';
 import { isValidEmail, joinPremiumWaitlist } from '../lib/waitlist';
-import { colors } from '../theme';
+import { colors, useAccent } from '../theme';
 
 /** The yellow that marks Premium as "coming soon" throughout sign-up. */
 export const WAITLIST_YELLOW = colors.yellow;
@@ -41,6 +41,7 @@ export function PremiumWaitlistForm({
 }) {
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
+  const accent = useAccent();
   const [name, setName] = useState(
     profile ? `${profile.first_name} ${profile.last_name}`.trim() : '',
   );
@@ -83,7 +84,7 @@ export function PremiumWaitlistForm({
             accessibilityLabel="Close waitlist"
             hitSlop={14}
           >
-            <Text style={styles.close}>✕</Text>
+            <Text style={[styles.close, { color: accent }]}>✕</Text>
           </Pressable>
         </View>
 
@@ -165,7 +166,7 @@ const styles = StyleSheet.create({
     paddingTop: 22,
   },
   title: { color: colors.text, fontSize: 32, fontWeight: '500', letterSpacing: -0.8 },
-  close: { color: colors.orange, fontSize: 28, fontWeight: '300' },
+  close: { fontSize: 28, fontWeight: '300' },
   badge: {
     alignSelf: 'flex-start',
     backgroundColor: '#3A3A3A',

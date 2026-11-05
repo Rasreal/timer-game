@@ -21,11 +21,13 @@ import {
   accentsForTier,
   colors,
   lightTint,
+  useAccent,
 } from '../src/theme';
 import type { TeiTheme } from '../src/lib/database.types';
 
 /** ELEMENTAL Screen 8 — Edit Elemental Profile (white background per spec). */
 export default function Profile() {
+  const appAccent = useAccent();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { showToast } = useStore();
@@ -143,7 +145,7 @@ export default function Profile() {
 
         <RhinoWordmark height={16.5} color="#5C5C5C" marginTop={8} />
         <Text style={styles.missionSimple}>
-          Mission. <Text style={{ color: colors.orange }}>Simple.</Text>
+          Mission. <Text style={{ color: appAccent }}>Simple.</Text>
         </Text>
 
         <View style={styles.hr} />
@@ -181,7 +183,7 @@ export default function Profile() {
             placeholder="**************"
             placeholderTextColor="#8A8A8A"
             autoCapitalize="none"
-            selectionColor={colors.orange}
+            selectionColor={appAccent}
             style={[styles.input, { paddingRight: 50 }]}
           />
           <Pressable
@@ -287,7 +289,7 @@ export default function Profile() {
             </Text>
           </View>
           <Text style={styles.subValue}>
-            TEI <Text style={{ color: colors.orange }}>{tierLabel}</Text>
+            TEI <Text style={{ color: appAccent }}>{tierLabel}</Text>
           </Text>
         </View>
 
@@ -302,7 +304,7 @@ export default function Profile() {
           <Text style={styles.ctaText}>
             {busy ? 'Saving…' : 'Save Changes'}{' '}
             {!busy && (
-              <Text style={{ color: canSave ? colors.orange : '#EEE' }}>→</Text>
+              <Text style={{ color: canSave ? appAccent : '#EEE' }}>→</Text>
             )}
           </Text>
         </Pressable>
@@ -314,7 +316,7 @@ export default function Profile() {
           accessibilityRole="button"
           style={styles.upgradeBtn}
         >
-          <Text style={{ color: colors.orange, fontSize: 23 }}>
+          <Text style={{ color: appAccent, fontSize: 23 }}>
             {tier === 'elemental' || !tier ? 'Upgrade' : 'Change Subscription'}
           </Text>
         </Pressable>
@@ -344,6 +346,7 @@ function Field({
   placeholder?: string;
   keyboardType?: 'email-address';
 }) {
+  const accent = useAccent();
   return (
     <>
       <Text style={styles.label}>{label}</Text>
@@ -354,7 +357,7 @@ function Field({
         placeholderTextColor="#8A8A8A"
         keyboardType={keyboardType}
         autoCapitalize={keyboardType === 'email-address' ? 'none' : 'words'}
-        selectionColor={colors.orange}
+        selectionColor={accent}
         style={styles.input}
       />
     </>

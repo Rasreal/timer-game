@@ -3,11 +3,18 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, OutlineButton } from '../src/components/Chrome';
-import { QUIZ, QUIZ_RESULTS, quizResult } from '../src/lib/quiz';
-import { TRAINING_REASONS } from '../src/lib/training';
+import {
+  QUIZ,
+  QUIZ_DISCLAIMER,
+  QUIZ_MAX,
+  QUIZ_SUBTITLE,
+  QUIZ_TITLE,
+  athleteIdentity,
+  quizScore,
+} from '../src/lib/quiz';
 import { colors, useAccent } from '../src/theme';
 
-/** "What kind of athlete are you?" — Profile ellipsis option. */
+/** "What Kind of Athlete Are You?" — Profile ellipsis option (Ken, 30 Oct 2026). */
 export default function AthleteQuiz() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -16,8 +23,8 @@ export default function AthleteQuiz() {
   const [done, setDone] = useState(false);
 
   const complete = answers.every((a) => a !== null);
-  const result = done ? quizResult(answers as number[]) : null;
-  const reason = result === null ? null : TRAINING_REASONS[result];
+  const score = done ? quizScore(answers as number[]) : null;
+  const identity = score === null ? null : athleteIdentity(score);
 
   return (
     <ScrollView
@@ -29,9 +36,10 @@ export default function AthleteQuiz() {
       }}
     >
       <BackArrow onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
-      <Text style={styles.title}>What kind of athlete are you?</Text>
+      <Text style={styles.title}>{QUIZ_TITLE}</Text>
+      <Text style={styles.subtitle}>{QUIZ_SUBTITLE}</Text>
 
-      {result === null || !reason ? (
+      {score === null || !identity ? (
         <>
           {QUIZ.map((q, qi) => (
             <View key={q.question} style={styles.block}>
@@ -70,28 +78,23 @@ export default function AthleteQuiz() {
         </>
       ) : (
         <View style={styles.block}>
-          <Text style={styles.youAre}>You are a</Text>
-          <Text style={[styles.resultName, { color: accent }]}>{QUIZ_RESULTS[result].name}</Text>
-          <View style={[styles.reason, { backgroundColor: reason.color }]}>
-            <Text style={styles.reasonText}>{reason.label}</Text>
-            <Text style={styles.reasonRange}>
-              TEI {reason.from}–{reason.to} per session
+          {/* Ken's result card: kicker, identity, summary, reflection score */}
+          <View style={[styles.result, { borderColor: accent }]}>
+            <Text style={[styles.kicker, { color: accent }]}>Your ATHLETE IDENTITY</Text>
+            <Text style={styles.identity}>{identity.name}</Text>
+            <Text style={styles.summary}>{identity.summary}</Text>
+            <Text style={styles.reflection}>
+              Reflection score: {score}/{QUIZ_MAX}. {QUIZ_DISCLAIMER}
             </Text>
           </View>
-          <Text style={styles.advice}>{QUIZ_RESULTS[result].advice}</Text>
 
-          <OutlineButton
-            title="How to interpret your score"
-            onPress={() => router.push('/training-scale' as never)}
-            style={{ marginTop: 24 }}
-          />
           <OutlineButton
             title="Take the quiz again"
             onPress={() => {
               setAnswers(QUIZ.map(() => null));
               setDone(false);
             }}
-            style={{ marginTop: 12 }}
+            style={{ marginTop: 24 }}
           />
         </View>
       )}
@@ -108,8 +111,9 @@ const styles = StyleSheet.create({
     lineHeight: 35,
     marginTop: 8,
   },
+  subtitle: { color: colors.textMuted, fontSize: 16, fontStyle: 'italic', marginTop: 6 },
   block: { marginTop: 22 },
-  question: { color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  question: { color: colors.text, fontSize: 18, fontWeight: '700', lineHeight: 24, marginBottom: 8 },
   answer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -132,10 +136,9 @@ const styles = StyleSheet.create({
   },
   radioDot: { width: 10, height: 10, borderRadius: 5 },
   answerText: { flex: 1, color: '#E2E2E2', fontSize: 16, lineHeight: 21 },
-  youAre: { color: colors.textMuted, fontSize: 18 },
-  resultName: { fontSize: 36, fontWeight: '800', letterSpacing: -0.8, marginTop: 2 },
-  reason: { borderRadius: 10, padding: 14, marginTop: 16 },
-  reasonText: { color: '#1C1C1C', fontSize: 18, fontWeight: '800' },
-  reasonRange: { color: '#1C1C1C', fontSize: 14, marginTop: 2 },
-  advice: { color: '#D8D8D8', fontSize: 17, lineHeight: 25, marginTop: 16 },
+  result: { borderWidth: 1.5, borderRadius: 12, padding: 18, backgroundColor: '#141414' },
+  kicker: { fontSize: 13, fontWeight: '800', letterSpacing: 0.6 },
+  identity: { color: colors.text, fontSize: 30, fontWeight: '800', letterSpacing: -0.6, marginTop: 4 },
+  summary: { color: colors.text, fontSize: 17, fontWeight: '700', lineHeight: 24, marginTop: 10 },
+  reflection: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 12 },
 });

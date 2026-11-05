@@ -1,13 +1,18 @@
 /**
- * Copy for the pages behind the Home tiles' ellipsis options (Ken's 19 and 22
- * Oct 2026 edits). Ken said the wording in his mock-ups is placeholder and
- * that any explanatory screens needed may be created, so this is DRAFT copy
- * for him to approve or rewrite.
+ * Copy for the pop-ups behind the Home tiles' ellipsis options. Calculate,
+ * Review and Profile use Ken's final copy from his 30 Oct 2026 edits ("Required
+ * Copy for Ellipses and Information Icons", two typos corrected). The Plan
+ * topics are still DRAFT copy for him to approve, and the "How to use" videos
+ * are to be produced at the end of the Beta Test.
+ *
+ * A paragraph may open with a **bold lead-in**, as in Ken's pop-up boxes.
  */
 
 export interface HelpTopic {
   title: string;
   paragraphs: string[];
+  /** Headed blocks, e.g. the two upgrade steps. */
+  sections?: { heading: string; lead: string; body: string }[];
   /** Short bullet lines shown after the paragraphs. */
   bullets?: string[];
   /** Video pages show a "coming soon" panel until Ken supplies the link. */
@@ -16,36 +21,28 @@ export interface HelpTopic {
 }
 
 export const HELP_TOPICS = {
+  periods: {
+    title: 'Per Session, Per Week, Per Month',
+    paragraphs: [
+      'Generally speaking ideal Per Session values you might calculate will be somewhere between 2 and 33 for the Total Effect Index value of that session.',
+      'The mission of **TEI** is to help people understand the effect their efforts have on their Health, Fitness, and Conditioning over time. Tap this button to see what effective TEI ranges are for different timeframes; weekly, monthly, quarterly, Semi-Annually and Annually.',
+    ],
+    cta: { label: 'Effective Ranges', route: '/ranges' },
+  },
+  exertion: {
+    title: 'How important is “Perceived Exertion”?',
+    paragraphs: [
+      '**Perceived Exertion** is one of the MOST IMPORTANT and powerful influences on all aspects of your health, fitness and conditioning journey. How you perceive or feel about your experience literally changes how your body responds to the stimulus of your activities and your efforts.',
+      'Having a way to rate or define your exertion level can give you control of the effectiveness of all your activities and efforts - you can even control the kinds of results you will experience, and predict when you may acquire them.',
+    ],
+  },
   'calculator-video': {
-    title: 'How to use the TEI Standard Strength Calculator',
+    title: 'How to use TEI Standard Strength Calculator',
     video: true,
     paragraphs: [
       'Enter your Sets, the Seconds you rested between them, how hard the session felt (% Exert) and any cardio Minutes, then tap Calculate TEI.',
       'Not sure what a value means? Tap the ••• under any circle for a guided explanation.',
     ],
-  },
-  periods: {
-    title: 'Per session, per week or per month',
-    paragraphs: [
-      'Every session gets its own TEI. Most single sessions land between 3 and 33.',
-      'Sessions add up. Your weekly and monthly totals show your training load, and the Effective Ranges show where a healthy, productive total sits for each timeframe.',
-      'Your % of Target compares your training with the lower end of the chosen range plus 10% — for a week, 60.5 TEI. For one session, that is a little over 20 TEI if you train three times a week.',
-    ],
-    bullets: [
-      'Session — judge one workout',
-      'Week — 55 to 111 TEI',
-      'Month — 250 to 500 TEI',
-    ],
-    cta: { label: 'See Effective Ranges', route: '/ranges' },
-  },
-  exertion: {
-    title: 'How important is “Perceived Exertion”?',
-    paragraphs: [
-      'Very. Perceived Exertion is how hard the whole session felt, from 50% (comfortable, you could go much longer) to 100% (all-out, nothing left).',
-      'It multiplies the work you did, so the same sets and rest score higher when you push harder — and lower when you take it easy.',
-      'Be honest and rate the session as a whole, not your hardest set. An honest number makes your TEI comparable from week to week.',
-    ],
-    bullets: ['50–60% — easy', '70% — moderate', '80% — hard', '90% — very hard', '100% — maximal'],
   },
   'review-video': {
     title: 'How to use TEI Review',
@@ -85,22 +82,27 @@ export const HELP_TOPICS = {
     ],
   },
   compare: {
-    title: 'Why we do not compare you to other participants (yet)',
+    title: 'Why we do not compare to other participants (yet)',
     paragraphs: [
-      'Everyone starts from a different place — age, training history, injuries and goals all change what a good TEI looks like.',
-      'TEI measures your training against your own history and your own targets. Ranking people against each other would reward volume over intention, and that is not what TEI is for.',
-      'We may add opt-in comparisons with athletes who share your goals later. For now, the only person to beat is last week’s you.',
+      '**This is Your TEI:** Everything we do at RHINO ATHLETICS is about helping the individual person find the things that work for them to BE, Be Better, and Be their Best in Life.',
+      'When you find your “Magic Numbers”, they are YOUR Magic Numbers. They may not be Magic for anyone else. So we have found that comparing numbers can be misleading, discouraging, and even intimidating – which are never productive for Personal Development and Maximum Performance.',
+      'But if we can figure out a way to assure clarity and appreciation of the differences, we will definitely encourage comparisons.',
     ],
   },
   upgrade: {
     title: 'Benefits of Upgrading',
-    paragraphs: ['TEI Elemental scores any session. Upgrading keeps your history and turns it into insight.'],
-    bullets: [
-      'TEI Basic — save every session',
-      'TEI Basic — Review calendar, weekly snapshot and 7 Days in Review',
-      'TEI Basic — % of Target and your Last TEI on Home',
-      'TEI Basic — correct a saved session',
-      'TEI Premium (in development) — four more calculators, Plan TEI and plan-vs-actual grading',
+    paragraphs: [],
+    sections: [
+      {
+        heading: 'Elemental to Basic',
+        lead: 'Turn past experiences into future progress.',
+        body: 'Save your training sessions, review your workload over time, and discover insights that help you make better decisions about what comes next.',
+      },
+      {
+        heading: 'Basic to Premium',
+        lead: 'Turn Workload Intelligence into purposeful action.',
+        body: 'Measure different types of training, plan future workloads, set meaningful targets, and compare your results over time. Personalize your TEI experience with 11 inspiring accent colors.',
+      },
     ],
     cta: { label: 'See TEI Plans', route: '/account-type' },
   },

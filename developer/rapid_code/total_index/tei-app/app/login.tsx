@@ -13,10 +13,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandLockup, Divider, OutlineButton } from '../src/components/Chrome';
 import { useAuth } from '../src/auth';
-import { colors } from '../src/theme';
+import { colors, useAccent } from '../src/theme';
 
 /** Screen 4 — Onboarding / Log In. */
 export default function Login() {
+  const accent = useAccent();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { signIn } = useAuth();
@@ -75,7 +76,7 @@ export default function Login() {
         <View style={{ flex: 1, minHeight: 30 }} />
 
         <Text style={styles.welcome}>Welcome</Text>
-        <Text style={[styles.welcome, { color: colors.orange, marginBottom: 18 }]}>
+        <Text style={[styles.welcome, { color: accent, marginBottom: 18 }]}>
           Log In
         </Text>
 
@@ -87,7 +88,7 @@ export default function Login() {
           keyboardType="email-address"
           autoCapitalize="none"
           autoComplete="email"
-          selectionColor={colors.orange}
+          selectionColor={accent}
           style={styles.field}
         />
 
@@ -100,7 +101,7 @@ export default function Login() {
             secureTextEntry
             autoCapitalize="none"
             onSubmitEditing={logIn}
-            selectionColor={colors.orange}
+            selectionColor={accent}
             style={[styles.field, { flex: 1 }]}
           />
           <OutlineButton
@@ -121,7 +122,7 @@ export default function Login() {
           accessibilityRole="button"
         >
           <Text style={styles.createAccount}>
-            Create account <Text style={{ color: colors.orange }}>↗</Text>
+            Create account <Text style={{ color: accent }}>↗</Text>
           </Text>
         </Pressable>
 

@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { colors } from '../theme';
+import { colors, useAccent } from '../theme';
 import { Ellipsis } from './Chrome';
 
 /**
@@ -42,6 +42,7 @@ export function ProgressRing({
   underAt?: number;
   size?: number;
 }) {
+  const accent = useAccent();
   const span = max - min;
   const pct =
     value === null || span <= 0
@@ -51,7 +52,7 @@ export function ProgressRing({
     value !== null &&
     ((overAt !== undefined && value > overAt) ||
       (underAt !== undefined && value < underAt));
-  const arcColor = over ? colors.red : colors.orange;
+  const arcColor = over ? colors.red : accent;
 
   const ring = Math.max(6, Math.round(size * 0.085));
   const numberSize = Math.round(size * 0.34);
@@ -152,7 +153,7 @@ export function ProgressRing({
               placeholder="- -"
               placeholderTextColor="#5A5A5A"
               accessibilityLabel={label}
-              selectionColor={colors.orange}
+              selectionColor={accent}
               style={[styles.number, { fontSize: numberSize, width: size * 0.66 }]}
             />
           ) : (

@@ -25,7 +25,7 @@ import {
   type PaidTier,
   type SubscriptionSnapshot,
 } from '../src/lib/billing';
-import { colors } from '../src/theme';
+import { colors, useAccent } from '../src/theme';
 
 type NativeWebView = typeof import('react-native-webview').default;
 const WebView: NativeWebView | null = Platform.OS === 'web'
@@ -58,6 +58,7 @@ export default function Subscribe() {
  * Elemental. Until then the user can change their mind.
  */
 function SwitchToElemental() {
+  const accent = useAccent();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { profile, reloadProfile } = useAuth();
@@ -112,10 +113,10 @@ function SwitchToElemental() {
 
   return (
     <View style={[styles.page, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 24 }]}>
-      <BackArrow onPress={() => (router.canGoBack() ? router.back() : router.replace('/profile'))} color={colors.orange} />
-      <Text style={styles.kicker}>TEI MEMBERSHIP</Text>
+      <BackArrow onPress={() => (router.canGoBack() ? router.back() : router.replace('/profile'))} color={accent} />
+      <Text style={[styles.kicker, { color: accent }]}>TEI MEMBERSHIP</Text>
       <Text style={styles.title}>Switch to TEI Elemental</Text>
-      {busy && !notice ? <ActivityIndicator color={colors.orange} size="large" style={{ marginTop: 32 }} /> : (
+      {busy && !notice ? <ActivityIndicator color={accent} size="large" style={{ marginTop: 32 }} /> : (
         <>
           <Text style={styles.copy}>{copy}</Text>
           {notice && <Text style={styles.notice}>{notice}</Text>}
@@ -143,6 +144,7 @@ function SwitchToElemental() {
 
 /** Premium is not on sale yet; anyone who reaches its checkout gets the waitlist. */
 function PremiumInDevelopment() {
+  const accent = useAccent();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [showForm, setShowForm] = useState(false);
@@ -150,8 +152,8 @@ function PremiumInDevelopment() {
 
   return (
     <View style={[styles.page, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 24 }]}>
-      <BackArrow onPress={() => (router.canGoBack() ? router.back() : router.replace('/account-type'))} color={colors.orange} />
-      <Text style={styles.kicker}>TEI MEMBERSHIP</Text>
+      <BackArrow onPress={() => (router.canGoBack() ? router.back() : router.replace('/account-type'))} color={accent} />
+      <Text style={[styles.kicker, { color: accent }]}>TEI MEMBERSHIP</Text>
       <Text style={styles.title}>TEI Premium</Text>
       <Text style={styles.copy}>
         TEI Premium is in development. Join the waitlist and we’ll let you know as soon as it’s ready.
@@ -178,6 +180,7 @@ function PremiumInDevelopment() {
 }
 
 function Checkout() {
+  const accent = useAccent();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ tier?: string; stripe_checkout?: string; session_id?: string }>();
@@ -304,7 +307,7 @@ function Checkout() {
               setCheckoutUrl(null);
               if (checkoutSessionId) void confirmCheckout(checkoutSessionId);
             }}
-            color={colors.orange}
+            color={accent}
           />
           <Text style={styles.checkoutTitle}>Secure Stripe Checkout</Text>
           <Pressable
@@ -314,7 +317,7 @@ function Checkout() {
             onPress={() => checkoutSessionId && void confirmCheckout(checkoutSessionId)}
             style={styles.statusButton}
           >
-            <Text style={styles.statusButtonText}>{busy ? 'Checking…' : 'Check status'}</Text>
+            <Text style={[styles.statusButtonText, { color: accent }]}>{busy ? 'Checking…' : 'Check status'}</Text>
           </Pressable>
         </View>
         <WebView
@@ -322,7 +325,7 @@ function Checkout() {
           onShouldStartLoadWithRequest={(request) => !returnedToApp(request.url)}
           onNavigationStateChange={(state) => { returnedToApp(state.url); }}
           startInLoadingState
-          renderLoading={() => <ActivityIndicator style={{ marginTop: 30 }} color={colors.orange} />}
+          renderLoading={() => <ActivityIndicator style={{ marginTop: 30 }} color={accent} />}
         />
       </View>
     );
@@ -337,10 +340,10 @@ function Checkout() {
 
   return (
     <View style={[styles.page, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 24 }]}>
-      <BackArrow onPress={() => router.back()} color={colors.orange} />
-      <Text style={styles.kicker}>TEI MEMBERSHIP</Text>
+      <BackArrow onPress={() => router.back()} color={accent} />
+      <Text style={[styles.kicker, { color: accent }]}>TEI MEMBERSHIP</Text>
       <Text style={styles.title}>{hasSubscription ? 'Manage Billing' : `TEI ${tierName}`}</Text>
-      {busy ? <ActivityIndicator color={colors.orange} size="large" style={{ marginTop: 32 }} /> : (
+      {busy ? <ActivityIndicator color={accent} size="large" style={{ marginTop: 32 }} /> : (
         <>
           {hasSubscription ? (
             <Text style={styles.copy}>
@@ -371,7 +374,7 @@ function Checkout() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#2E2E2E', paddingHorizontal: 24 },
-  kicker: { color: colors.orange, fontSize: 14, fontWeight: '700', letterSpacing: 1.2, marginTop: 48 },
+  kicker: { fontSize: 14, fontWeight: '700', letterSpacing: 1.2, marginTop: 48 },
   title: { color: '#fff', fontSize: 42, fontWeight: '600', marginTop: 8 },
   copy: { color: '#e7e7e7', fontSize: 18, lineHeight: 27, marginTop: 20 },
   notice: { color: '#A8E66E', fontSize: 16, lineHeight: 23, marginTop: 18 },
@@ -384,5 +387,5 @@ const styles = StyleSheet.create({
   checkoutHeader: { alignItems: 'center', flexDirection: 'row', paddingHorizontal: 18, paddingVertical: 12 },
   checkoutTitle: { color: '#222', flex: 1, fontSize: 17, fontWeight: '600', textAlign: 'center' },
   statusButton: { marginLeft: 10, minWidth: 80 },
-  statusButtonText: { color: colors.orange, fontSize: 12, fontWeight: '700', textAlign: 'right' },
+  statusButtonText: { fontSize: 12, fontWeight: '700', textAlign: 'right' },
 });

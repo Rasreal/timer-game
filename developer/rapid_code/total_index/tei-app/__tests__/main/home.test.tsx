@@ -281,13 +281,13 @@ describe('Home', () => {
       fireEvent.press(screen.getByLabelText(option));
     }
 
-    it('Calculate offers its three help options and routes the chosen one', () => {
+    it('Calculate offers its four help options and routes the chosen one', () => {
       signedIn({ profile: makeProfile({ tier: 'elemental' }) });
       renderMain(<Home />);
 
       fireEvent.press(screen.getByLabelText('Calculate Session options'));
       expect(screen.getByText('How can we help you CALCULATE?')).toBeTruthy();
-      expect(screen.getAllByRole('radio')).toHaveLength(3);
+      expect(screen.getAllByRole('radio')).toHaveLength(4);
 
       fireEvent.press(screen.getByLabelText('How important is “Perceived Exertion”?'));
       fireEvent.press(screen.getByText('Select this CALCULATE Option'));
@@ -301,13 +301,14 @@ describe('Home', () => {
       expect(router.push).not.toHaveBeenCalled();
     });
 
-    it('Review offers the four options from the 22 Oct edits', () => {
+    it('Review offers three options, the session score help having moved to Calculate', () => {
       signedIn({ profile: makeProfile({ tier: 'basic' }) });
       renderMain(<Home />);
 
       fireEvent.press(screen.getByLabelText('Review options'));
       expect(screen.getByText('What would you like to REVIEW?')).toBeTruthy();
-      expect(screen.getAllByRole('radio')).toHaveLength(4);
+      expect(screen.getAllByRole('radio')).toHaveLength(3);
+      expect(screen.queryByText('How to interpret your session score.')).toBeNull();
 
       fireEvent.press(screen.getByLabelText('SNAPSHOT of previous full week.'));
       fireEvent.press(screen.getByText('Select this REVIEW Option'));
@@ -316,7 +317,6 @@ describe('Home', () => {
 
     it.each([
       ['A detailed look at a Week or Month.', '/review'],
-      ['How to interpret your TEI score.', '/training-scale'],
       ['How to use REVIEW video.', '/info/review-video'],
     ])('Review option "%s" routes to %s', (label, route) => {
       signedIn({ profile: makeProfile({ tier: 'basic' }) });
@@ -324,6 +324,37 @@ describe('Home', () => {
       choose('Review', label);
       fireEvent.press(screen.getByText('Select this REVIEW Option'));
       expect(router.push).toHaveBeenCalledWith(route);
+    });
+
+    it("lists Calculate's and Profile's options in Ken's order", () => {
+      renderMain(<Home />);
+      const labels = () =>
+        screen.getAllByRole('radio').map((r) => r.props.accessibilityLabel as string);
+
+      fireEvent.press(screen.getByLabelText('Calculate Session options'));
+      expect(labels()).toEqual([
+        'How to interpret your session score.',
+        'Per session, per week or per Month.',
+        'How important is “Perceived Exertion”?',
+        'How to use TEI Standard Strength Calculator.',
+      ]);
+      fireEvent.press(screen.getByLabelText('Close options'));
+
+      fireEvent.press(screen.getByLabelText('Profile options'));
+      expect(labels()).toEqual([
+        'What kind of athlete are you?',
+        'Why we do not compare to other participants (yet).',
+        'Benefits of upgrading.',
+        'How to use TEI Profile.',
+      ]);
+    });
+
+    it('Calculate opens the session score help, even on a tier without Review', () => {
+      signedIn({ profile: makeProfile({ tier: 'elemental' }) });
+      renderMain(<Home />);
+      choose('Calculate Session', 'How to interpret your session score.');
+      fireEvent.press(screen.getByText('Select this CALCULATE Option'));
+      expect(router.push).toHaveBeenCalledWith('/training-scale');
     });
 
     it('Profile offers the quiz', () => {

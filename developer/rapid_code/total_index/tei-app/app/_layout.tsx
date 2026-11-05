@@ -9,7 +9,7 @@ import {
 import { AuthProvider, useAuth } from '../src/auth';
 import { StoreProvider, useStore } from '../src/store';
 import { Toast } from '../src/components/Chrome';
-import { colors } from '../src/theme';
+import { colors, useAccent } from '../src/theme';
 
 const { width, height } = Dimensions.get('window');
 
@@ -92,6 +92,7 @@ function ResetDraftOnUserChange() {
  * back to the launch screen, and signed-in users are pushed past onboarding.
  */
 function AuthGate() {
+  const accent = useAccent();
   const { session, initializing } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -117,7 +118,7 @@ function AuthGate() {
   if (initializing || redirecting) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center' }}>
-        <ActivityIndicator color={colors.orange} size="large" />
+        <ActivityIndicator color={accent} size="large" />
       </View>
     );
   }
@@ -129,7 +130,17 @@ function AuthGate() {
         contentStyle: { backgroundColor: colors.bg },
         animation: 'slide_from_right',
       }}
-    />
+    >
+      {/* The ellipsis help copy opens as a pop-up over Home. */}
+      <Stack.Screen
+        name="info/[topic]"
+        options={{
+          presentation: 'transparentModal',
+          animation: 'fade',
+          contentStyle: { backgroundColor: 'transparent' },
+        }}
+      />
+    </Stack>
   );
 }
 

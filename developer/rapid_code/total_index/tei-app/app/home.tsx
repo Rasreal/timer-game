@@ -21,9 +21,11 @@ import { colors, useAccent } from '../src/theme';
 type Menu = 'calculate' | 'review' | 'plan' | 'profile';
 
 /**
- * The "HELP" options behind each tile's ellipsis (Ken's 19 and 22 Oct 2026
- * edits). Ken specified Calculate, Review and Profile; the Plan options are
- * drafted in the same style for him to approve.
+ * The "HELP" options behind each tile's ellipsis (Ken's 19, 22 and 30 Oct 2026
+ * edits), in the order of his 30 Oct copy, except that he later moved "How to
+ * interpret your session score." from Review to the top of Calculate. Ken
+ * specified Calculate, Review and Profile; the Plan options are drafted in the
+ * same style for him to approve.
  */
 const MENUS: Record<
   Menu,
@@ -33,9 +35,10 @@ const MENUS: Record<
     title: 'How can we help you CALCULATE?',
     selectLabel: 'Select this CALCULATE Option',
     options: [
-      { key: 'video', label: 'How to use TEI Standard Strength Calculator video.', route: '/info/calculator-video' },
-      { key: 'periods', label: 'Per session, per week or per month.', route: '/info/periods' },
+      { key: 'interpret', label: 'How to interpret your session score.', route: '/training-scale' },
+      { key: 'periods', label: 'Per session, per week or per Month.', route: '/info/periods' },
       { key: 'exertion', label: 'How important is “Perceived Exertion”?', route: '/info/exertion' },
+      { key: 'video', label: 'How to use TEI Standard Strength Calculator.', route: '/info/calculator-video' },
     ],
   },
   review: {
@@ -44,7 +47,6 @@ const MENUS: Record<
     options: [
       { key: 'snapshot', label: 'SNAPSHOT of previous full week.', route: '/review-snapshot' },
       { key: 'detailed', label: 'A detailed look at a Week or Month.', route: '/review' },
-      { key: 'interpret', label: 'How to interpret your TEI score.', route: '/training-scale' },
       { key: 'video', label: 'How to use REVIEW video.', route: '/info/review-video' },
     ],
   },
@@ -61,10 +63,10 @@ const MENUS: Record<
     title: 'How can we help with your PROFILE?',
     selectLabel: 'Select this PROFILE Option',
     options: [
-      { key: 'video', label: 'How to use TEI Profile video.', route: '/info/profile-video' },
       { key: 'quiz', label: 'What kind of athlete are you?', route: '/athlete-quiz' },
       { key: 'compare', label: 'Why we do not compare to other participants (yet).', route: '/info/compare' },
-      { key: 'upgrade', label: 'Benefits of Upgrading.', route: '/info/upgrade' },
+      { key: 'upgrade', label: 'Benefits of upgrading.', route: '/info/upgrade' },
+      { key: 'video', label: 'How to use TEI Profile.', route: '/info/profile-video' },
     ],
   },
 };

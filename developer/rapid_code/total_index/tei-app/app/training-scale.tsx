@@ -1,62 +1,112 @@
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { InfoPopup } from '../src/components/PopupCard';
 import { TrainingScale } from '../src/components/TrainingScale';
-import { colors, useAccent } from '../src/theme';
+import { accentAlpha, useAccent } from '../src/theme';
+import type { TrainingBand } from '../src/lib/training';
+
+/** Title, switch row and column headings above the 32 TEI rows. */
+const CHROME_HEIGHT = 118;
 
 /**
- * "How to interpret your TEI score" — the Understanding YOUR Training chart
- * from Ken's 19/22 Oct 2026 edits, as a full-screen card with a close cross.
+ * "How to interpret your session score" — Ken's "Understanding YOUR
+ * Training" graphics (30 Oct 2026): the Per Session chart, with a switch to
+ * the detailed Week & Month version. Like his graphic it is a white page,
+ * and its rows are sized so the whole chart fits on one screen.
  */
 export default function TrainingScaleScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const accent = useAccent();
+  const { height } = useWindowDimensions();
+  const [detailed, setDetailed] = useState(false);
+  const [info, setInfo] = useState<TrainingBand['info'] | null>(null);
+
+  const available = height - insets.top - insets.bottom - CHROME_HEIGHT;
+  const step = Math.max(16, Math.min(24, available / 32));
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{
-        paddingTop: insets.top + 12,
-        paddingHorizontal: 18,
-        paddingBottom: Math.max(insets.bottom, 16) + 16,
-      }}
-    >
-      <View style={styles.card}>
-        <Pressable
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-          hitSlop={14}
-          style={styles.close}
-        >
-          <Text style={[styles.closeText, { color: accent }]}>✕</Text>
-        </Pressable>
-        <TrainingScale />
-      </View>
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      {/* Dark clock and battery on the white page, as long as it is open. */}
+      <StatusBar style="dark" />
+      <ScrollView
+        contentContainerStyle={{
+          paddingTop: insets.top + 8,
+          paddingBottom: Math.max(insets.bottom, 12),
+        }}
+      >
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
+            Understanding YOUR Training
+          </Text>
+          <Pressable
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            hitSlop={14}
+          >
+            <Text style={[styles.close, { color: accent }]}>✕</Text>
+          </Pressable>
+        </View>
 
-      <Text style={styles.body}>
-        Find your session&rsquo;s TEI on the right, then read across: the middle
-        column is the effect that session has on your body, and the left column
-        is the reason someone would train at that level. Most training sits
-        between 6 and 22. Sessions above 22 are extreme and need recovery after;
-        above 33 is beyond a survivable workload, so check how you entered your
-        data.
-      </Text>
-    </ScrollView>
+        <View style={styles.toggleRow}>
+          <Pressable onPress={() => setDetailed(false)} accessibilityRole="button" hitSlop={8}>
+            <Text style={[styles.toggleText, { color: accent }]}>Per Session</Text>
+          </Pressable>
+          <Pressable onPress={() => setDetailed(true)} accessibilityRole="button" hitSlop={8}>
+            <Text
+              style={[styles.toggleText, styles.toggleSmall, { color: detailed ? accent : accentAlpha(accent, 0.45) }]}
+            >
+              Week &amp; Month
+            </Text>
+          </Pressable>
+          <Switch
+            value={detailed}
+            onValueChange={setDetailed}
+            accessibilityLabel="Show Week and Month"
+            trackColor={{ false: '#D9D9D9', true: '#34C759' }}
+            ios_backgroundColor="#D9D9D9"
+            style={{ transform: [{ scale: 0.8 }] }}
+          />
+        </View>
+
+        <TrainingScale detailed={detailed} step={step} onInfo={(band) => setInfo(band.info)} />
+      </ScrollView>
+
+      <InfoPopup info={info} onClose={() => setInfo(null)} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#444',
-    padding: 14,
-    paddingTop: 18,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    gap: 10,
   },
-  close: { position: 'absolute', top: 8, right: 12, zIndex: 1 },
-  closeText: { fontSize: 22, fontWeight: '300' },
-  body: { color: '#CFCFCF', fontSize: 15, lineHeight: 22, marginTop: 18 },
+  title: { flex: 1, color: '#757575', fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  close: { fontSize: 24, fontWeight: '400' },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  toggleText: { fontSize: 19, fontWeight: '600' },
+  toggleSmall: { fontSize: 16 },
 });

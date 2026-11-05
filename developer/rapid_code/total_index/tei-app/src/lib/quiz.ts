@@ -1,66 +1,98 @@
 /**
- * Each answer points at one of the chart's reasons for training:
- * 0 GENERAL HEALTH, 1 IMPROVE AESTHETICS, 2 ATHLETIC PERFORMANCE.
- *
- * DRAFT questions for Ken to approve — his edits asked for "a 3 or 4
- * question quiz" without the questions.
+ * "What Kind of Athlete Are You?" — Ken's quiz copy from his 30 Oct 2026
+ * edits. Each question's answers run from least to most purposeful and score
+ * 1–4, so a full quiz scores 4–16.
  */
+export const QUIZ_TITLE = 'What Kind of Athlete Are You?';
+export const QUIZ_SUBTITLE = 'Four questions. Four athlete identities. No sports required.';
+
 export const QUIZ: { question: string; answers: string[] }[] = [
   {
-    question: 'What is the main reason you train?',
+    question: 'How often do you consider the purpose behind your actions?',
     answers: [
-      'To feel healthy and move well',
-      'To look better and change my body',
-      'To perform better in my sport or event',
+      'Rarely. I generally respond to whatever needs doing.',
+      'Sometimes. Certain activities have clear purposes for me.',
+      'Often. I usually connect my actions to something meaningful.',
+      'Almost always. Purpose consciously guides my choices.',
     ],
   },
   {
-    question: 'How often do you train right now?',
-    answers: ['1–2 times a week', '3–4 times a week', '5 or more times a week'],
-  },
-  {
-    question: 'How do you want to feel after a typical session?',
+    question: 'How closely do your daily actions reflect the person you want to become?',
     answers: [
-      'Refreshed and energized',
-      'Worked, but ready for the rest of my day',
-      'Fully spent — I left it all out there',
+      "I haven't given that relationship much consideration.",
+      'Some of my habits reflect the person I want to become.',
+      'I consciously develop habits that support my aspirations.',
+      'I consistently organize and refine my actions around those aspirations.',
     ],
   },
   {
-    question: 'What would you most like to improve in the next 3 months?',
+    question: 'What best describes your approach to personal growth?',
     answers: [
-      'Energy, mobility and everyday health',
-      'Strength, shape and body composition',
-      'Speed, power and endurance',
+      "I don't regularly think about improving myself.",
+      'I welcome opportunities to improve when they arise.',
+      'I actively pursue challenges and opportunities that help me grow.',
+      'The desire to BE Better consistently influences how I approach life.',
+    ],
+  },
+  {
+    question: "When your efforts aren't producing the results you want, what do you typically do?",
+    answers: [
+      'I often lose interest or move on.',
+      'I try something different when the frustration becomes significant.',
+      "I examine what isn't working and make adjustments.",
+      'I see feedback, setbacks, and adaptation as essential parts of development.',
     ],
   },
 ];
 
-export const QUIZ_RESULTS = [
-  {
-    name: 'Health Athlete',
-    advice:
-      'Consistency beats intensity for you. Most of your sessions belong in the Therapy/Health and Maintenance effects, with the occasional harder day.',
-  },
-  {
-    name: 'Aesthetic Athlete',
-    advice:
-      'You change your body by stacking productive sessions week after week. Aim most sessions at the Change and Conditioning effects, and keep your weekly total inside the Effective Range.',
-  },
-  {
-    name: 'Performance Athlete',
-    advice:
-      'You can handle high loads, which makes recovery part of your training. Conditioning and Performance sessions build you up; plan a lighter day after anything above 22.',
-  },
-];
+export const QUIZ_MAX = QUIZ.length * 4;
 
-/** The reason most answers pointed at; ties go to the more demanding one. */
-export function quizResult(answers: number[]): number {
-  const counts = [0, 0, 0];
-  for (const a of answers) counts[a] += 1;
-  let best = 0;
-  counts.forEach((c, i) => {
-    if (c >= counts[best]) best = i;
-  });
-  return best;
+/**
+ * The four identities with Ken's preliminary scoring bands ("not public
+ * facing"; to be refined once real answers come in).
+ */
+export const ATHLETE_IDENTITIES = [
+  {
+    name: 'The Emerging Athlete',
+    from: 4,
+    to: 7,
+    summary:
+      'You may not yet consistently connect your everyday actions to a larger purpose. Your athleticism, in this sense, is a capacity waiting to be developed.',
+  },
+  {
+    name: 'The Intentional Athlete',
+    from: 8,
+    to: 10,
+    summary:
+      'You recognize the value of purposeful action and apply it in selected areas of life. Your next opportunity is greater consistency.',
+  },
+  {
+    name: 'The Developing Athlete',
+    from: 11,
+    to: 13,
+    summary:
+      'Purpose, challenge, and improvement already influence many of your decisions. You are actively developing your athletic identity.',
+  },
+  {
+    name: 'The Integrated Athlete',
+    from: 14,
+    to: 16,
+    summary:
+      'Purposeful action and intentional development appear deeply integrated into your daily life. You approach growth as an ongoing practice.',
+  },
+] as const;
+
+export const QUIZ_DISCLAIMER = 'Exploratory self-assessment; not a validated psychological measure.';
+
+/** Total score for the chosen answers (each answer index 0–3 scores 1–4). */
+export function quizScore(answers: number[]): number {
+  return answers.reduce((sum, a) => sum + a + 1, 0);
+}
+
+/** The identity a score falls in. */
+export function athleteIdentity(score: number) {
+  return (
+    ATHLETE_IDENTITIES.find((i) => score >= i.from && score <= i.to) ??
+    (score < ATHLETE_IDENTITIES[0].from ? ATHLETE_IDENTITIES[0] : ATHLETE_IDENTITIES[3])
+  );
 }

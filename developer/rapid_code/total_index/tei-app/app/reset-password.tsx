@@ -17,7 +17,7 @@ import { BrandLockup, OutlineButton } from '../src/components/Chrome';
 import { EyeIcon } from '../src/components/Icons';
 import { useAuth } from '../src/auth';
 import { supabase } from '../src/lib/supabase';
-import { colors } from '../src/theme';
+import { colors, useAccent } from '../src/theme';
 
 type RecoveryState = 'checking' | 'choose' | 'ready' | 'invalid';
 
@@ -28,6 +28,7 @@ const APP_RESET_URL = 'tei://reset-password';
 
 /** Completes the password-recovery session created by Supabase's email link. */
 export default function ResetPassword() {
+  const accent = useAccent();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const url = Linking.useURL();
@@ -153,7 +154,7 @@ export default function ResetPassword() {
 
           {recoveryState === 'checking' && (
             <View style={styles.loading}>
-              <ActivityIndicator color={colors.orange} />
+              <ActivityIndicator color={accent} />
               <Text style={styles.description}>Checking your reset link…</Text>
             </View>
           )}
@@ -258,6 +259,7 @@ function PasswordField({
   placeholder: string;
   onSubmitEditing?: () => void;
 }) {
+  const accent = useAccent();
   return (
     <View style={styles.passwordField}>
       <TextInput
@@ -269,7 +271,7 @@ function PasswordField({
         autoCapitalize="none"
         autoComplete="new-password"
         onSubmitEditing={onSubmitEditing}
-        selectionColor={colors.orange}
+        selectionColor={accent}
         style={styles.field}
       />
       <Pressable
