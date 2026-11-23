@@ -3,20 +3,20 @@ import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from '../src/components/KeyboardAware';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandLockup, OutlineButton } from '../src/components/Chrome';
 import { EyeIcon } from '../src/components/Icons';
 import { useAuth } from '../src/auth';
 import { supabase } from '../src/lib/supabase';
+import { PASSWORD_MIN_LENGTH, passwordRules } from '../src/lib/password';
 import { colors, useAccent } from '../src/theme';
 
 type RecoveryState = 'checking' | 'choose' | 'ready' | 'invalid';
@@ -110,12 +110,9 @@ export default function ResetPassword() {
     applyResult(await startRecoverySession(pending.params));
   }
 
-  const rules = {
-    length: password.length >= 8,
-    number: /\d/.test(password),
-    upper: /[A-Z]/.test(password),
-  };
-  const passwordOk = rules.length && rules.number && rules.upper;
+  // No name or email here: the reset link carries neither.
+  const rules = passwordRules(password);
+  const passwordOk = rules.every((r) => r.ok);
   const passwordsMatch = password === confirmPassword;
   const canSubmit = recoveryState === 'ready' && passwordOk && passwordsMatch && !busy;
 
@@ -134,11 +131,10 @@ export default function ResetPassword() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
+    <View style={styles.root}>
+      <KeyboardAwareScrollView
+        // Keep the password rules under the field in view while typing.
+        extraGap={120}
         contentContainerStyle={[
           styles.content,
           {
@@ -192,7 +188,8 @@ export default function ResetPassword() {
           {recoveryState === 'ready' && !complete && (
             <>
               <Text style={styles.description}>
-                Use at least 8 characters, including one uppercase letter and one number.
+                Use at least {PASSWORD_MIN_LENGTH} characters, with upper and lower case letters, a
+                number and a symbol.
               </Text>
               <PasswordField
                 value={password}
@@ -210,9 +207,11 @@ export default function ResetPassword() {
                 onSubmitEditing={savePassword}
               />
               <View style={styles.rules}>
-                <Rule ok={rules.length}>At least 8 characters</Rule>
-                <Rule ok={rules.number}>At least one number</Rule>
-                <Rule ok={rules.upper}>At least one uppercase letter</Rule>
+                {rules.map((r) => (
+                  <Rule key={r.key} ok={r.ok}>
+                    {r.label}
+                  </Rule>
+                ))}
                 {confirmPassword.length > 0 && (
                   <Rule ok={passwordsMatch}>Passwords match</Rule>
                 )}
@@ -239,8 +238,8 @@ export default function ResetPassword() {
             </>
           )}
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

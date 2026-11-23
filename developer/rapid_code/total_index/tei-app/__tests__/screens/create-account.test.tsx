@@ -25,7 +25,7 @@ jest.mock('../../src/auth', () => ({
 
 import CreateAccount from '../../app/create-account';
 
-const VALID_PASSWORD = 'Password1';
+const VALID_PASSWORD = 'Rhino-Lift9wave';
 
 /** The screen has no testIDs; the inputs are ordered First, Last, Email, Password. */
 function inputs() {
@@ -81,11 +81,33 @@ describe('app/create-account.tsx — Create TEI Account', () => {
     expect(screen.getByText('Elemental')).toBeTruthy();
   });
 
-  it('lists the three password rules', () => {
+  it('lists the five password rules', () => {
     renderScreen(<CreateAccount />);
-    expect(screen.getByText('○ At least 8 characters')).toBeTruthy();
+    expect(screen.getByText('○ At least 10 characters')).toBeTruthy();
+    expect(screen.getByText('○ Upper and lower case letters')).toBeTruthy();
     expect(screen.getByText('○ At least one number')).toBeTruthy();
-    expect(screen.getByText('○ At least one upper case letter')).toBeTruthy();
+    expect(screen.getByText('○ At least one symbol, like ! ? # or @')).toBeTruthy();
+    expect(
+      screen.getByText('○ No easy patterns like 1234 or abcd, or your name'),
+    ).toBeTruthy();
+  });
+
+  it("keeps the terms checkbox disabled for the Beta tester's 1234ABCD", () => {
+    renderScreen(<CreateAccount />);
+    fireEvent.changeText(inputs()[3] as never, '1234ABCD');
+    expect(
+      screen.getByLabelText('Accept terms and conditions').props.accessibilityState,
+    ).toMatchObject({ disabled: true });
+  });
+
+  it('rejects a password that contains the first name typed above', () => {
+    renderScreen(<CreateAccount />);
+    const [first, , , password] = inputs();
+    fireEvent.changeText(first as never, 'Natalia');
+    fireEvent.changeText(password as never, 'Natalia-2026x');
+    expect(
+      screen.getByLabelText('Accept terms and conditions').props.accessibilityState,
+    ).toMatchObject({ disabled: true });
   });
 
   it('typing updates each of the four inputs', () => {
@@ -256,8 +278,8 @@ describe('app/create-account.tsx — Create TEI Account', () => {
     renderScreen(<CreateAccount />);
     fireEvent.changeText(inputs()[3] as never, VALID_PASSWORD);
 
-    expect(screen.getByText('○ At least 8 characters')).toBeTruthy();
+    expect(screen.getByText('○ At least 10 characters')).toBeTruthy();
     expect(screen.getByText('○ At least one number')).toBeTruthy();
-    expect(screen.getByText('○ At least one upper case letter')).toBeTruthy();
+    expect(screen.getByText('○ Upper and lower case letters')).toBeTruthy();
   });
 });

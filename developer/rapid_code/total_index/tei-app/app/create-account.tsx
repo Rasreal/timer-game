@@ -1,20 +1,19 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from '../src/components/KeyboardAware';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, Ellipsis, RhinoWordmark } from '../src/components/Chrome';
 import { EyeIcon } from '../src/components/Icons';
 import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
+import { passwordRules } from '../src/lib/password';
 import { colors, useAccentTint } from '../src/theme';
 
 /** Screen 7 — Create TEI Elemental Account (white background per spec). */
@@ -36,12 +35,8 @@ export default function CreateAccount() {
   // White background: the accent needs its lighter tint to stay legible.
   const backTint = useAccentTint();
 
-  const rules = {
-    length: password.length >= 8,
-    number: /\d/.test(password),
-    upper: /[A-Z]/.test(password),
-  };
-  const passwordOk = rules.length && rules.number && rules.upper;
+  const rules = passwordRules(password, [firstName, lastName, email]);
+  const passwordOk = rules.every((r) => r.ok);
   const fieldsOk =
     firstName.trim() !== '' && lastName.trim() !== '' && email.includes('@');
   const canSubmit = fieldsOk && passwordOk && accepted && !busy;
@@ -85,11 +80,10 @@ export default function CreateAccount() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#fff' }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <KeyboardAwareScrollView
+        // Keep the password rules under the field in view while typing.
+        extraGap={120}
         contentContainerStyle={{
           paddingTop: insets.top + 14,
           paddingHorizontal: 24,
@@ -155,9 +149,11 @@ export default function CreateAccount() {
         </View>
 
         <View style={{ marginTop: 8, paddingLeft: 8 }}>
-          <Rule ok={rules.length}>At least 8 characters</Rule>
-          <Rule ok={rules.number}>At least one number</Rule>
-          <Rule ok={rules.upper}>At least one upper case letter</Rule>
+          {rules.map((r) => (
+            <Rule key={r.key} ok={r.ok}>
+              {r.label}
+            </Rule>
+          ))}
         </View>
 
         <View style={[styles.hr, { marginVertical: 18, marginHorizontal: 20 }]} />
@@ -217,8 +213,8 @@ export default function CreateAccount() {
             )}
           </Text>
         </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { useKeyboardHeight } from './KeyboardAware';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth';
 import { isValidEmail, joinPremiumWaitlist } from '../lib/waitlist';
@@ -40,6 +39,7 @@ export function PremiumWaitlistForm({
   onSent: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
   const { profile } = useAuth();
   const accent = useAccent();
   const [name, setName] = useState(
@@ -68,11 +68,15 @@ export function PremiumWaitlistForm({
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.backdrop}
-    >
-      <View style={[styles.card, { paddingBottom: Math.max(insets.bottom, 20) + 8 }]}>
+    <View style={styles.backdrop}>
+      {/* The sheet rises with the keyboard on both platforms, so the fields
+          and SEND stay visible (Ken's 11 Nov 2026 edits). */}
+      <View
+        style={[
+          styles.card,
+          { paddingBottom: (keyboardHeight > 0 ? keyboardHeight : Math.max(insets.bottom, 20)) + 8 },
+        ]}
+      >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <View>
             <Text style={styles.title}>TEI Premium</Text>
@@ -142,7 +146,7 @@ export function PremiumWaitlistForm({
           </Text>
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

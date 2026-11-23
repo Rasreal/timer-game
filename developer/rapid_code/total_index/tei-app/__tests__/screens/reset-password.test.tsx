@@ -98,15 +98,15 @@ describe('app/reset-password.tsx — Reset completion', () => {
       }),
     );
 
-    fireEvent.changeText(screen.getByPlaceholderText('New password'), 'Password1');
+    fireEvent.changeText(screen.getByPlaceholderText('New password'), 'Rhino-Lift9wave');
     fireEvent.changeText(
       screen.getByPlaceholderText('Confirm new password'),
-      'Password1',
+      'Rhino-Lift9wave',
     );
     fireEvent.press(screen.getByText('SAVE NEW PASSWORD'));
 
     await waitFor(() =>
-      expect(mockCompletePasswordReset).toHaveBeenCalledWith('Password1'),
+      expect(mockCompletePasswordReset).toHaveBeenCalledWith('Rhino-Lift9wave'),
     );
     expect(await screen.findByText(/Your password has been updated/)).toBeTruthy();
   });

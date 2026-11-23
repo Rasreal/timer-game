@@ -306,13 +306,7 @@ export default function Calculator() {
             </Pressable>
           </View>
 
-          {showResult ? (
-            <MaskedNumber value={displayTei(result.tei)} />
-          ) : (
-            <Text style={[styles.bigNumber, { color: '#1A1A1A' }]} numberOfLines={1}>
-              0
-            </Text>
-          )}
+          <BigNumber value={showResult ? displayTei(result.tei) : null} />
         </View>
 
         {showTargetBar && (
@@ -524,30 +518,60 @@ function CalendarGlyph() {
 }
 
 /**
- * The oversized score with the orange-to-charcoal gradient from the mock-ups.
- * RN has no background-clip:text, so the gradient is masked by overlaying it
- * on the glyphs via a transparent-text trick is unavailable — instead the
- * gradient is drawn behind and clipped to the text bounds using a container
- * the same size as the number.
+ * The oversized score with the orange-to-charcoal gradient from the mock-ups,
+ * or a charcoal 0 before anything is calculated. RN has no
+ * background-clip:text, so a gradient scrim is drawn over the glyphs.
+ *
+ * Ken's 11 Nov 2026 edits: the top of the number was cut off, and a
+ * two-digit score shrank to fit. The size is now worked out from the width
+ * available so that any one- or two-digit score fits at the same height;
+ * only a rare three-digit score is shrunk further.
  */
-function MaskedNumber({ value }: { value: number }) {
+function BigNumber({ value }: { value: number | null }) {
+  const [width, setWidth] = useState(0);
+  const fontSize = bigNumberSize(width);
+  const text = value === null ? '0' : String(value);
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1 }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       <Text
-        style={[styles.bigNumber, { color: colors.orange }]}
+        style={[
+          styles.bigNumber,
+          {
+            fontSize,
+            // A line box at least as tall as the glyphs, so their tops are not
+            // clipped; the negative margin keeps the digits' tops level with
+            // the back arrow, where the mock-up puts them.
+            lineHeight: Math.round(fontSize * 1.18),
+            marginTop: -Math.round(fontSize * 0.2),
+            letterSpacing: -fontSize * 0.05,
+            color: value === null ? '#1A1A1A' : colors.orange,
+          },
+        ]}
         numberOfLines={1}
-        adjustsFontSizeToFit
+        adjustsFontSizeToFit={text.length > 2}
       >
-        {value}
+        {text}
       </Text>
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.88)']}
-        locations={[0.25, 0.62, 1]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
+      {value !== null && (
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.88)']}
+          locations={[0.3, 0.66, 0.92]}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      )}
     </View>
   );
+}
+
+/**
+ * The largest size (up to 200) at which two heavy digits fit in `width`.
+ * Two digits come to about 1.2 em once the negative tracking is taken off;
+ * the 10 px is the right padding. Checked on the simulator with 8, 10 and 37.
+ */
+export function bigNumberSize(width: number): number {
+  if (width <= 0) return 200;
+  return Math.max(80, Math.min(200, Math.floor((width - 10) / 1.2)));
 }
 
 const styles = StyleSheet.create({
@@ -571,14 +595,9 @@ const styles = StyleSheet.create({
   },
   pillText: { fontSize: 13, fontWeight: '600' },
   bigNumber: {
-    flex: 1,
     textAlign: 'right',
-    // The mock-up's score is roughly as tall as the lockup and the pill
-    // together; the keypad lift keeps the rings reachable regardless.
-    fontSize: 200,
+    // Size, line height and tracking come from `bigNumberSize`.
     fontWeight: '800',
-    letterSpacing: -10,
-    lineHeight: 190,
     // Negative tracking clips the final glyph without a little breathing room.
     paddingRight: 10,
   },

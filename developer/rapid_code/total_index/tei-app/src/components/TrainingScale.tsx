@@ -48,15 +48,33 @@ const COLUMNS = {
  */
 export function TrainingScale({
   detailed = false,
-  step = 20,
+  step: minStep = 20,
+  fillHeight,
+  bleed = 0,
   onInfo,
 }: {
   detailed?: boolean;
-  /** Height of one TEI row. */
+  /** Height of one TEI row; the smallest it gets when `fillHeight` is set. */
   step?: number;
+  /**
+   * Height the chart should fill, headings included. Rows grow past `step`
+   * so the colours reach the bottom of the page instead of stopping short
+   * above a white strip (Ken's 11 Nov 2026 edits).
+   */
+  fillHeight?: number;
+  /**
+   * Extra height under the last row, painted in the last band's colours, for
+   * the strip behind the home indicator. Part of `fillHeight`.
+   */
+  bleed?: number;
   onInfo?: (band: TrainingBand) => void;
 }) {
   const [width, setWidth] = useState(0);
+  const [headHeight, setHeadHeight] = useState(0);
+  const step =
+    fillHeight && headHeight
+      ? Math.max(minStep, (fillHeight - headHeight - bleed) / ROWS)
+      : minStep;
   const cols = detailed ? COLUMNS.detailed : COLUMNS.session;
   const numbers = Array.from({ length: ROWS }, (_, i) => TRAINING_SCALE.from + i);
   const rowsHeight = ROWS * step;
@@ -71,7 +89,7 @@ export function TrainingScale({
   return (
     <View testID="training-chart" onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       {/* Column headings */}
-      <View style={styles.headRow}>
+      <View style={styles.headRow} onLayout={(e) => setHeadHeight(e.nativeEvent.layout.height)}>
         <Text style={[styles.head, { flex: share(cols.reason) }]}>
           {detailed ? 'Reason for\nTraining' : 'Reason for Training'}
         </Text>
@@ -222,6 +240,16 @@ export function TrainingScale({
           </>
         )}
       </View>
+      {bleed > 0 && (
+        <View testID="training-chart-bleed" style={{ flexDirection: 'row', height: bleed }}>
+          <View
+            style={{ flex: share(cols.reason), backgroundColor: REASON_GRADIENT[REASON_GRADIENT.length - 1] }}
+          />
+          <View
+            style={{ flex: share(1 - cols.reason), backgroundColor: EFFECT_GRADIENT[EFFECT_GRADIENT.length - 1] }}
+          />
+        </View>
+      )}
     </View>
   );
 }

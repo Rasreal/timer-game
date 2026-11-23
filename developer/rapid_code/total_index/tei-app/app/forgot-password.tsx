@@ -2,15 +2,13 @@ import { useState } from 'react';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from '../src/components/KeyboardAware';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandLockup, OutlineButton } from '../src/components/Chrome';
 import { useAuth } from '../src/auth';
@@ -50,11 +48,8 @@ export default function ForgotPassword() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
+    <View style={styles.root}>
+      <KeyboardAwareScrollView
         contentContainerStyle={[
           styles.content,
           {
@@ -114,8 +109,8 @@ export default function ForgotPassword() {
             <Text style={styles.backText}>← Back to log in</Text>
           </Pressable>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

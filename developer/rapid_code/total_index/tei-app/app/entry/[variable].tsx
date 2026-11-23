@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAware';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -272,11 +270,8 @@ export default function VariableEntry() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: accent }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
+    <View style={{ flex: 1, backgroundColor: accent }}>
+      <KeyboardAwareScrollView
         contentContainerStyle={{
           flexGrow: 1,
           paddingTop: insets.top + 12,
@@ -361,8 +356,8 @@ export default function VariableEntry() {
           disabled={!canAdd}
           style={{ alignSelf: 'center', minWidth: 264 }}
         />
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

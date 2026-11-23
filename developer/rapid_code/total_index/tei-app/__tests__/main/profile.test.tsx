@@ -47,12 +47,14 @@ describe('Profile', () => {
     expect(screen.queryByDisplayValue('ada@example.com')).toBeNull();
   });
 
-  it('renders the three password rules', () => {
+  it('renders the five password rules', () => {
     renderMain(<Profile />);
     // Each Rule renders "○ " and its text as two children of one <Text>.
-    expect(screen.getByText(/At least 8 characters/)).toBeTruthy();
+    expect(screen.getByText(/At least 10 characters/)).toBeTruthy();
+    expect(screen.getByText(/Upper and lower case letters/)).toBeTruthy();
     expect(screen.getByText(/At least one number/)).toBeTruthy();
-    expect(screen.getByText(/At least one upper case letter/)).toBeTruthy();
+    expect(screen.getByText(/At least one symbol/)).toBeTruthy();
+    expect(screen.getByText(/No easy patterns/)).toBeTruthy();
   });
 
   it('toggles the password visibility control', () => {
@@ -126,7 +128,7 @@ describe('Profile', () => {
 
       fireEvent.changeText(
         screen.getByPlaceholderText('**************'),
-        'Password1',
+        'Rhino-Lift9wave',
       );
 
       await act(async () => {
@@ -136,7 +138,7 @@ describe('Profile', () => {
       expect(auth.updateProfile).toHaveBeenCalledWith({
         firstName: 'Ada',
         lastName: 'Lovelace',
-        password: 'Password1',
+        password: 'Rhino-Lift9wave',
       });
     });
 
@@ -163,11 +165,11 @@ describe('Profile', () => {
       expect(router.replace).not.toHaveBeenCalledWith('/home');
     });
 
-    it('does nothing when the password fails the rules', async () => {
+    it.each(['short', '1234ABCD'])('does nothing when the password is %s', async (weak) => {
       const auth = signedIn();
       renderMain(<Profile />);
 
-      fireEvent.changeText(screen.getByPlaceholderText('**************'), 'short');
+      fireEvent.changeText(screen.getByPlaceholderText('**************'), weak);
       await act(async () => {
         fireEvent.press(screen.getByText(/Save Changes/));
       });

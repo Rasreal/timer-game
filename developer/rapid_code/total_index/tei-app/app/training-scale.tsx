@@ -23,7 +23,8 @@ const CHROME_HEIGHT = 118;
  * "How to interpret your session score" — Ken's "Understanding YOUR
  * Training" graphics (30 Oct 2026): the Per Session chart, with a switch to
  * the detailed Week & Month version. Like his graphic it is a white page,
- * and its rows are sized so the whole chart fits on one screen.
+ * and its rows are sized so the whole chart fits on one screen; on taller
+ * phones they grow so the colours reach the bottom edge (11 Nov 2026).
  */
 export default function TrainingScaleScreen() {
   const router = useRouter();
@@ -32,6 +33,8 @@ export default function TrainingScaleScreen() {
   const { height } = useWindowDimensions();
   const [detailed, setDetailed] = useState(false);
   const [info, setInfo] = useState<TrainingBand['info'] | null>(null);
+  // Space left under the title and toggle, down to the bottom edge.
+  const [chartSpace, setChartSpace] = useState(0);
 
   const available = height - insets.top - insets.bottom - CHROME_HEIGHT;
   const step = Math.max(16, Math.min(24, available / 32));
@@ -41,10 +44,9 @@ export default function TrainingScaleScreen() {
       {/* Dark clock and battery on the white page, as long as it is open. */}
       <StatusBar style="dark" />
       <ScrollView
-        contentContainerStyle={{
-          paddingTop: insets.top + 8,
-          paddingBottom: Math.max(insets.bottom, 12),
-        }}
+        // No bottom padding: the chart's colours run to the bottom edge, with
+        // the home-indicator strip painted by `bleed` rather than left white.
+        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 8 }}
       >
         <View style={styles.titleRow}>
           <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
@@ -81,7 +83,15 @@ export default function TrainingScaleScreen() {
           />
         </View>
 
-        <TrainingScale detailed={detailed} step={step} onInfo={(band) => setInfo(band.info)} />
+        <View style={{ flex: 1 }} onLayout={(e) => setChartSpace(e.nativeEvent.layout.height)}>
+          <TrainingScale
+            detailed={detailed}
+            step={step}
+            fillHeight={chartSpace}
+            bleed={Math.max(insets.bottom, 12)}
+            onInfo={(band) => setInfo(band.info)}
+          />
+        </View>
       </ScrollView>
 
       <InfoPopup info={info} onClose={() => setInfo(null)} />

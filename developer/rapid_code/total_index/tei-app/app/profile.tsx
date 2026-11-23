@@ -1,20 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from '../src/components/KeyboardAware';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, Ellipsis, RhinoWordmark } from '../src/components/Chrome';
 import { EyeIcon } from '../src/components/Icons';
 import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
+import { passwordRules } from '../src/lib/password';
 import {
   DEFAULT_ACCENT,
   SHOW_DEV_TOOLS,
@@ -75,14 +74,9 @@ export default function Profile() {
   // Email changes require a confirmation round-trip, so it is read-only here.
   const email = profile?.email ?? '';
 
-  const rules = {
-    length: password.length >= 8,
-    number: /\d/.test(password),
-    upper: /[A-Z]/.test(password),
-  };
+  const rules = passwordRules(password, [firstName, lastName, email]);
   // Password is optional here — leaving it blank keeps the current one.
-  const passwordOk =
-    password === '' || (rules.length && rules.number && rules.upper);
+  const passwordOk = password === '' || rules.every((r) => r.ok);
   const canSave =
     passwordOk &&
     firstName.trim() !== '' &&
@@ -129,11 +123,10 @@ export default function Profile() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#fff' }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <KeyboardAwareScrollView
+        // Keep the password rules under the field in view while typing.
+        extraGap={120}
         contentContainerStyle={{
           paddingTop: insets.top + 14,
           paddingHorizontal: 24,
@@ -198,11 +191,11 @@ export default function Profile() {
         </View>
 
         <View style={{ marginTop: 8, paddingLeft: 8 }}>
-          <Rule ok={password === '' || rules.length}>At least 8 characters</Rule>
-          <Rule ok={password === '' || rules.number}>At least one number</Rule>
-          <Rule ok={password === '' || rules.upper}>
-            At least one upper case letter
-          </Rule>
+          {rules.map((r) => (
+            <Rule key={r.key} ok={password === '' || r.ok}>
+              {r.label}
+            </Rule>
+          ))}
         </View>
 
         {swatches.length > 0 && (
@@ -328,8 +321,8 @@ export default function Profile() {
         >
           <Text style={styles.signOutText}>Sign Out</Text>
         </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 
