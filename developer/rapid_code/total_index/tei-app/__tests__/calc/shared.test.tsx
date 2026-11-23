@@ -131,6 +131,17 @@ describe('CalcShell — rendering', () => {
   });
 });
 
+describe('CalcShell — Interpret Score', () => {
+  // Ken's 11 Nov 2026 edits: every calculator gets it, even with the
+  // Effective Ranges pill turned off.
+  it('always offers the score interpretation chart', () => {
+    renderShell({ showRangesPill: false });
+    expect(screen.getByText('Interpret Score')).toHaveStyle({ color: colors.green });
+    fireEvent.press(screen.getByLabelText('Interpret Score'));
+    expect(router.push).toHaveBeenCalledWith('/training-scale');
+  });
+});
+
 describe('CalcShell — calculate', () => {
   it('calls compute only on demand and shows the rounded score', () => {
     const { compute } = renderShell({ tei: 13.78 });

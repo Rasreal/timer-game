@@ -52,6 +52,7 @@ export function TrainingScale({
   fillHeight,
   bleed = 0,
   onInfo,
+  firstInfoRef,
 }: {
   detailed?: boolean;
   /** Height of one TEI row; the smallest it gets when `fillHeight` is set. */
@@ -68,6 +69,8 @@ export function TrainingScale({
    */
   bleed?: number;
   onInfo?: (band: TrainingBand) => void;
+  /** The first reason's label, where the first-time tour points at an "i". */
+  firstInfoRef?: (node: unknown) => void;
 }) {
   const [width, setWidth] = useState(0);
   const [headHeight, setHeadHeight] = useState(0);
@@ -127,9 +130,10 @@ export function TrainingScale({
             locations={gradientStops(REASON_GRADIENT, true)}
             style={StyleSheet.absoluteFill}
           />
-          {TRAINING_REASONS.map((band) => (
+          {TRAINING_REASONS.map((band, i) => (
             <View key={band.label} style={[styles.band, { height: bandRows(band) * step }]}>
               <InfoLabel
+                labelRef={i === 0 ? firstInfoRef : undefined}
                 band={band}
                 stacked
                 fontSize={detailed ? 15 : 18}
@@ -262,7 +266,9 @@ function InfoLabel({
   stacked = false,
   narrow = false,
   onInfo,
+  labelRef,
 }: {
+  labelRef?: (node: unknown) => void;
   band: TrainingBand;
   fontSize: number;
   color: string;
@@ -279,6 +285,7 @@ function InfoLabel({
       : band.label;
   return (
     <Pressable
+      ref={labelRef as never}
       onPress={() => onInfo?.(band)}
       disabled={!onInfo}
       accessibilityRole="button"

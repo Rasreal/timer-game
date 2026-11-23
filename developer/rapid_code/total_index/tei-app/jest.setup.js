@@ -61,3 +61,7 @@ jest.spyOn(console, 'error').mockImplementation((...a) => {
   const m = String(a[0] ?? '');
   if (m.includes('not wrapped in act') || m.includes('useNativeDriver')) return;
 });
+
+// The first-time tour would cover screens under test; __tests__/tour.test.tsx
+// turns it back on.
+globalThis.__TEI_DISABLE_TOURS__ = true;

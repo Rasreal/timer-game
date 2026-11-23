@@ -7,6 +7,8 @@ import { BackArrow, Ellipsis, OutlineButton } from './Chrome';
 import { DatePicker } from './DatePicker';
 import { DeleteSessionButton } from './DeleteSessionButton';
 import { useKeyboardLift } from './useKeyboardLift';
+import { useTour } from './Tour';
+import { TOURS } from '../lib/tours';
 import { useAuth } from '../auth';
 import { formatSessionDate, useStore } from '../store';
 import { saveSession, updateSession } from '../lib/sessions';
@@ -75,6 +77,8 @@ export function CalcShell({
   const insets = useSafeAreaInsets();
   const { session, setSessionDate, resetSession, showToast, targetRange } = useStore();
   const { profile } = useAuth();
+  // Shared with the Standard calculator, so it shows on the first calculator only.
+  const tour = useTour('calculator', TOURS.calculator);
   // A saved session of this calculator opened from Review for correction.
   const editing =
     !planDay && session.editing?.calculator === calculator ? session.editing : null;
@@ -263,6 +267,7 @@ export function CalcShell({
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {tour.overlay}
       <ScrollView
         ref={lift.scrollRef}
         style={{ flex: 1, backgroundColor: colors.bg }}
@@ -300,8 +305,25 @@ export function CalcShell({
         <View style={styles.headRow}>
           <View style={styles.lockupCol}>
             <StackedLockup />
+            {/* Ken's 11 Nov 2026 edits: every calculator links to the score
+                interpretation chart, in green above Effective Ranges. */}
+            <Pressable
+              ref={tour.target('interpret')}
+              onPress={() => router.push('/training-scale')}
+              accessibilityRole="button"
+              accessibilityLabel="Interpret Score"
+              style={({ pressed }) => [
+                styles.pill,
+                styles.pillFirst,
+                { borderColor: colors.green },
+                { backgroundColor: pressed ? accentAlpha(colors.green, 0.16) : 'transparent' },
+              ]}
+            >
+              <Text style={[styles.pillText, { color: colors.green }]}>Interpret Score</Text>
+            </Pressable>
             {showRangesPill && (
               <Pressable
+                ref={tour.target('ranges')}
                 onPress={() => router.push('/ranges')}
                 accessibilityRole="button"
                 style={({ pressed }) => [
@@ -358,13 +380,19 @@ export function CalcShell({
           }}
         />
 
-        <View style={[styles.rings, tightRings && styles.ringsTight]}>{children}</View>
+        <View
+          style={[styles.rings, tightRings && styles.ringsTight]}
+          ref={tour.target('rings')}
+          collapsable={false}
+        >
+          {children}
+        </View>
 
         <View style={{ flex: 1, minHeight: 4 }} />
 
         <Text style={styles.greenLabel}>{sessionLabel}</Text>
 
-        <View style={styles.ctaRow}>
+        <View style={styles.ctaRow} ref={tour.target('calculate')} collapsable={false}>
           <OutlineButton
             title="Calculate TEI"
             disabled={!complete}
@@ -479,6 +507,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   pillText: { fontSize: 14, fontWeight: '700' },
+  pillFirst: { marginTop: 8 },
   bigNumber: {
     fontSize: 100,
     fontWeight: '800',

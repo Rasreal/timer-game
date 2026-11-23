@@ -472,6 +472,16 @@ describe('calculator — navigation', () => {
     expect(router.push).toHaveBeenCalledWith('/ranges');
   });
 
+  // Ken's 11 Nov 2026 edits: a green Interpret Score pill above it opens the
+  // score interpretation chart, before and after a score exists.
+  it('opens the score interpretation chart from the Interpret Score pill', () => {
+    renderCalc(<Calculator />);
+    const pill = screen.getByLabelText('Interpret Score');
+    expect(screen.getByText('Interpret Score')).toHaveStyle({ color: colors.green });
+    fireEvent.press(pill);
+    expect(router.push).toHaveBeenCalledWith('/training-scale');
+  });
+
   it('falls back to /home when there is nothing to go back to', () => {
     (router as unknown as { canGoBack: jest.Mock }).canGoBack = jest.fn(
       () => false,

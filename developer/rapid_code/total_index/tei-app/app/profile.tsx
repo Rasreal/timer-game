@@ -13,6 +13,7 @@ import { BackArrow, Ellipsis, RhinoWordmark } from '../src/components/Chrome';
 import { EyeIcon } from '../src/components/Icons';
 import { useAuth } from '../src/auth';
 import { useStore } from '../src/store';
+import { resetTours } from '../src/components/Tour';
 import { passwordRules } from '../src/lib/password';
 import {
   DEFAULT_ACCENT,
@@ -314,6 +315,18 @@ export default function Profile() {
           </Text>
         </Pressable>
 
+        {/* Ken's 11 Nov 2026 first-time tour: show every screen's tips again. */}
+        <Pressable
+          onPress={async () => {
+            await resetTours(profile?.id);
+            showToast('Tips will show again on each screen.');
+          }}
+          accessibilityRole="button"
+          style={styles.replayBtn}
+        >
+          <Text style={[styles.replayText, { color: appAccent }]}>Replay app tour</Text>
+        </Pressable>
+
         <Pressable
           onPress={handleSignOut}
           accessibilityRole="button"
@@ -485,7 +498,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     alignSelf: 'flex-start',
   },
-  signOutBtn: { marginTop: 24, alignSelf: 'flex-start' },
+  replayBtn: { marginTop: 24, alignSelf: 'flex-start' },
+  replayText: { fontSize: 17 },
+  signOutBtn: { marginTop: 18, alignSelf: 'flex-start' },
   signOutText: {
     color: '#8A0000',
     fontSize: 17,

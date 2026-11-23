@@ -12,6 +12,8 @@ import { DatePicker } from '../src/components/DatePicker';
 import { DeleteSessionButton } from '../src/components/DeleteSessionButton';
 import { Ring } from '../src/components/Ring';
 import { useKeyboardLift } from '../src/components/useKeyboardLift';
+import { useTour } from '../src/components/Tour';
+import { TOURS } from '../src/lib/tours';
 import { useAuth } from '../src/auth';
 import { formatSessionDate, useStore } from '../src/store';
 import { saveSession, updateSession } from '../src/lib/sessions';
@@ -41,6 +43,7 @@ export default function Calculator() {
     !planDay && session.editing?.calculator === 'standard' ? session.editing : null;
   const lift = useKeyboardLift(insets.top);
   const accent = useAccent();
+  const tour = useTour('calculator', TOURS.calculator);
   // An opened session already has its score, so it starts calculated.
   const [calculated, setCalculated] = useState(editing !== null);
   const [saving, setSaving] = useState(false);
@@ -248,6 +251,7 @@ export default function Calculator() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {tour.overlay}
       <ScrollView
         ref={lift.scrollRef}
         style={{ flex: 1, backgroundColor: colors.bg }}
@@ -291,14 +295,34 @@ export default function Calculator() {
               <Text style={styles.lockupWord}>INDEX</Text>
               <Text style={styles.lockupTei}>TEI</Text>
             </View>
+            {/* Ken's 11 Nov 2026 edits: every calculator links to the score
+                interpretation chart, in green above Effective Ranges. */}
+            <Pressable
+              ref={tour.target('interpret')}
+              onPress={() => router.push('/training-scale')}
+              accessibilityRole="button"
+              accessibilityLabel="Interpret Score"
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.pill,
+                {
+                  borderColor: colors.green,
+                  backgroundColor: pressed ? accentAlpha(colors.green, 0.16) : 'transparent',
+                },
+              ]}
+            >
+              <Text style={[styles.pillText, { color: colors.green }]}>Interpret Score</Text>
+            </Pressable>
             {/* Always enabled, on every tier — it replaces the old Ranges CTA. */}
             <Pressable
+              ref={tour.target('ranges')}
               onPress={() => router.push('/ranges')}
               accessibilityRole="button"
               accessibilityLabel="Effective Ranges"
-              hitSlop={8}
+              hitSlop={6}
               style={({ pressed }) => [
                 styles.pill,
+                styles.pillSecond,
                 { borderColor: accent, backgroundColor: pressed ? accentAlpha(accent, 0.16) : 'transparent' },
               ]}
             >
@@ -361,7 +385,7 @@ export default function Calculator() {
         />
 
         {/* Four variable rings */}
-        <View style={styles.ringGrid}>
+        <View style={styles.ringGrid} ref={tour.target('rings')} collapsable={false}>
           {/* Spec (deck slide 13): every calculator offers two layers of data
               entry — direct entry into the circle, or the ellipsis for a
               dedicated screen explaining the variable. */}
@@ -428,7 +452,7 @@ export default function Calculator() {
 
         <View style={{ flex: 1, minHeight: 8 }} />
 
-        <View style={{ flexDirection: 'row', gap: 16 }}>
+        <View style={{ flexDirection: 'row', gap: 16 }} ref={tour.target('calculate')} collapsable={false}>
           <OutlineButton
             title="Calculate TEI"
             disabled={!complete}
@@ -594,6 +618,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   pillText: { fontSize: 13, fontWeight: '600' },
+  pillSecond: { marginTop: 8 },
   bigNumber: {
     textAlign: 'right',
     // Size, line height and tracking come from `bigNumberSize`.

@@ -1,6 +1,7 @@
 import { act, render, screen } from '@testing-library/react-native';
 import { Keyboard, ScrollView, Text, TextInput } from 'react-native';
-import { KeyboardAwareScrollView } from '../../src/components/KeyboardAware';
+import { KeyboardAwareScrollView, coveredHeight } from '../../src/components/KeyboardAware';
+import { Dimensions } from 'react-native';
 import { TrainingScale } from '../../src/components/TrainingScale';
 import { bigNumberSize } from '../../app/calculator';
 
@@ -89,6 +90,27 @@ describe('KeyboardAwareScrollView', () => {
     act(() => jest.runAllTimers());
 
     expect(scrollTo).not.toHaveBeenCalled();
+  });
+});
+
+describe('coveredHeight', () => {
+  const kb = (height: number, screenY: number) =>
+    ({ endCoordinates: { height, screenY, screenX: 0, width: 400 } }) as never;
+
+  it('counts the navigation bar under an Android keyboard', () => {
+    jest.spyOn(Dimensions, 'get').mockReturnValue({ height: 935, width: 448, scale: 3, fontScale: 1 });
+    // Keyboard reports 290 tall but its top edge is 338 from the bottom.
+    expect(coveredHeight(kb(290, 597))).toBe(338);
+  });
+
+  it('uses the reported height when it already reaches the bottom (iOS)', () => {
+    jest.spyOn(Dimensions, 'get').mockReturnValue({ height: 874, width: 402, scale: 3, fontScale: 1 });
+    expect(coveredHeight(kb(336, 538))).toBe(336);
+  });
+
+  it('ignores a floating keyboard far above the bottom', () => {
+    jest.spyOn(Dimensions, 'get').mockReturnValue({ height: 935, width: 448, scale: 3, fontScale: 1 });
+    expect(coveredHeight(kb(200, 300))).toBe(200);
   });
 });
 

@@ -13,6 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { InfoPopup } from '../src/components/PopupCard';
 import { TrainingScale } from '../src/components/TrainingScale';
+import { useTour } from '../src/components/Tour';
+import { TOURS } from '../src/lib/tours';
 import { accentAlpha, useAccent } from '../src/theme';
 import type { TrainingBand } from '../src/lib/training';
 
@@ -35,6 +37,7 @@ export default function TrainingScaleScreen() {
   const [info, setInfo] = useState<TrainingBand['info'] | null>(null);
   // Space left under the title and toggle, down to the bottom edge.
   const [chartSpace, setChartSpace] = useState(0);
+  const tour = useTour('training-scale', TOURS.trainingScale, { ready: chartSpace > 0 });
 
   const available = height - insets.top - insets.bottom - CHROME_HEIGHT;
   const step = Math.max(16, Math.min(24, available / 32));
@@ -74,6 +77,7 @@ export default function TrainingScaleScreen() {
             </Text>
           </Pressable>
           <Switch
+            ref={tour.target('switch') as never}
             value={detailed}
             onValueChange={setDetailed}
             accessibilityLabel="Show Week and Month"
@@ -90,11 +94,13 @@ export default function TrainingScaleScreen() {
             fillHeight={chartSpace}
             bleed={Math.max(insets.bottom, 12)}
             onInfo={(band) => setInfo(band.info)}
+            firstInfoRef={tour.target('info')}
           />
         </View>
       </ScrollView>
 
       <InfoPopup info={info} onClose={() => setInfo(null)} />
+      {tour.overlay}
     </View>
   );
 }

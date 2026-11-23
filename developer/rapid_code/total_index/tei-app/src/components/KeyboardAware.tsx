@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
+  Dimensions,
   Keyboard,
   Platform,
   ScrollView,
@@ -25,11 +26,24 @@ import {
 const SHOW = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
 const HIDE = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
+/**
+ * How much of the screen the keyboard covers, measured from its top edge to
+ * the bottom of the screen. On Android (edge to edge) the reported height
+ * leaves out the navigation bar under the keyboard, which left the bottom of
+ * the Premium waitlist's SEND button hidden.
+ */
+export function coveredHeight(e: KeyboardEvent): number {
+  const { height, screenY } = e.endCoordinates;
+  const fromTop = Dimensions.get('screen').height - screenY;
+  // A floating or undocked keyboard can report a top edge far from the bottom.
+  return fromTop > height && fromTop < height * 1.5 ? fromTop : height;
+}
+
 /** Height of the on-screen keyboard, 0 while it is closed. */
 export function useKeyboardHeight(): number {
   const [height, setHeight] = useState(0);
   useEffect(() => {
-    const show = Keyboard.addListener(SHOW, (e) => setHeight(e.endCoordinates.height));
+    const show = Keyboard.addListener(SHOW, (e) => setHeight(coveredHeight(e)));
     const hide = Keyboard.addListener(HIDE, () => setHeight(0));
     return () => {
       show.remove();
@@ -80,7 +94,7 @@ export const KeyboardAwareScrollView = forwardRef<ScrollView, Props>(function Ke
   useEffect(() => {
     const show = Keyboard.addListener(SHOW, (e: KeyboardEvent) => {
       keyboardTop.current = e.endCoordinates.screenY;
-      setKeyboardHeight(e.endCoordinates.height);
+      setKeyboardHeight(coveredHeight(e));
       // Wait for the extra bottom padding to be laid out before scrolling.
       setTimeout(reveal, Platform.OS === 'ios' ? 60 : 120);
     });

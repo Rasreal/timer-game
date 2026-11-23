@@ -12,6 +12,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, OutlineButton } from '../src/components/Chrome';
 import { useAuth } from '../src/auth';
+import { useTour } from '../src/components/Tour';
+import { TOURS } from '../src/lib/tours';
 import { listPlansBetween, planDayKey, type PlanRow } from '../src/lib/plans';
 import { startOfWeek, WEEKDAY_INITIALS as WEEKDAYS } from '../src/lib/review';
 import { colors, useAccent } from '../src/theme';
@@ -46,6 +48,7 @@ export default function Plan() {
   });
   const [rows, setRows] = useState<PlanRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const tour = useTour('plan', TOURS.plan, { ready: !loading });
   const [error, setError] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [pending, setPending] = useState<Cell | null>(null);
@@ -169,7 +172,7 @@ export default function Plan() {
               {cursor.toLocaleString('en-US', { month: 'long' })}{' '}
               <Text style={{ color: colors.orange }}>{cursor.getFullYear()}</Text>
             </Text>
-            <View style={styles.monthArrows}>
+            <View style={styles.monthArrows} ref={tour.target('months')} collapsable={false}>
               <Pressable
                 onPress={() => shiftMonth(-1)}
                 accessibilityRole="button"
@@ -214,6 +217,8 @@ export default function Plan() {
               // week is done by the marker slot on the left.
               <View
                 key={wi}
+                ref={wi === 0 ? tour.target('week') : undefined}
+                collapsable={false}
                 style={[styles.weekRow, wi > 0 && styles.weekRowDivider]}
               >
                 <Pressable
@@ -330,13 +335,17 @@ export default function Plan() {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <OutlineButton
-          title="See Effective Ranges of TEI"
-          onPress={() => router.push('/ranges')}
-          fontSize={21}
-          style={styles.rangesBtn}
-        />
+        <View ref={tour.target('ranges')} collapsable={false}>
+          <OutlineButton
+            title="See Effective Ranges of TEI"
+            onPress={() => router.push('/ranges')}
+            fontSize={21}
+            style={styles.rangesBtn}
+          />
+        </View>
       </View>
+
+      {tour.overlay}
 
       {/* ---------- Day-tap confirm ---------- */}
       <Modal

@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrow, OutlineButton } from '../src/components/Chrome';
 import { DaySessionsSheet } from '../src/components/DaySessionsSheet';
 import { useAuth } from '../src/auth';
+import { useTour } from '../src/components/Tour';
+import { TOURS } from '../src/lib/tours';
 import { useStore } from '../src/store';
 import { listSessionsBetween } from '../src/lib/sessions';
 import { listPlansBetween, planDayKey } from '../src/lib/plans';
@@ -74,6 +76,7 @@ export default function Review() {
   // logged day can be graded against the plan it was meant to hit.
   const [planned, setPlanned] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
+  const tour = useTour('review', TOURS.review, { ready: !loading });
   const [error, setError] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -285,7 +288,7 @@ export default function Review() {
               {cursor.toLocaleString('en-US', { month: 'long' })}{' '}
               <Text style={{ color: colors.orange }}>{cursor.getFullYear()}</Text>
             </Text>
-            <View style={styles.monthArrows}>
+            <View style={styles.monthArrows} ref={tour.target('months')} collapsable={false}>
               <Pressable
                 onPress={() => shiftMonth(-1)}
                 accessibilityRole="button"
@@ -331,6 +334,8 @@ export default function Review() {
               // left selects the week, as on the Plan calendar.
               <View
                 key={wi}
+                ref={wi === 0 ? tour.target('week') : undefined}
+                collapsable={false}
                 style={[styles.weekRow, wi > 0 && styles.weekRowDivider]}
               >
                 {/* Selected-week marker, as drawn in the mock-up */}
@@ -490,16 +495,19 @@ export default function Review() {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <OutlineButton
-          title={isPremium ? 'All Current Timeframes & Ranges' : 'See Effective Ranges of TEI'}
-          // The generated Expo route union refreshes on the next dev/build
-          // pass; keep this conditional route valid for a clean type check.
-          onPress={() => router.push((isPremium ? '/review-timeframe' : '/ranges') as never)}
-          fontSize={21}
-          style={styles.rangesBtn}
-        />
+        <View ref={tour.target('ranges')} collapsable={false}>
+          <OutlineButton
+            title={isPremium ? 'All Current Timeframes & Ranges' : 'See Effective Ranges of TEI'}
+            // The generated Expo route union refreshes on the next dev/build
+            // pass; keep this conditional route valid for a clean type check.
+            onPress={() => router.push((isPremium ? '/review-timeframe' : '/ranges') as never)}
+            fontSize={21}
+            style={styles.rangesBtn}
+          />
+        </View>
       </View>
 
+      {tour.overlay}
       <DaySessionsSheet
         date={selectedDay}
         sessions={selectedSessions}

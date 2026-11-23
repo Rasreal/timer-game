@@ -12,6 +12,8 @@ import {
   fillParent,
 } from '../src/components/Icons';
 import { useAuth } from '../src/auth';
+import { useTour } from '../src/components/Tour';
+import { TOURS } from '../src/lib/tours';
 import { latestSession } from '../src/lib/sessions';
 import { SESSION_TARGET, displayTei } from '../src/lib/tei';
 import type { SessionRow } from '../src/lib/database.types';
@@ -85,6 +87,8 @@ export default function Home() {
   const { showToast, resetSession } = useStore();
   const { profile, profileError, reloadProfile } = useAuth();
   const [menu, setMenu] = useState<Menu | null>(null);
+  // Wait for the profile so the name and tiles are in place first.
+  const tour = useTour('home', TOURS.home, { ready: profile != null });
 
   const firstName = profile ? profile.first_name.trim() || profile.email : '';
 
@@ -143,6 +147,7 @@ export default function Home() {
           <Text style={styles.lockupTei}>TEI</Text>
         </View>
         <Text
+          ref={tour.target('last')}
           style={styles.bigNumber}
           accessibilityLabel={latest ? `Last TEI ${displayTei(Number(latest.tei))}` : 'Last TEI 0'}
           numberOfLines={1}
@@ -214,6 +219,8 @@ export default function Home() {
             );
           }}
           onMenu={() => setMenu('calculate')}
+          tileRef={tour.target('calculate')}
+          menuRef={tour.target('menu')}
         />
         <Tile
           title="Review"
@@ -242,6 +249,7 @@ export default function Home() {
           icon={<PersonIcon color="#000" />}
           onPress={() => router.push('/profile')}
           onMenu={() => setMenu('profile')}
+          tileRef={tour.target('profile')}
         />
       </View>
 
@@ -267,6 +275,7 @@ export default function Home() {
           if (option) router.push(option.route as never);
         }}
       />
+      {tour.overlay}
     </View>
   );
 }
@@ -277,6 +286,8 @@ function Tile({
   locked = false,
   onPress,
   onMenu,
+  tileRef,
+  menuRef,
 }: {
   title: string;
   icon: ReactNode;
@@ -284,6 +295,9 @@ function Tile({
   onPress: () => void;
   /** Opens the tile's HELP options; ignored while the tile is locked. */
   onMenu: () => void;
+  /** Where the first-time tour points at the tile and its ellipsis. */
+  tileRef?: (node: unknown) => void;
+  menuRef?: (node: unknown) => void;
 }) {
   const accent = useAccent();
   const name = title.replace('\n', ' ');
@@ -291,7 +305,7 @@ function Tile({
   return (
     // The ellipsis is a sibling of the tile's Pressable, not nested in it, so
     // the two stay separate tap targets (and valid buttons on web).
-    <View style={styles.tile}>
+    <View style={styles.tile} ref={tileRef as never} collapsable={false}>
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
@@ -325,6 +339,7 @@ function Tile({
         </Text>
       ) : (
         <Pressable
+          ref={menuRef as never}
           onPress={onMenu}
           accessibilityRole="button"
           accessibilityLabel={`${name} options`}
