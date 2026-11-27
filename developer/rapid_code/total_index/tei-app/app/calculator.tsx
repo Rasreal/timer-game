@@ -34,20 +34,35 @@ export default function Calculator() {
   // day rather than logging a session that already happened.
   const { plan: planDay } = useLocalSearchParams<{ plan?: string }>();
   const insets = useSafeAreaInsets();
-  const { session, setSessionField, setSessionDate, resetSession, showToast, targetRange } =
-    useStore();
+  const {
+    session,
+    setSessionField,
+    scored,
+    setScored,
+    setSessionDate,
+    resetSession,
+    showToast,
+    targetRange,
+  } = useStore();
   const { profile } = useAuth();
   // A saved session opened from Review for correction. Planner mode never
   // edits, and a draft loaded for another calculator is not ours to edit.
   const editing =
     !planDay && session.editing?.calculator === 'standard' ? session.editing : null;
-  const lift = useKeyboardLift(insets.top);
+  const lift = useKeyboardLift(insets.top, { spacer: 8 });
   const accent = useAccent();
   const tour = useTour('calculator', TOURS.calculator);
+  const inputsKey = `${session.sets}|${session.restSeconds}|${session.exertionPercent}|${session.cardioMinutes}`;
+  // A score calculated before this screen was rebuilt (Interpret Score and
+  // back, say) still stands while the inputs are the ones it scored.
+  const kept =
+    scored?.calculator === 'standard' && scored.inputs === inputsKey
+      ? scored
+      : null;
   // An opened session already has its score, so it starts calculated.
-  const [calculated, setCalculated] = useState(editing !== null);
+  const [calculated, setCalculated] = useState(editing !== null || kept !== null);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(kept?.saved === true);
   const [saveError, setSaveError] = useState<string | null>(null);
   // A value typed straight into a ring that falls outside LIMITS. Shown next
   // to the CTA in the same style as a save failure.
@@ -85,7 +100,6 @@ export default function Calculator() {
   // so the user re-calculates before SAVE (a new session, or the corrected
   // one when editing). Compared by value so the mount (and a strict-mode
   // re-run) does not wipe an opened session's score.
-  const inputsKey = `${session.sets}|${session.restSeconds}|${session.exertionPercent}|${session.cardioMinutes}`;
   const lastInputs = useRef(inputsKey);
   useEffect(() => {
     if (lastInputs.current === inputsKey) return;
@@ -93,7 +107,8 @@ export default function Calculator() {
     setCalculated(false);
     setSaved(false);
     setSaveError(null);
-  }, [inputsKey]);
+    setScored(null);
+  }, [inputsKey, setScored]);
 
   // Client's tiered intent: on Basic and above, tapping a timeframe on the
   // Effective Ranges screen makes it the denominator of "% of Target".
@@ -141,9 +156,11 @@ export default function Calculator() {
     setSaveError(null);
     if (checkRange()) {
       setCalculated(false);
+      setScored(null);
       return;
     }
     setCalculated(true);
+    setScored({ calculator: 'standard', inputs: inputsKey, tei: result.tei });
 
     // The big number already shows the score; a toast would only cover the
     // buttons. The over-33 warning still needs saying.
@@ -240,6 +257,7 @@ export default function Calculator() {
     }
 
     setSaved(true);
+    setScored({ calculator: 'standard', inputs: inputsKey, tei: result.tei, saved: true });
     showToast(warning ?? `Saved — TEI ${result.tei.toFixed(2)}`);
   }
 
@@ -254,6 +272,8 @@ export default function Calculator() {
       {tour.overlay}
       <ScrollView
         ref={lift.scrollRef}
+        onScroll={lift.onScroll}
+        scrollEventThrottle={16}
         style={{ flex: 1, backgroundColor: colors.bg }}
         contentContainerStyle={{
           paddingTop: insets.top + 2,
@@ -385,7 +405,13 @@ export default function Calculator() {
         />
 
         {/* Four variable rings */}
-        <View style={styles.ringGrid} ref={tour.target('rings')} collapsable={false}>
+        <View
+          style={styles.ringGrid}
+          ref={tour.target('rings')}
+          collapsable={false}
+          onLayout={lift.onRingsLayout}
+          onFocus={lift.onFieldFocus}
+        >
           {/* Spec (deck slide 13): every calculator offers two layers of data
               entry — direct entry into the circle, or the ellipsis for a
               dedicated screen explaining the variable. */}
@@ -423,36 +449,44 @@ export default function Calculator() {
                 session.exertionPercent > LIMITS.exertion.max)
             }
           />
-          <Ring
-            value={session.cardioMinutes}
-            label="Minutes"
-            onChange={(v) => {
-              setSessionField('cardioMinutes', v);
-              // Client rule: someone logging a Cardio ONLY session enters cardio
-              // first, so zero-fill the untouched strength variables rather than
-              // making them type three zeros.
-              if (
-                v !== null &&
-                session.sets === null &&
-                session.restSeconds === null &&
-                session.exertionPercent === null
-              ) {
-                setSessionField('sets', 0);
-                setSessionField('restSeconds', 0);
-                setSessionField('exertionPercent', 0);
+          {/* The tour's Cardio ONLY tip points at this ring. */}
+          <View ref={tour.target('minutes')} collapsable={false}>
+            <Ring
+              value={session.cardioMinutes}
+              label="Minutes"
+              onChange={(v) => {
+                setSessionField('cardioMinutes', v);
+                // Client rule: someone logging a Cardio ONLY session enters cardio
+                // first, so zero-fill the untouched strength variables rather than
+                // making them type three zeros.
+                if (
+                  v !== null &&
+                  session.sets === null &&
+                  session.restSeconds === null &&
+                  session.exertionPercent === null
+                ) {
+                  setSessionField('sets', 0);
+                  setSessionField('restSeconds', 0);
+                  setSessionField('exertionPercent', 0);
+                }
+              }}
+              onEllipsis={() => router.push('/entry/cardio?from=standard' as never)}
+              overRange={
+                session.cardioMinutes !== null &&
+                session.cardioMinutes > LIMITS.cardio.overAt
               }
-            }}
-            onEllipsis={() => router.push('/entry/cardio?from=standard' as never)}
-            overRange={
-              session.cardioMinutes !== null &&
-              session.cardioMinutes > LIMITS.cardio.overAt
-            }
-          />
+            />
+          </View>
         </View>
 
         <View style={{ flex: 1, minHeight: 8 }} />
 
-        <View style={{ flexDirection: 'row', gap: 16 }} ref={tour.target('calculate')} collapsable={false}>
+        <View
+          style={{ flexDirection: 'row', gap: 16 }}
+          ref={tour.target('calculate')}
+          collapsable={false}
+          onLayout={lift.belowLayout('cta')}
+        >
           <OutlineButton
             title="Calculate TEI"
             disabled={!complete}

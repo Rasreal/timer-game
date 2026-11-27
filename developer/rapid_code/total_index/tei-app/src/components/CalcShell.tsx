@@ -8,7 +8,7 @@ import { DatePicker } from './DatePicker';
 import { DeleteSessionButton } from './DeleteSessionButton';
 import { useKeyboardLift } from './useKeyboardLift';
 import { useTour } from './Tour';
-import { TOURS } from '../lib/tours';
+import { CALC_SHELL_TOUR } from '../lib/tours';
 import { useAuth } from '../auth';
 import { formatSessionDate, useStore } from '../store';
 import { saveSession, updateSession } from '../lib/sessions';
@@ -52,9 +52,8 @@ export interface CalcShellProps {
    */
   showRangesPill?: boolean;
   /**
-   * Screens whose rings wrap to three rows (Breakdown) need a tighter gap
-   * between the rows than the two-row screens, so the whole page still lands
-   * above the fold. Purely spacing — see `styles.ringRow`.
+   * Pulls the ring rows together so a row with a single ring (Breakdown,
+   * Yoga) nests between its neighbours. Purely spacing — see `styles.ringsTight`.
    */
   tightRings?: boolean;
   children: ReactNode;
@@ -75,20 +74,28 @@ export function CalcShell({
   // instead of logging a session that already happened.
   const { plan: planDay } = useLocalSearchParams<{ plan?: string }>();
   const insets = useSafeAreaInsets();
-  const { session, setSessionDate, resetSession, showToast, targetRange } = useStore();
+  const { session, scored, setScored, setSessionDate, resetSession, showToast, targetRange } = useStore();
   const { profile } = useAuth();
   // Shared with the Standard calculator, so it shows on the first calculator only.
-  const tour = useTour('calculator', TOURS.calculator);
+  const tour = useTour('calculator', CALC_SHELL_TOUR);
   // A saved session of this calculator opened from Review for correction.
   const editing =
     !planDay && session.editing?.calculator === calculator ? session.editing : null;
-  const lift = useKeyboardLift(insets.top);
+  // The spacer's minimum height plus the green label's margins.
+  const lift = useKeyboardLift(insets.top, { spacer: 4 + 8 });
+  const fieldsKey = JSON.stringify(saveFields);
+  // A score calculated before this screen was rebuilt (Interpret Score and
+  // back, say) still stands while the inputs are the ones it scored.
+  const kept =
+    scored?.calculator === calculator && scored.inputs === fieldsKey
+      ? scored
+      : null;
   // An opened session already has its score.
-  const [tei, setTei] = useState<number | null>(editing ? editing.tei : null);
+  const [tei, setTei] = useState<number | null>(editing ? editing.tei : (kept?.tei ?? null));
   const [saving, setSaving] = useState(false);
   // Same guard as app/calculator.tsx: SAVE is a single-shot action, so a
   // second press must not write a duplicate row.
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(kept?.saved === true);
   const [rangeError, setRangeError] = useState<string | null>(null);
   const [pickingDate, setPickingDate] = useState(false);
   const accent = useAccent();
@@ -109,14 +116,14 @@ export function CalcShell({
   // re-calculates, and the new inputs may be saved as their own session.
   // Compared by value so the mount (and a strict-mode re-run) does not wipe an
   // opened session's score.
-  const fieldsKey = JSON.stringify(saveFields);
   const lastFields = useRef(fieldsKey);
   useEffect(() => {
     if (lastFields.current === fieldsKey) return;
     lastFields.current = fieldsKey;
     setTei(null);
     setSaved(false);
-  }, [fieldsKey]);
+    setScored(null);
+  }, [fieldsKey, setScored]);
 
   const score = tei === null ? 0 : displayTei(tei);
   const over = tei !== null && tei > LIMITS.tei.overAt;
@@ -147,6 +154,7 @@ export function CalcShell({
     if (checkRange()) return;
     const next = compute();
     setTei(next);
+    setScored({ calculator, inputs: fieldsKey, tei: next });
 
     // The client considers a TEI above 33 practically unsurvivable, so this
     // almost always means the inputs were misunderstood rather than a real
@@ -255,7 +263,10 @@ export function CalcShell({
     });
     setSaving(false);
 
-    if (!error) setSaved(true);
+    if (!error) {
+      setSaved(true);
+      setScored({ calculator, inputs: fieldsKey, tei, saved: true });
+    }
     showToast(error ? `Could not save: ${error}` : `Saved — TEI ${tei.toFixed(2)}`);
   }
 
@@ -270,6 +281,8 @@ export function CalcShell({
       {tour.overlay}
       <ScrollView
         ref={lift.scrollRef}
+        onScroll={lift.onScroll}
+        scrollEventThrottle={16}
         style={{ flex: 1, backgroundColor: colors.bg }}
         contentContainerStyle={{
           paddingTop: insets.top + 2,
@@ -384,15 +397,24 @@ export function CalcShell({
           style={[styles.rings, tightRings && styles.ringsTight]}
           ref={tour.target('rings')}
           collapsable={false}
+          onLayout={lift.onRingsLayout}
+          onFocus={lift.onFieldFocus}
         >
           {children}
         </View>
 
         <View style={{ flex: 1, minHeight: 4 }} />
 
-        <Text style={styles.greenLabel}>{sessionLabel}</Text>
+        <Text style={styles.greenLabel} onLayout={lift.belowLayout('label')}>
+          {sessionLabel}
+        </Text>
 
-        <View style={styles.ctaRow} ref={tour.target('calculate')} collapsable={false}>
+        <View
+          style={styles.ctaRow}
+          ref={tour.target('calculate')}
+          collapsable={false}
+          onLayout={lift.belowLayout('cta')}
+        >
           <OutlineButton
             title="Calculate TEI"
             disabled={!complete}
@@ -564,8 +586,9 @@ const styles = StyleSheet.create({
   },
   calDot: { width: 3, height: 3, backgroundColor: '#E0E0E0' },
   rings: { marginTop: 10, marginBottom: 6, rowGap: 4 },
-  // Breakdown wraps to three ring rows; pulling the rows together (and the
-  // block up under the session date) is what keeps its CTA above the fold.
+  // Breakdown and Yoga have a row with a single ring; pulling the rows
+  // together nests it between its neighbours. The page scrolls (Ken's 11 Nov
+  // 2026 edits), so this is for looks, not to keep the CTA above the fold.
   ringsTight: { marginTop: -4, marginBottom: -4, rowGap: -18 },
   ringRow: {
     flexDirection: 'row',

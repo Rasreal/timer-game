@@ -482,6 +482,44 @@ describe('calculator — navigation', () => {
     expect(router.push).toHaveBeenCalledWith('/training-scale');
   });
 
+  // Ken's 23 Nov 2026 bug: after Interpret Score and back, the score and the
+  // variables must still be there, even if the screen was rebuilt meanwhile.
+  it('keeps the score and variables after Interpret Score and back', () => {
+    const { remount, store } = renderCalc(<Calculator />, { seed: REFERENCE });
+    fireEvent.press(screen.getByText('Calculate TEI'));
+    const score = String(displayTei(calculateTei(REFERENCE).tei));
+    expect(screen.getByText(score)).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Interpret Score'));
+    remount();
+
+    expect(screen.getByText(score)).toBeTruthy();
+    expect(store.current()).toMatchObject(REFERENCE);
+    expect(screen.getByDisplayValue('11')).toBeTruthy();
+    expect(screen.getByDisplayValue('41')).toBeTruthy();
+  });
+
+  it('does not offer SAVE again for a saved session after the screen is rebuilt', async () => {
+    auth('basic');
+    const { remount } = renderCalc(<Calculator />, { seed: REFERENCE });
+    fireEvent.press(screen.getByText('Calculate TEI'));
+    fireEvent.press(screen.getByText('SAVE'));
+    await waitFor(() => expect(saveSession).toHaveBeenCalledTimes(1));
+    remount();
+    fireEvent.press(screen.getByText('SAVE'));
+    await waitFor(() => expect(saveSession).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(String(displayTei(calculateTei(REFERENCE).tei)))).toBeTruthy();
+  });
+
+  it('drops a kept score once a variable changes', () => {
+    const { remount, store } = renderCalc(<Calculator />, { seed: REFERENCE });
+    fireEvent.press(screen.getByText('Calculate TEI'));
+    const score = String(displayTei(calculateTei(REFERENCE).tei));
+    store.set('sets', 12);
+    remount();
+    expect(screen.queryByText(score)).toBeNull();
+  });
+
   it('falls back to /home when there is nothing to go back to', () => {
     (router as unknown as { canGoBack: jest.Mock }).canGoBack = jest.fn(
       () => false,

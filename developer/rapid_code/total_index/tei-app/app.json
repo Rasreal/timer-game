@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rhinoathletics.tei",
-      "buildNumber": "9",
+      "buildNumber": "11",
       "appleTeamId": "UDD38L4JNJ",
       "associatedDomains": ["applinks:tei-app-blue.vercel.app"],
       "infoPlist": {

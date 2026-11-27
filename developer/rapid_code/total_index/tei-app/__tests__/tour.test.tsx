@@ -5,8 +5,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { resetTours, useTour, type TourStep } from '../src/components/Tour';
-import { TOURS } from '../src/lib/tours';
+import { plainTip, resetTours, tipRuns, useTour, type TourStep } from '../src/components/Tour';
+import { CALC_SHELL_TOUR, TOURS } from '../src/lib/tours';
 
 jest.mock('../src/auth', () => ({
   useAuth: () => ({ session: { user: { id: 'user-1' } } }),
@@ -143,10 +143,48 @@ describe('first-time tour', () => {
 });
 
 describe('tour copy', () => {
-  it("keeps Ken's own words for the calculator and the chart", () => {
+  it("keeps Ken's own words, including his 24 Nov 2026 adjustments", () => {
     expect(TOURS.calculator.map((s) => s.text)).toContain(
-      'Tap any three dots for more information.',
+      'Tap any **3 dots** for more information about that feature or item.',
+    );
+    expect(TOURS.home[1].text).toBe(
+      'Tap **Calculate Session** to score a training or activity session.',
     );
     expect(TOURS.trainingScale[0].text).toBe('Tap any “i” for more information.');
+    expect(TOURS.trainingScale[1].text).toContain('**Week & Month**');
+    expect(TOURS.ranges).toHaveLength(1);
+  });
+
+  it('adds the Cardio ONLY tip as calculator tip 5, on the Standard calculator only', () => {
+    expect(TOURS.calculator).toHaveLength(5);
+    expect(TOURS.calculator[4]).toMatchObject({ target: 'minutes' });
+    expect(TOURS.calculator[4].text).toMatch(/^For \*\*Cardio ONLY\*\* sessions/);
+    expect(CALC_SHELL_TOUR.map((s) => s.target)).toEqual([
+      'interpret',
+      'ranges',
+      'rings',
+      'calculate',
+    ]);
+  });
+
+  it('splits a tip into plain and bold runs', () => {
+    expect(tipRuns('Tap **Interpret Score** to see.')).toEqual([
+      { text: 'Tap ', bold: false },
+      { text: 'Interpret Score', bold: true },
+      { text: ' to see.', bold: false },
+    ]);
+    expect(tipRuns('**Tap** any day')).toEqual([
+      { text: 'Tap', bold: true },
+      { text: ' any day', bold: false },
+    ]);
+    expect(plainTip('Tap **Calculate TEI**.')).toBe('Tap Calculate TEI.');
+  });
+
+  it('shows the bold words in bold and reads the tip without the markers', async () => {
+    render(<Screen steps={[{ target: 'a', text: 'Tap **Interpret Score** now' }]} />);
+    await start();
+    expect(screen.getByText('Interpret Score')).toHaveStyle({ fontWeight: '700' });
+    expect(screen.getByLabelText('Tap Interpret Score now Tip 1 of 1.')).toBeTruthy();
+    expect(screen.queryByText(/\*\*/)).toBeNull();
   });
 });

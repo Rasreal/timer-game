@@ -40,6 +40,15 @@ export interface SessionDraft {
 }
 
 /**
+ * The last Calculate on the draft: which calculator, the inputs it scored (as
+ * that calculator keys them) and the TEI. It is kept in the store rather than
+ * in the calculator screen so the score survives the screen being rebuilt,
+ * e.g. after Interpret Score; a calculator shows it only while its inputs
+ * still match. `saved` stops a rebuilt screen offering SAVE again.
+ */
+export type Scored = { calculator: CalculatorId; inputs: string; tei: number; saved?: boolean };
+
+/**
  * UI state that is not the signed-in user.
  *
  * The authenticated user and their profile live in `AuthProvider` (src/auth.tsx),
@@ -63,6 +72,9 @@ interface Store {
     value: number | null,
   ) => void;
   setSessionDate: (iso: string) => void;
+  /** The draft's last calculated score; dropped with the draft. */
+  scored: Scored | null;
+  setScored: (scored: Scored | null) => void;
   /** Open a saved session in its calculator for editing. */
   loadSession: (row: SessionRow) => void;
   resetSession: () => void;
@@ -91,6 +103,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [pendingTier, setPendingTier] = useState<Tier>('elemental');
   const [targetRange, setTargetRange] = useState<string | null>(null);
   const [session, setSession] = useState<SessionDraft>(emptySession);
+  const [scored, setScored] = useState<Scored | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const setSessionField = useCallback(
@@ -105,6 +118,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadSession = useCallback((row: SessionRow) => {
+    setScored(null);
     setSession({
       sets: row.sets,
       restSeconds: row.rest_seconds,
@@ -125,7 +139,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const resetSession = useCallback(() => setSession(emptySession()), []);
+  const resetSession = useCallback(() => {
+    setScored(null);
+    setSession(emptySession());
+  }, []);
 
   // Only the newest toast is shown, so the previous one's timer has to go
   // with it — otherwise it fires mid-life of its replacement and blanks it
@@ -157,6 +174,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       session,
       setSessionField,
       setSessionDate,
+      scored,
+      setScored,
       loadSession,
       resetSession,
       toast,
@@ -168,6 +187,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       session,
       setSessionField,
       setSessionDate,
+      scored,
       loadSession,
       resetSession,
       toast,

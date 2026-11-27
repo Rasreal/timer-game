@@ -6,6 +6,8 @@ import { BackArrow, Divider, OutlineButton } from '../src/components/Chrome';
 import { EFFECTIVE_RANGES } from '../src/lib/tei';
 import { useStore } from '../src/store';
 import { useAuth } from '../src/auth';
+import { useTour } from '../src/components/Tour';
+import { TOURS } from '../src/lib/tours';
 import { colors, useAccent } from '../src/theme';
 
 /** ELEMENTAL Screen 7 — Effective TEI Ranges. */
@@ -17,6 +19,7 @@ export default function Ranges() {
   const { targetRange: selected, setTargetRange: setSelected } = useStore();
   const { profile } = useAuth();
   const accent = useAccent();
+  const tour = useTour('ranges', TOURS.ranges);
   // On Elemental the screen is informational — there is no progress bar to
   // drive — so the instruction is to make a note. Paid tiers actually tap a
   // timeframe, which becomes the denominator of "% of Target".
@@ -53,15 +56,17 @@ export default function Ranges() {
           : 'Make a note of the Timeframe Numbers you want to track for results:'}
       </Text>
 
-      {EFFECTIVE_RANGES.map((r) => (
-        <RangeRow
-          key={r.label}
-          label={r.label}
-          min={r.min}
-          max={r.max}
-          selected={selected === r.label}
-          onSelect={() => setSelected(selected === r.label ? null : r.label)}
-        />
+      {EFFECTIVE_RANGES.map((r, i) => (
+        // The tour points at the first timeframe.
+        <View key={r.label} ref={i === 0 ? tour.target('timeframe') : undefined} collapsable={false}>
+          <RangeRow
+            label={r.label}
+            min={r.min}
+            max={r.max}
+            selected={selected === r.label}
+            onSelect={() => setSelected(selected === r.label ? null : r.label)}
+          />
+        </View>
       ))}
 
       <OutlineButton
@@ -70,6 +75,7 @@ export default function Ranges() {
         fontSize={20}
         style={{ alignSelf: 'flex-start', minWidth: 220, marginTop: 12 }}
       />
+      {tour.overlay}
     </ScrollView>
   );
 }

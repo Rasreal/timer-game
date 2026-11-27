@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, useAccent } from '../theme';
 import { Ellipsis } from './Chrome';
+import { useCalcRingSize } from './ringSize';
 
 /**
  * Premium variable ring with a progress arc (deck: PREMIUM Screens 3-7).
@@ -24,7 +25,7 @@ export function ProgressRing({
   max,
   overAt,
   underAt,
-  size = 132,
+  size: sizeProp,
 }: {
   value: number | null;
   label: string;
@@ -40,9 +41,12 @@ export function ProgressRing({
    * exertion below the 50% the scale starts at).
    */
   underAt?: number;
+  /** Defaults to the shared calculator ring size for this screen width. */
   size?: number;
 }) {
   const accent = useAccent();
+  const screenSize = useCalcRingSize();
+  const size = sizeProp ?? screenSize;
   const span = max - min;
   const pct =
     value === null || span <= 0
@@ -55,7 +59,7 @@ export function ProgressRing({
   const arcColor = over ? colors.red : accent;
 
   const ring = Math.max(6, Math.round(size * 0.085));
-  const numberSize = Math.round(size * 0.34);
+  const numberSize = Math.round(size * 0.38);
   const half = size / 2;
   const inputRef = useRef<TextInput>(null);
   // The inner typing area stops short of the rim, so the annulus and the
@@ -154,7 +158,7 @@ export function ProgressRing({
               placeholderTextColor="#5A5A5A"
               accessibilityLabel={label}
               selectionColor={accent}
-              style={[styles.number, { fontSize: numberSize, width: size * 0.66 }]}
+              style={[styles.number, { fontSize: numberSize, width: size * 0.72 }]}
             />
           ) : (
             <Text style={[styles.number, { fontSize: numberSize }]}>
@@ -162,7 +166,12 @@ export function ProgressRing({
             </Text>
           )}
           {/* One line: "Breakdowns" shrinks rather than breaking mid-word. */}
-          <Text style={styles.label} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          <Text
+            style={[styles.label, { fontSize: Math.max(14, Math.round(size * 0.1)) }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
             {label}
           </Text>
         </Pressable>

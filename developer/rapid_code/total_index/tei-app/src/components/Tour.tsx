@@ -17,6 +17,7 @@ import { useAuth } from '../auth';
 export type TourStep = {
   /** The name a screen gives the element with `tour.target(name)`. */
   target: string;
+  /** The tip. Words between ** and ** show in bold. */
   text: string;
   /**
    * Where across the element the pointer aims, 0 (left edge) to 1 (right
@@ -62,6 +63,17 @@ export async function resetTours(userId: string | null | undefined): Promise<voi
   const keys = await AsyncStorage.getAllKeys();
   await AsyncStorage.multiRemove(keys.filter((k) => k.startsWith(mine)));
 }
+
+/** The tip split into plain and bold runs, from its **bold** markers. */
+export function tipRuns(text: string): { text: string; bold: boolean }[] {
+  return text
+    .split('**')
+    .map((part, i) => ({ text: part, bold: i % 2 === 1 }))
+    .filter((run) => run.text !== '');
+}
+
+/** The tip as read aloud, without its bold markers. */
+export const plainTip = (text: string) => text.split('**').join('');
 
 type Rect = { x: number; y: number; width: number; height: number };
 type Measurable = {
@@ -227,12 +239,22 @@ function TourBubble({
           <Pressable
             onPress={onNext}
             accessibilityRole="button"
-            accessibilityLabel={`${text} Tip ${position} of ${total}.`}
+            accessibilityLabel={`${plainTip(text)} Tip ${position} of ${total}.`}
             accessibilityHint="Shows the next tip"
             testID="tour-bubble"
             style={styles.textRow}
           >
-            <Text style={styles.text}>{text}</Text>
+            <Text style={styles.text}>
+              {tipRuns(text).map((run, i) =>
+                run.bold ? (
+                  <Text key={i} style={styles.bold}>
+                    {run.text}
+                  </Text>
+                ) : (
+                  run.text
+                ),
+              )}
+            </Text>
             <Text style={styles.close}>✕</Text>
           </Pressable>
           {total > 1 && (
@@ -299,6 +321,7 @@ const styles = StyleSheet.create({
   },
   textRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   text: { flex: 1, color: '#1A1A1A', fontSize: 16, lineHeight: 21 },
+  bold: { fontWeight: '700' },
   close: { color: '#5A4A00', fontSize: 13, marginTop: 1 },
   footer: {
     flexDirection: 'row',

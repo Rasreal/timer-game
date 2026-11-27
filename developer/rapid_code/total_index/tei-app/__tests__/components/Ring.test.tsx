@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { View } from 'react-native';
+import { Dimensions, View } from 'react-native';
 import { Ring } from '../../src/components/Ring';
+import { calcRingSize } from '../../src/components/ringSize';
 import { ProgressRing } from '../../src/components/ProgressRing';
 import { colors } from '../../src/theme';
 
@@ -256,7 +257,7 @@ describe('Ring', () => {
           />,
         );
 
-        const size = variant === 'hero' ? 236 : 132;
+        const size = variant === 'hero' ? 236 : calcRingSize(Dimensions.get('window').width);
         const area = innerTapArea(
           screen.getByLabelText('Sets'),
           screen.getByLabelText('Sets ring'),
@@ -512,5 +513,30 @@ describe('ProgressRing', () => {
       expect(bigStyle.bottom as number).toBeGreaterThan(smallStyle.bottom as number);
       assertNoNaN();
     });
+  });
+});
+
+// Ken's 11 Nov 2026 edits: larger calculator rings, two to a row.
+describe('calculator ring size', () => {
+  it('fills about 45% of the row on a typical phone', () => {
+    expect(calcRingSize(402)).toBe(163);
+    expect(calcRingSize(375)).toBe(151);
+  });
+
+  it('never drops below the old 132pt or grows past 172pt', () => {
+    expect(calcRingSize(320)).toBe(132);
+    expect(calcRingSize(1024)).toBe(172);
+  });
+
+  it('scales the grid ring and its number with the screen', () => {
+    const size = calcRingSize(Dimensions.get('window').width);
+    render(<Ring value={41} label="Minutes" onChange={jest.fn()} onEllipsis={jest.fn()} />);
+    const ring = screen.getByLabelText('Minutes ring');
+    const flat = [ring.props.style].flat(3).reduce((acc, st) => ({ ...acc, ...st }), {});
+    expect(flat.width).toBe(size);
+    const field = [screen.getByLabelText('Minutes').props.style]
+      .flat(3)
+      .reduce((acc, st) => ({ ...acc, ...st }), {});
+    expect(field.fontSize).toBe(Math.round(size * 0.4));
   });
 });

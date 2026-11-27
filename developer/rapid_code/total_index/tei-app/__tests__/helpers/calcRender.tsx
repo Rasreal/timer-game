@@ -46,6 +46,11 @@ function Probe({ onReady }: { onReady: (s: ReturnType<typeof useStore>) => void 
 
 export interface RenderCalcResult extends RenderResult {
   store: StoreHandle;
+  /**
+   * Unmount the screen and mount it again under the same store, as when the
+   * navigator rebuilds it (local state gone, the draft kept).
+   */
+  remount: () => void;
 }
 
 export function renderCalc(
@@ -106,7 +111,12 @@ export function renderCalc(
   if (options.seed) store.seed(options.seed);
   if (deferred) act(() => result.rerender(tree(ui)));
 
-  return Object.assign(result, { store });
+  const remount = () => {
+    act(() => result.rerender(tree(null)));
+    act(() => result.rerender(tree(ui)));
+  };
+
+  return Object.assign(result, { store, remount });
 }
 
 /** A profile object shaped like `ProfileRow`, for the useAuth mock. */

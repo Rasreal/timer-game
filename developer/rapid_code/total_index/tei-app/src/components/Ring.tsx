@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, useAccent } from '../theme';
 import { Ellipsis } from './Chrome';
+import { useCalcRingSize } from './ringSize';
 
 /**
  * The circular variable inputs used across every calculator screen.
@@ -27,8 +28,13 @@ export function Ring({
 }) {
   const accent = useAccent();
   const hero = variant === 'hero';
-  const size = hero ? 236 : 132;
-  const numberSize = hero ? 74 : 44;
+  // The calculator rings scale with the screen (Ken's 11 Nov 2026 edits);
+  // their number, label, rim and dots scale with them.
+  const gridSize = useCalcRingSize();
+  const size = hero ? 236 : gridSize;
+  const numberSize = hero ? 74 : Math.round(size * 0.4);
+  const rim = Math.round(size * 0.09);
+  const fieldWidth = hero ? 168 : Math.round(size * 0.8);
   const inputRef = useRef<TextInput>(null);
 
   // The ring graphic itself is the affordance: a press anywhere on the annulus
@@ -60,7 +66,7 @@ export function Ring({
             alignItems: 'center',
             justifyContent: 'center',
           },
-          hero ? styles.heroOuter : styles.gridOuter,
+          hero ? styles.heroOuter : [styles.gridOuter, { borderWidth: rim }],
         ]}
       >
         {/* Inner well on the hero ring */}
@@ -73,7 +79,7 @@ export function Ring({
               styles.overRangeClip,
               hero
                 ? { top: 26, left: 26, right: 26, bottom: 26, borderRadius: (size - 52) / 2 }
-                : { top: -11, left: -11, right: -11, bottom: -11, borderRadius: size / 2 + 11 },
+                : { top: -rim, left: -rim, right: -rim, bottom: -rim, borderRadius: size / 2 + rim },
             ]}
             pointerEvents="none"
           >
@@ -96,7 +102,7 @@ export function Ring({
           style={{
             alignItems: 'center',
             marginTop: hero ? -10 : -4,
-            width: hero ? 168 : 104,
+            width: fieldWidth,
           }}
         >
           {onChange ? (
@@ -116,7 +122,7 @@ export function Ring({
               accessibilityLabel={label}
               selectionColor={accent}
               style={{
-                width: hero ? 168 : 104,
+                width: fieldWidth,
                 height: numberSize + 12,
                 textAlign: 'center',
                 textAlignVertical: 'center',
@@ -145,7 +151,7 @@ export function Ring({
           )}
           <Text
             style={{
-              fontSize: hero ? 25 : 14,
+              fontSize: hero ? 25 : Math.max(14, Math.round(size * 0.105)),
               color: '#D8D8D8',
               marginTop: hero ? 0 : -1,
             }}
@@ -158,7 +164,7 @@ export function Ring({
             Ken's original design, which saves the vertical space. */}
         {onEllipsis && (
           <View
-            style={[styles.embeddedEllipsis, { bottom: hero ? 30 : 6 }]}
+            style={[styles.embeddedEllipsis, { bottom: hero ? 30 : Math.round(size * 0.05) }]}
             pointerEvents="box-none"
           >
             <Ellipsis onPress={onEllipsis} label={`More about ${label}`} />
@@ -171,7 +177,6 @@ export function Ring({
 
 const styles = StyleSheet.create({
   gridOuter: {
-    borderWidth: 11,
     borderColor: colors.ring,
   },
   heroOuter: {

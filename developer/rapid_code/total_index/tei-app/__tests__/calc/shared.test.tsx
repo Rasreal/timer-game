@@ -140,6 +140,16 @@ describe('CalcShell — Interpret Score', () => {
     fireEvent.press(screen.getByLabelText('Interpret Score'));
     expect(router.push).toHaveBeenCalledWith('/training-scale');
   });
+
+  it('keeps the score after Interpret Score and back, even if the screen is rebuilt', () => {
+    const { remount, compute } = renderShell({ tei: 13.78 });
+    pressCalculate();
+    fireEvent.press(screen.getByLabelText('Interpret Score'));
+    remount();
+    expect(screen.getByText(String(displayTei(13.78)))).toBeTruthy();
+    // Restored, not re-computed.
+    expect(compute).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('CalcShell — calculate', () => {
